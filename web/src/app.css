@@ -1,0 +1,10 @@
+/* Self-hosted variable fonts — no external requests. */
+@import '@fontsource-variable/mona-sans';
+@import '@fontsource-variable/geist-mono';
+
+@import 'tailwindcss';
+@import './lib/styles/tokens.css';
+@import './lib/styles/base.css';
+
+/* Theme is driven by `data-theme` on <html>, not by OS preference alone. */
+@custom-variant light (&:where([data-theme='light'], [data-theme='light'] *));

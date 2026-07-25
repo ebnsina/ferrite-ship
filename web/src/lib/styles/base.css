@@ -1,0 +1,69 @@
+/*
+ * Element defaults and cross-cutting behaviour. Nothing component-specific.
+ */
+
+@layer base {
+	html {
+		color-scheme: dark;
+		scrollbar-color: var(--ui-border-strong) transparent;
+	}
+
+	[data-theme='light'] {
+		color-scheme: light;
+	}
+
+	body {
+		background-color: var(--ui-canvas);
+		color: var(--ui-content);
+		font-family: var(--font-sans);
+		-webkit-font-smoothing: antialiased;
+		text-rendering: optimizeLegibility;
+	}
+
+	/*
+	 * Numbers must not jitter as they update — every metric in this product
+	 * refreshes on a timer and sits in a column.
+	 */
+	:where(table, [data-numeric]) {
+		font-variant-numeric: tabular-nums;
+	}
+
+	:focus-visible {
+		outline: 2px solid var(--ui-accent);
+		outline-offset: 2px;
+		border-radius: var(--radius-xs);
+	}
+
+	::selection {
+		background-color: var(--ui-accent);
+		color: var(--ui-accent-content);
+	}
+
+	:where(h1, h2, h3, h4) {
+		text-wrap: balance;
+	}
+
+	:where(p) {
+		text-wrap: pretty;
+	}
+
+	/* Respect users who ask for less motion. */
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		::before,
+		::after {
+			animation-duration: 0.01ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.01ms !important;
+			scroll-behavior: auto !important;
+		}
+	}
+}
+
+@layer utilities {
+	/* Machine-generated text: paths, hostnames, IPs, commands, hashes. */
+	.font-machine {
+		font-family: var(--font-mono);
+		font-feature-settings: 'liga' 0;
+	}
+}

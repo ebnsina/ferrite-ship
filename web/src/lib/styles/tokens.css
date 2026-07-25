@@ -1,0 +1,179 @@
+/*
+ * ferrite-ship design tokens
+ * ---------------------------------------------------------------------------
+ * Three tiers, each referencing only the tier above it:
+ *   1. Primitives — raw scales. Never referenced by components directly.
+ *   2. Semantic   — role-based names. The ONLY tier components may use.
+ *   3. Component  — per-component overrides, defined alongside the component.
+ *
+ * Brand: "lime peel" — a high-chroma yellow-green. Used as the single accent.
+ * Theme: dark-first (operations tooling lives in dark mode); light is derived.
+ */
+
+/* ── Tier 1: primitives ──────────────────────────────────────────────────── */
+
+@theme {
+	/* Brand — lime peel */
+	--color-brand-50: oklch(0.982 0.028 122);
+	--color-brand-100: oklch(0.958 0.058 122);
+	--color-brand-200: oklch(0.918 0.108 122);
+	--color-brand-300: oklch(0.868 0.152 123);
+	--color-brand-400: oklch(0.812 0.186 124);
+	--color-brand-500: oklch(0.762 0.196 125);
+	--color-brand-600: oklch(0.652 0.172 126);
+	--color-brand-700: oklch(0.532 0.14 127);
+	--color-brand-800: oklch(0.432 0.112 128);
+	--color-brand-900: oklch(0.362 0.09 129);
+	--color-brand-950: oklch(0.242 0.062 130);
+
+	/* Neutrals — carry a trace of the brand hue so greys sit with the accent */
+	--color-ink-50: oklch(0.985 0.002 120);
+	--color-ink-100: oklch(0.968 0.003 120);
+	--color-ink-200: oklch(0.928 0.004 120);
+	--color-ink-300: oklch(0.868 0.005 120);
+	--color-ink-400: oklch(0.708 0.006 120);
+	--color-ink-500: oklch(0.572 0.006 120);
+	--color-ink-600: oklch(0.462 0.006 120);
+	--color-ink-700: oklch(0.378 0.007 120);
+	--color-ink-800: oklch(0.276 0.007 120);
+	--color-ink-850: oklch(0.222 0.007 120);
+	--color-ink-900: oklch(0.186 0.007 120);
+	--color-ink-950: oklch(0.148 0.006 120);
+	--color-ink-1000: oklch(0.118 0.005 120);
+
+	/* Status — "ok" is deliberately shifted to emerald so it never reads as brand */
+	--color-signal-ok: oklch(0.72 0.17 155);
+	--color-signal-warn: oklch(0.8 0.16 75);
+	--color-signal-error: oklch(0.65 0.21 25);
+	--color-signal-info: oklch(0.7 0.14 240);
+
+	/* Typography */
+	--font-sans: 'Mona Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+	--font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+	/*
+	 * Radius scale — chosen per element size, never applied uniformly.
+	 * A radius that flatters a 40px button turns a 60px tile into a lozenge,
+	 * so each role gets its own value and components use these names only.
+	 */
+	--radius-pill: 9999px; /* badges, status pills, meter bars */
+	--radius-control: 9999px; /* buttons — fully rounded by intent */
+	--radius-field: 0.75rem; /* inputs, selects */
+	--radius-tile: 0.875rem; /* small tiles, nav items, icon chips */
+	--radius-card: 1.25rem; /* cards and panels */
+	--radius-panel: 1.75rem; /* large feature surfaces and hero blocks */
+
+	/* Motion */
+	--ease-snappy: cubic-bezier(0.2, 0, 0, 1);
+	--ease-fluid: cubic-bezier(0.3, 0, 0, 1);
+}
+
+/* ── Tier 2: semantic ────────────────────────────────────────────────────── */
+
+:root,
+[data-theme='dark'] {
+	--ui-canvas: var(--color-ink-1000);
+	--ui-surface: var(--color-ink-950);
+	--ui-surface-raised: var(--color-ink-900);
+	--ui-surface-sunken: oklch(0.098 0.005 120);
+	--ui-surface-inverse: var(--color-ink-50);
+
+	--ui-border: var(--color-ink-850);
+	--ui-border-strong: var(--color-ink-700);
+
+	--ui-content: var(--color-ink-100);
+	--ui-content-muted: var(--color-ink-400);
+	--ui-content-subtle: var(--color-ink-500);
+	--ui-content-inverse: var(--color-ink-1000);
+
+	--ui-accent: var(--color-brand-500);
+	--ui-accent-hover: var(--color-brand-400);
+	--ui-accent-content: var(--color-ink-1000);
+	--ui-accent-soft: color-mix(in oklch, var(--color-brand-500) 14%, transparent);
+	--ui-accent-border: color-mix(in oklch, var(--color-brand-500) 34%, transparent);
+
+	--ui-ok: var(--color-signal-ok);
+	--ui-warn: var(--color-signal-warn);
+	--ui-error: var(--color-signal-error);
+	--ui-info: var(--color-signal-info);
+	--ui-pending: var(--color-ink-400);
+
+	--ui-ok-soft: color-mix(in oklch, var(--color-signal-ok) 16%, transparent);
+	--ui-warn-soft: color-mix(in oklch, var(--color-signal-warn) 16%, transparent);
+	--ui-error-soft: color-mix(in oklch, var(--color-signal-error) 16%, transparent);
+	--ui-info-soft: color-mix(in oklch, var(--color-signal-info) 16%, transparent);
+	--ui-pending-soft: color-mix(in oklch, var(--color-ink-400) 14%, transparent);
+}
+
+[data-theme='light'] {
+	--ui-canvas: var(--color-ink-50);
+	--ui-surface: oklch(1 0 0);
+	--ui-surface-raised: oklch(1 0 0);
+	--ui-surface-sunken: var(--color-ink-100);
+	--ui-surface-inverse: var(--color-ink-1000);
+
+	--ui-border: var(--color-ink-200);
+	--ui-border-strong: var(--color-ink-300);
+
+	--ui-content: var(--color-ink-950);
+	--ui-content-muted: var(--color-ink-600);
+	--ui-content-subtle: var(--color-ink-500);
+	--ui-content-inverse: var(--color-ink-50);
+
+	--ui-accent: var(--color-brand-600);
+	--ui-accent-hover: var(--color-brand-700);
+	--ui-accent-content: var(--color-ink-1000);
+	--ui-accent-soft: color-mix(in oklch, var(--color-brand-500) 18%, transparent);
+	--ui-accent-border: color-mix(in oklch, var(--color-brand-600) 38%, transparent);
+
+	--ui-ok: oklch(0.58 0.15 155);
+	--ui-warn: oklch(0.66 0.15 70);
+	--ui-error: oklch(0.56 0.2 25);
+	--ui-info: oklch(0.58 0.14 245);
+	--ui-pending: var(--color-ink-500);
+
+	--ui-ok-soft: color-mix(in oklch, var(--color-signal-ok) 18%, transparent);
+	--ui-warn-soft: color-mix(in oklch, var(--color-signal-warn) 22%, transparent);
+	--ui-error-soft: color-mix(in oklch, var(--color-signal-error) 16%, transparent);
+	--ui-info-soft: color-mix(in oklch, var(--color-signal-info) 16%, transparent);
+	--ui-pending-soft: color-mix(in oklch, var(--color-ink-400) 18%, transparent);
+}
+
+/*
+ * Expose the semantic tier as Tailwind utilities: bg-surface, text-content-muted,
+ * border-border, etc. `inline` is required so the var() indirection resolves
+ * against whichever theme block is active at runtime.
+ */
+@theme inline {
+	--color-canvas: var(--ui-canvas);
+	--color-surface: var(--ui-surface);
+	--color-surface-raised: var(--ui-surface-raised);
+	--color-surface-sunken: var(--ui-surface-sunken);
+	--color-surface-inverse: var(--ui-surface-inverse);
+
+	--color-border: var(--ui-border);
+	--color-border-strong: var(--ui-border-strong);
+
+	--color-content: var(--ui-content);
+	--color-content-muted: var(--ui-content-muted);
+	--color-content-subtle: var(--ui-content-subtle);
+	--color-content-inverse: var(--ui-content-inverse);
+
+	--color-accent: var(--ui-accent);
+	--color-accent-hover: var(--ui-accent-hover);
+	--color-accent-content: var(--ui-accent-content);
+	--color-accent-soft: var(--ui-accent-soft);
+	--color-accent-border: var(--ui-accent-border);
+
+	--color-ok: var(--ui-ok);
+	--color-warn: var(--ui-warn);
+	--color-error: var(--ui-error);
+	--color-info: var(--ui-info);
+	--color-pending: var(--ui-pending);
+
+	--color-ok-soft: var(--ui-ok-soft);
+	--color-warn-soft: var(--ui-warn-soft);
+	--color-error-soft: var(--ui-error-soft);
+	--color-info-soft: var(--ui-info-soft);
+	--color-pending-soft: var(--ui-pending-soft);
+}

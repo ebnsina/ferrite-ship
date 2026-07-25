@@ -1,0 +1,34 @@
+# Repository root is the Go control plane; the SvelteKit app lives in web/.
+
+# --- Go ---
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+vendor/
+
+# --- Web ---
+node_modules/
+.svelte-kit/
+build/
+package/
+
+# --- Env: never commit real values. .env.example is the committed contract. ---
+.env
+.env.*
+!.env.example
+
+# --- Internal planning docs and local working data stay out of the public repo ---
+/docs/
+/data/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.vscode/*
+!.vscode/extensions.json
+.idea/
