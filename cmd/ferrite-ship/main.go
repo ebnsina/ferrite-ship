@@ -16,6 +16,7 @@ import (
 	"github.com/ebnsina/ferrite-ship/internal/api"
 	"github.com/ebnsina/ferrite-ship/internal/auth"
 	"github.com/ebnsina/ferrite-ship/internal/config"
+	"github.com/ebnsina/ferrite-ship/internal/console"
 	"github.com/ebnsina/ferrite-ship/internal/dialer"
 	"github.com/ebnsina/ferrite-ship/internal/files"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
@@ -147,6 +148,7 @@ func run(log *slog.Logger) error {
 	// One dialer for everything that reaches a managed server, so host key
 	// checking happens in exactly one place.
 	connections := dialer.New(st, sealer)
+	consoles := console.New(connections)
 
 	bus := runner.NewBus()
 	jobs := runner.New(st, connections, bus, sealer, log)
@@ -163,6 +165,7 @@ func run(log *slog.Logger) error {
 		Terminals:     terminals,
 		Files:         fileBrowser,
 		Services:      units,
+		Console:       consoles,
 		Auth:          accounts,
 		Logger:        log,
 		AllowedOrigin: cfg.AllowedOrigin,

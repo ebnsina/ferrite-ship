@@ -147,7 +147,7 @@
 							: 'Everything else you might want running.'}
 				/>
 
-				<div class="space-y-4">
+				<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 					{#each group.tools as tool (tool.id)}
 						<ToolCard
 							{tool}

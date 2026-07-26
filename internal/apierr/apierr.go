@@ -181,6 +181,14 @@ var (
 		"This tool needs a server people can reach from the internet.",
 		"Simulated servers have no public address, so connect a real one to try this.")
 
+	ToolHasNoConsole = newError(CodeUnsupported, 400,
+		"There is nothing to query in this tool.",
+		"Only databases can be queried. Use the terminal for anything else.")
+
+	EmptyQuery = newError(CodeInvalid, 400,
+		"There is nothing to run.",
+		"Type a query first.")
+
 	ToolNotReady = newError(CodeConflict, 409,
 		"This tool is not finished being set up.",
 		"Wait for the run to finish, then check its connection details.")

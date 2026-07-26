@@ -9,6 +9,7 @@ import (
 
 	"github.com/ebnsina/ferrite-ship/internal/apierr"
 	"github.com/ebnsina/ferrite-ship/internal/catalog"
+	"github.com/ebnsina/ferrite-ship/internal/console"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
 	"github.com/ebnsina/ferrite-ship/internal/store"
 )
@@ -256,4 +257,58 @@ func (a *API) failTool(w http.ResponseWriter, err error) {
 	default:
 		a.failServer(w, err)
 	}
+}
+
+// --- console ----------------------------------------------------------------
+
+type queryRequest struct {
+	Query string `json:"query"`
+}
+
+// handleToolQuery runs one query against an installed tool.
+//
+// The request body is not logged and the response is not cached: a query is
+// the owner's own text and the rows it returns are their own data.
+func (a *API) handleToolQuery(w http.ResponseWriter, r *http.Request) {
+	var req queryRequest
+	if err := decodeJSON(r, &req); err != nil {
+		a.fail(w, apierr.BadRequest.WithCause(err))
+		return
+	}
+
+	server, err := a.store.GetServer(r.Context(), currentUser(r).ID, r.PathValue("id"))
+	if err != nil {
+		a.failServer(w, err)
+		return
+	}
+
+	toolID := r.PathValue("tool")
+
+	// The tool has to be installed and finished installing. Querying one that
+	// is still starting produces a connection error the person cannot act on.
+	installation, err := a.store.GetInstallation(r.Context(), currentUser(r).ID, server.ID, toolID)
+	if err != nil {
+		a.failTool(w, err)
+		return
+	}
+	if installation.Status != store.InstallReady {
+		a.fail(w, apierr.ToolNotReady)
+		return
+	}
+
+	result, err := a.console.Run(r.Context(), currentUser(r).ID, server.ID, toolID, req.Query)
+	switch {
+	case errors.Is(err, console.ErrNoConsole):
+		a.fail(w, apierr.ToolHasNoConsole.WithCause(err))
+		return
+	case errors.Is(err, console.ErrEmptyQuery):
+		a.fail(w, apierr.EmptyQuery.WithCause(err))
+		return
+	case err != nil:
+		a.failTool(w, err)
+		return
+	}
+
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, result)
 }

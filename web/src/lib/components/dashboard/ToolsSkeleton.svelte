@@ -9,18 +9,21 @@
 	let { count = 4 }: Props = $props();
 </script>
 
-<div class="space-y-4">
+<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 	{#each { length: count } as _, index (index)}
 		<Card>
-			<div class="flex items-start gap-4">
+			<div class="flex items-start gap-3">
 				<Skeleton class="size-10 shrink-0" />
 				<div class="flex-1 space-y-2">
-					<Skeleton class="h-4 w-32" />
-					<Skeleton class="h-3 w-full max-w-md" />
-					<Skeleton class="h-3 w-40" />
+					<Skeleton class="h-4 w-28" />
+					<Skeleton class="h-3 w-32" />
 				</div>
-				<Skeleton class="h-8 w-24 shrink-0" />
 			</div>
+			<div class="mt-3 space-y-2">
+				<Skeleton class="h-3 w-full" />
+				<Skeleton class="h-3 w-3/4" />
+			</div>
+			<Skeleton class="mt-5 h-8 w-24" />
 		</Card>
 	{/each}
 </div>

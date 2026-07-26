@@ -36,6 +36,12 @@ type Tool struct {
 	Access *Access `json:"access,omitempty"`
 	// DataNote says in plain language what removing this tool leaves behind.
 	DataNote string `json:"dataNote"`
+	// HasConsole is whether this tool can be queried from the dashboard.
+	HasConsole bool `json:"hasConsole"`
+	// ConsoleLanguage names what you type into it, e.g. "SQL".
+	ConsoleLanguage string `json:"consoleLanguage,omitempty"`
+	// ConsolePlaceholder is an example query for an empty editor.
+	ConsolePlaceholder string `json:"consolePlaceholder,omitempty"`
 	// KeepsData is whether removing this tool can leave something behind, and
 	// therefore whether it is worth offering to delete it. Derived from Volumes
 	// in All() rather than written out per tool, so the two cannot disagree —
@@ -58,6 +64,12 @@ type Tool struct {
 	// env renders the KEY=value lines compose interpolates from. This is the
 	// only file that holds a secret, and it is written 0600.
 	env func(in Install) []string
+	// console is how you query this tool from the dashboard, or nil for one
+	// there is nothing to query.
+	console *Console
+	// backup is how this tool is copied off the server, or nil where that is
+	// not built yet.
+	backup *Backup
 }
 
 // Port is one door a tool opens on the server.
@@ -96,6 +108,11 @@ func All() []Tool {
 	tools := []Tool{postgres, redis, clickhouse, mediamtx}
 	for i := range tools {
 		tools[i].KeepsData = len(tools[i].Volumes) > 0
+		if spec, ok := tools[i].ConsoleSpec(); ok {
+			tools[i].HasConsole = true
+			tools[i].ConsoleLanguage = spec.Language
+			tools[i].ConsolePlaceholder = spec.Placeholder
+		}
 	}
 	return tools
 }

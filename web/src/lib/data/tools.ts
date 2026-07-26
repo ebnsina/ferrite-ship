@@ -28,6 +28,11 @@ export interface Tool {
 	icon: string;
 	/** The tool's own brand colour, as #rrggbb. */
 	accent: string;
+	/** Whether this tool can be queried from the dashboard. */
+	hasConsole: boolean;
+	/** What you type into the console, e.g. "SQL". */
+	consoleLanguage?: string;
+	consolePlaceholder?: string;
 	image: string;
 	version: string;
 	ports: ToolPort[];
@@ -60,6 +65,19 @@ interface StartedJob {
 	id: string;
 }
 
+/** One query's answer. Rows are strings: the shapes differ per database and
+ *  the console displays them rather than computing with them. */
+export interface QueryResult {
+	columns: string[];
+	rows: string[][];
+	/** True when the row cap cut the answer short. */
+	truncated: boolean;
+	/** True when the database rejected the query; message is what it said. */
+	failed: boolean;
+	message?: string;
+	tookMs: number;
+}
+
 function base(serverId: string): string {
 	return `/v1/servers/${encodeURIComponent(serverId)}/tools`;
 }
@@ -82,6 +100,14 @@ export const toolsClient = {
 			`${base(serverId)}/${encodeURIComponent(toolId)}?purge=${purge ? 'true' : 'false'}`,
 			{ method: 'DELETE', signal }
 		),
+
+	/** Runs one query. Never cached and never logged — it is the owner's data. */
+	query: (serverId: string, toolId: string, query: string, signal?: AbortSignal) =>
+		apiRequest<QueryResult>(`${base(serverId)}/${encodeURIComponent(toolId)}/query`, {
+			method: 'POST',
+			body: { query },
+			signal
+		}),
 
 	connection: (serverId: string, toolId: string, signal?: AbortSignal) =>
 		apiRequest<ToolConnection>(

@@ -26,6 +26,8 @@ var postgres = Tool{
 	},
 	Access:   &Access{Scheme: "postgresql", Username: "ferrite", Database: "app", Port: 5432},
 	Volumes:  []string{"data"},
+	console:  postgresConsole,
+	backup:   postgresBackup,
 	DataNote: "Removing PostgreSQL stops it and deletes its settings, but keeps your tables and rows unless you ask for those too.",
 	compose: `# Managed by Ferrite Ship. Edits are replaced the next time this tool is set up.
 name: ferrite-postgres
@@ -77,6 +79,8 @@ var redis = Tool{
 	},
 	Access:   &Access{Scheme: "redis", Username: "default", Port: 6379},
 	Volumes:  []string{"data"},
+	console:  redisConsole,
+	backup:   redisBackup,
 	DataNote: "Removing Redis stops it and deletes its settings, but keeps what it has saved to disk unless you ask for that too.",
 	compose: `# Managed by Ferrite Ship. Edits are replaced the next time this tool is set up.
 name: ferrite-redis
@@ -127,6 +131,7 @@ var clickhouse = Tool{
 	},
 	Access:   &Access{Scheme: "clickhouse", Username: "ferrite", Database: "app", Port: 8123},
 	Volumes:  []string{"data", "logs"},
+	console:  clickhouseConsole,
 	DataNote: "Removing ClickHouse stops it and deletes its settings, but keeps your tables unless you ask for those too.",
 	compose: `# Managed by Ferrite Ship. Edits are replaced the next time this tool is set up.
 name: ferrite-clickhouse
