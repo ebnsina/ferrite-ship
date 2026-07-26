@@ -1,0 +1,34 @@
+# Without this, `COPY web/ ./` drops the host's node_modules over the ones
+# installed inside the image — macOS binaries in a Linux container, and pnpm
+# aborting because the directory no longer matches the lockfile. It also sent
+# ~150 MB of build context for no reason.
+
+# Dependencies and build output belong to the image, not the host.
+**/node_modules/
+web/build/
+web/.svelte-kit/
+bin/
+dist/
+vendor/
+
+# Local state and secrets must never reach an image.
+.env
+.env.*
+!.env.example
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Not needed to build, and .git alone is large.
+.git/
+.github/
+docs/
+deploy/
+compose.yaml
+Dockerfile
+.dockerignore
+README.md
+CLAUDE.md
+**/.DS_Store
+**/*.log

@@ -3,6 +3,7 @@
 FROM node:22-alpine AS web
 
 WORKDIR /src/web
+ENV CI=true
 RUN corepack enable
 
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
@@ -12,14 +13,23 @@ COPY web/ ./
 
 # Baked in at build time, so the image is tied to the origin it will serve
 # from. Override with --build-arg when building for a real domain.
-ARG PUBLIC_API_BASE_URL=""
 ARG PUBLIC_APP_URL="http://localhost:8080"
+# Same origin by default: one process serves the dashboard and the API, so the
+# browser calls back to where it was loaded from. The build refuses an empty
+# value rather than producing a dashboard that points nowhere.
+ARG PUBLIC_API_BASE_URL=""
 ARG PUBLIC_APP_ENV=production
 ARG PUBLIC_DATA_SOURCE=api
 
-RUN printf 'PUBLIC_API_BASE_URL=%s\nPUBLIC_APP_URL=%s\nPUBLIC_APP_ENV=%s\nPUBLIC_DATA_SOURCE=%s\n' \
-      "$PUBLIC_API_BASE_URL" "$PUBLIC_APP_URL" "$PUBLIC_APP_ENV" "$PUBLIC_DATA_SOURCE" > .env \
- && pnpm build
+# Passed as environment rather than written to .env: Vite reads process.env in
+# preference to the file, and an ARG declared with an empty default is present
+# in the environment as an empty string — which silently shadowed the file and
+# failed the build with "PUBLIC_API_BASE_URL is required".
+RUN PUBLIC_API_BASE_URL="${PUBLIC_API_BASE_URL:-$PUBLIC_APP_URL}" \
+    PUBLIC_APP_URL="$PUBLIC_APP_URL" \
+    PUBLIC_APP_ENV="$PUBLIC_APP_ENV" \
+    PUBLIC_DATA_SOURCE="$PUBLIC_DATA_SOURCE" \
+    pnpm build
 
 FROM golang:1.25-alpine AS api
 

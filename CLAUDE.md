@@ -178,5 +178,13 @@ implementation.
   `for path in ...` wipes the shell's PATH and every later command fails with
   "command not found". Cost time once already.
 - **`cd` persists between Bash tool calls.** Prefer absolute paths.
+- **Vite reads `process.env` in preference to `.env`.** A Dockerfile `ARG` with
+  an empty default is present in the build environment as an empty string and
+  silently shadows the file, so writing `.env` and then building fails with
+  "PUBLIC_API_BASE_URL is required". Pass build-time config as environment on
+  the `pnpm build` command instead of writing a file.
+- **`.dockerignore` is load-bearing.** Without it `COPY web/ ./` drops the
+  host's macOS `node_modules` over the image's Linux ones, and pnpm aborts
+  trying to purge a directory that no longer matches the lockfile.
 - SQLite runs with `MaxOpenConns(1)`; it tolerates one writer, and more
   connections buy contention rather than speed.
