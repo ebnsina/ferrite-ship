@@ -2,17 +2,18 @@
 	import { Skeleton } from '$components/ui';
 
 	interface Props {
-		columns?: number;
+		/** Roughly how many cards to stand in for. */
+		count?: number;
 	}
 
-	let { columns = 4 }: Props = $props();
+	let { count = 4 }: Props = $props();
 </script>
 
-<div class="grid gap-x-5 gap-y-8 md:grid-cols-2 xl:grid-cols-4" aria-busy="true" aria-label="Loading">
-	{#each Array.from({ length: columns }, (_, index) => index) as index (index)}
-		<div class="space-y-3">
-			<Skeleton class="h-4 w-28" />
-			<Skeleton shape="card" class="h-56" />
-		</div>
-	{/each}
+<div class="space-y-3" aria-busy="true" aria-label="Loading">
+	<Skeleton class="h-4 w-32" />
+	<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+		{#each Array.from({ length: count }, (_, index) => index) as index (index)}
+			<Skeleton shape="card" class="h-60" />
+		{/each}
+	</div>
 </div>

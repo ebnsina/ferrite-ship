@@ -134,9 +134,13 @@ implementation.
 
 ## Gotchas
 
-- **Deleting and recreating a file leaves Vite serving the stale transform.**
-  If a change appears not to take effect, restart the dev server before
-  debugging the code. This has already cost time twice.
+- **Do not delete-and-recreate a source file to rewrite it.** Vite keeps
+  serving the old transform, so the browser shows stale code while the file on
+  disk is correct — and you end up debugging code that is already right. Edit
+  in place instead. If a change genuinely appears not to take effect, compare
+  what the dev server returns against disk before touching the code:
+  `curl -s http://localhost:5173/src/path/File.svelte | grep something`.
+  This has cost time three times.
 - **Always start Vite with `--strictPort`.** Without it, a stale process keeps
   the port and the new server silently moves to 5174, so you end up testing the
   old build.

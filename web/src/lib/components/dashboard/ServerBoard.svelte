@@ -19,26 +19,31 @@
 	<EmptyState
 		icon={ServerIcon}
 		title="No servers yet"
-		description="Run the setup line on a new server and it will show up here within a few seconds."
+		description="Connect a machine and it will show up here within a few seconds."
 	>
 		{#snippet action()}
 			<ButtonLink href="/dashboard/servers/new" size="sm">Connect your first server</ButtonLink>
 		{/snippet}
 	</EmptyState>
 {:else}
-	<div class="grid gap-x-5 gap-y-8 md:grid-cols-2 xl:grid-cols-4">
+	<!--
+		Each status is a full-width section with its own grid, not a column.
+		Grouping by column only reads well when statuses are evenly spread —
+		with every server healthy it left one narrow stack and empty space.
+	-->
+	<div class="space-y-8">
 		{#each groups as group (group.status)}
 			<section class="space-y-3">
-				<div class="flex items-center gap-2">
+				<h3 class="flex items-center gap-2">
 					<span
 						class="size-2 rounded-pill {TONE_CLASSES[group.presentation.tone].fill}"
 						aria-hidden="true"
 					></span>
-					<h3 class="text-content text-sm font-medium">{group.presentation.label}</h3>
+					<span class="text-content text-sm font-medium">{group.presentation.label}</span>
 					<CountBadge count={group.servers.length} />
-				</div>
+				</h3>
 
-				<div class="space-y-3">
+				<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
 					{#each group.servers as server (server.id)}
 						<ServerCard {server} />
 					{/each}
