@@ -27,9 +27,14 @@
 			<Skeleton class="h-5 w-3/5" />
 		</div>
 	{:else}
+		{@const live = stream.state !== 'done' && stream.state !== 'error'}
 		<div bind:this={container}>
 			{#each stream.steps as step (step.id)}
-				<JobStep {step} defaultOpen={step.outcome === 'failed' || step.outcome === null} />
+				<JobStep
+					{step}
+					{live}
+					defaultOpen={step.outcome === 'failed' || (step.outcome === null && live)}
+				/>
 			{/each}
 		</div>
 	{/if}

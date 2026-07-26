@@ -28,6 +28,7 @@
 	import FolderOpen from '@lucide/svelte/icons/folder-open';
 	import HardDrive from '@lucide/svelte/icons/hard-drive';
 	import MemoryStick from '@lucide/svelte/icons/memory-stick';
+	import Package from '@lucide/svelte/icons/package';
 	import Play from '@lucide/svelte/icons/play';
 	import RotateCw from '@lucide/svelte/icons/rotate-cw';
 	import Search from '@lucide/svelte/icons/search';
@@ -123,6 +124,10 @@
 				<div class="flex flex-wrap items-center gap-2">
 					<StatusPill {status} />
 					{#if s.connectionKind === 'ssh'}
+						<ButtonLink href="/dashboard/servers/{id}/tools" variant="secondary" size="sm">
+							<Package size={15} aria-hidden="true" />
+							Tools
+						</ButtonLink>
 						<ButtonLink href="/dashboard/servers/{id}/services" variant="secondary" size="sm">
 							<Cog size={15} aria-hidden="true" />
 							Services

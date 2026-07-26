@@ -5,14 +5,22 @@
 	import { cn } from '$utils/cn';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import Minus from '@lucide/svelte/icons/minus';
 
 	interface Props {
 		step: StepRun;
 		/** Open by default while the step is still running or if it failed. */
 		defaultOpen?: boolean;
+		/**
+		 * Whether the job is still going. A step with no outcome means
+		 * "in progress" only while that is true — once the job has ended, a step
+		 * that never reported one is finished, not running, and spinning at
+		 * someone forever makes a completed job look stuck.
+		 */
+		live?: boolean;
 	}
 
-	let { step, defaultOpen = false }: Props = $props();
+	let { step, defaultOpen = false, live = true }: Props = $props();
 
 	// Steps open while running or on failure, and collapse once they settle —
 	// unless the reader has expressed a preference by clicking.
@@ -49,11 +57,18 @@
 		aria-expanded={open}
 		class="hover:bg-surface-sunken flex w-full items-center gap-3 px-5 py-3 text-left transition-colors duration-150"
 	>
-		<span class={cn('shrink-0', presentation ? TONE_CLASSES[presentation.tone].text : 'text-info')}>
+		<span
+			class={cn(
+				'shrink-0',
+				presentation ? TONE_CLASSES[presentation.tone].text : live ? 'text-info' : 'text-content-subtle'
+			)}
+		>
 			{#if Icon}
 				<Icon size={16} aria-hidden="true" />
-			{:else}
+			{:else if live}
 				<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+			{:else}
+				<Minus size={16} aria-hidden="true" />
 			{/if}
 		</span>
 
@@ -63,7 +78,7 @@
 			<span class={cn('text-xs font-medium', TONE_CLASSES[presentation.tone].text)}>
 				{presentation.label}
 			</span>
-		{:else}
+		{:else if live}
 			<span class="text-content-subtle text-xs">Running…</span>
 		{/if}
 

@@ -87,3 +87,20 @@ func itoa(n int) string {
 	}
 	return string(out)
 }
+
+// "Also delete the data" must only be offered where there is data to delete,
+// and must always be offered where there is. Getting this wrong either hides
+// an irreversible action or invents a frightening one.
+func TestKeepsDataMatchesTheVolumesThatExist(t *testing.T) {
+	for _, tool := range All() {
+		if tool.KeepsData != (len(tool.Volumes) > 0) {
+			t.Errorf("%s: KeepsData is %v but it has %d volumes",
+				tool.ID, tool.KeepsData, len(tool.Volumes))
+		}
+		mentionsKeeping := strings.Contains(tool.DataNote, "keeps")
+		if tool.KeepsData != mentionsKeeping {
+			t.Errorf("%s: KeepsData is %v but the note shown to the person says %q",
+				tool.ID, tool.KeepsData, tool.DataNote)
+		}
+	}
+}

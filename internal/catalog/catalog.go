@@ -31,6 +31,12 @@ type Tool struct {
 	Access *Access `json:"access,omitempty"`
 	// DataNote says in plain language what removing this tool leaves behind.
 	DataNote string `json:"dataNote"`
+	// KeepsData is whether removing this tool can leave something behind, and
+	// therefore whether it is worth offering to delete it. Derived from Volumes
+	// in All() rather than written out per tool, so the two cannot disagree —
+	// offering "also delete the data" for a tool that stores none would be a
+	// frightening question with no answer.
+	KeepsData bool `json:"keepsData"`
 	// NeedsAddress marks a tool that must be told the server's public address
 	// at install time — see Install.Address.
 	NeedsAddress bool `json:"-"`
@@ -82,7 +88,11 @@ type Install struct {
 
 // All returns the catalogue in display order.
 func All() []Tool {
-	return []Tool{postgres, redis, clickhouse, mediamtx}
+	tools := []Tool{postgres, redis, clickhouse, mediamtx}
+	for i := range tools {
+		tools[i].KeepsData = len(tools[i].Volumes) > 0
+	}
+	return tools
 }
 
 // Find looks a tool up by id.
