@@ -161,7 +161,13 @@ func (r *Runner) execute(
 		session.Log(steps.LevelInfo, "Using sudo, since this account is not root.")
 	}
 
-	playbook := steps.Baseline(steps.BaselineOptions{PublicKey: server.PublicKey})
+	playbook := steps.Baseline(steps.BaselineOptions{
+		PublicKey: server.PublicKey,
+		// sshexec prefers a key when one is stored, so a password is only in
+		// play when no key is.
+		LoginUsesPassword: server.Kind == store.ConnectionSSH &&
+			server.SealedPrivateKey == "" && server.SealedPassword != "",
+	})
 	summary := r.runPlaybook(ctx, session, playbook, emitter, dryRun)
 
 	// Refresh facts whatever the outcome — even a failed run tells us something

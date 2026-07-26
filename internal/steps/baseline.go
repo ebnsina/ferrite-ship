@@ -15,6 +15,10 @@ type BaselineOptions struct {
 	SwapSizeGB int
 	// OpenPorts are the TCP ports the firewall should allow, besides SSH.
 	OpenPorts []int
+	// LoginUsesPassword is true when the control plane itself signs in with a
+	// password rather than a key. Turning password logins off would then lock
+	// the control plane out of the server it manages, with no way back.
+	LoginUsesPassword bool
 }
 
 func (o BaselineOptions) withDefaults() BaselineOptions {
@@ -84,16 +88,33 @@ func Baseline(opts BaselineOptions) []Step {
 		})
 	}
 
+	// Two separate ways this step can strand someone, so two guards.
+	//
+	// The first is the obvious one: no key exists on the machine, so turning
+	// password logins off leaves nobody able to get in.
+	//
+	// The second is easy to miss: we might be signed in with a password
+	// ourselves. Disabling password logins would then lock the control plane
+	// out of the very server it manages, and no amount of keys belonging to
+	// other accounts would help. `true` always succeeds, so the step always
+	// skips in that case.
+	hardenSkipIf := `! grep -rqs . /root/.ssh/authorized_keys /home/*/.ssh/authorized_keys`
+	hardenSkipMessage := "Left password logins on: no login key is installed yet, " +
+		"and turning them off now would lock you out."
+
+	if o.LoginUsesPassword {
+		hardenSkipIf = `true`
+		hardenSkipMessage = "Left password logins on: we sign in to this server with a " +
+			"password, so switching them off would lock us — and you — out. " +
+			"Reconnect this server with a key first."
+	}
+
 	steps = append(steps,
 		shellStep{
-			id:    "ssh-harden",
-			title: "Turn off root and password logins",
-			// Refuse to disable password logins when no key exists anywhere —
-			// doing so would lock the owner out of their own machine, and an
-			// unrecoverable server is far worse than a slightly weaker one.
-			skipIf: `! grep -rqs . /root/.ssh/authorized_keys /home/*/.ssh/authorized_keys`,
-			skipMessage: "Left password logins on: no login key is installed yet, " +
-				"and turning them off now would lock you out.",
+			id:          "ssh-harden",
+			title:       "Turn off root and password logins",
+			skipIf:      hardenSkipIf,
+			skipMessage: hardenSkipMessage,
 			check: `sshd -T 2>/dev/null | grep -qix 'permitrootlogin no' && ` +
 				`sshd -T 2>/dev/null | grep -qix 'passwordauthentication no'`,
 			apply: []string{

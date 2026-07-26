@@ -159,3 +159,23 @@ func indexOfContains(commands []string, needle string) int {
 	}
 	return -1
 }
+
+// Disabling password logins when the control plane itself signs in with a
+// password would lock it out of the server it manages, with no stored
+// credential left that works. The key-presence guard cannot catch this,
+// because the keys it finds may belong to accounts we cannot use.
+func TestSSHHardenSkipsWhenWeSignInWithAPassword(t *testing.T) {
+	harden, ok := findStep(Baseline(BaselineOptions{LoginUsesPassword: true}), "ssh-harden")
+	if !ok {
+		t.Fatal("no ssh-harden step in the baseline")
+	}
+
+	shell := harden.(shellStep)
+	if shell.skipIf != "true" {
+		t.Errorf("ssh-harden precondition is %q; it must always skip when we authenticate by password",
+			shell.skipIf)
+	}
+	if !strings.Contains(shell.skipMessage, "password") {
+		t.Errorf("skip message %q does not explain that a password login is the reason", shell.skipMessage)
+	}
+}
