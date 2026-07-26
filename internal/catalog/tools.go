@@ -17,8 +17,10 @@ var postgres = Tool{
 	Summary:  "The database most applications start with. Stores your tables, rows and relationships.",
 	Category: "Databases",
 	Icon:     "Database",
-	Image:    "postgres:18-trixie",
-	Version:  "18",
+	// The elephant blue from postgresql.org.
+	Accent:  "#336791",
+	Image:   "postgres:18-trixie",
+	Version: "18",
 	Ports: []Port{
 		{Number: 5432, Protocol: "tcp", Purpose: "Database connections"},
 	},
@@ -66,8 +68,10 @@ var redis = Tool{
 	Summary:  "Fast temporary storage. Good for caching, queues and sessions.",
 	Category: "Caching",
 	Icon:     "Zap",
-	Image:    "redis:8-trixie",
-	Version:  "8",
+	// Redis red, as of their 2024 mark.
+	Accent:  "#FF4438",
+	Image:   "redis:8-trixie",
+	Version: "8",
 	Ports: []Port{
 		{Number: 6379, Protocol: "tcp", Purpose: "Cache connections"},
 	},
@@ -113,8 +117,10 @@ var clickhouse = Tool{
 	Summary:  "A database built for analytics. Counts and groups very large numbers of rows quickly.",
 	Category: "Databases",
 	Icon:     "ChartColumn",
-	Image:    "clickhouse:25.8",
-	Version:  "25.8 (long-term support)",
+	// ClickHouse yellow. Too pale to use flat on white, hence the tinting.
+	Accent:  "#FFCC01",
+	Image:   "clickhouse:25.8",
+	Version: "25.8 (long-term support)",
 	Ports: []Port{
 		{Number: 8123, Protocol: "tcp", Purpose: "Queries over HTTP"},
 		{Number: 9000, Protocol: "tcp", Purpose: "Queries from ClickHouse clients"},
@@ -169,8 +175,11 @@ var mediamtx = Tool{
 	Summary:  "Receives live video and hands it out again, so you can publish a camera or a stream and watch it in a browser.",
 	Category: "Media",
 	Icon:     "Video",
-	Image:    "bluenviron/mediamtx:1",
-	Version:  "1",
+	// Sampled from MediaMTX's own logo, which is drawn in two blues. The
+	// teal is the one that does not read as PostgreSQL's navy.
+	Accent:  "#1C94B5",
+	Image:   "bluenviron/mediamtx:1",
+	Version: "1",
 	// The only tool here meant to be reached from the internet — a stream
 	// nobody outside can watch is not a stream.
 	Ports: []Port{

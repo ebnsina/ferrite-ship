@@ -38,10 +38,12 @@
 
 <Card>
 	<div class="flex items-start gap-4">
-		<!-- Neutral whatever the state. The pill beside it already says "Running",
-		     with an icon and a word; tinting the logo green as well says the same
-		     thing a second time in the one channel that cannot be read aloud. -->
-		<IconTile icon={Icon} />
+		<!-- The tool's own colour, not a status colour. The pill beside it
+		     already says "Running", with an icon and a word; tinting the logo
+		     green too would say that twice, in the one channel that cannot be
+		     read aloud. A brand colour says something else entirely — which tool
+		     this is — and is readable before the name is. -->
+		<IconTile icon={Icon} color={tool.accent} />
 
 		<div class="min-w-0 flex-1">
 			<div class="flex flex-wrap items-center gap-x-2 gap-y-1">

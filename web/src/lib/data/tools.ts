@@ -24,8 +24,10 @@ export interface Tool {
 	name: string;
 	summary: string;
 	category: string;
-	/** A lucide icon name, resolved by $lib/domain/tool-icons. */
+	/** A lucide icon name, resolved by $lib/domain/tools. */
 	icon: string;
+	/** The tool's own brand colour, as #rrggbb. */
+	accent: string;
 	image: string;
 	version: string;
 	ports: ToolPort[];

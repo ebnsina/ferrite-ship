@@ -1,66 +1,45 @@
 <script lang="ts">
 	import Seo from '$components/Seo.svelte';
-	import ActivityFeed from '$components/dashboard/ActivityFeed.svelte';
 	import BoardSkeleton from '$components/dashboard/BoardSkeleton.svelte';
+	import DashboardGreeting from '$components/dashboard/DashboardGreeting.svelte';
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
-	import PageHeading from '$components/dashboard/PageHeading.svelte';
 	import ResourceView from '$components/dashboard/ResourceView.svelte';
 	import SectionHeader from '$components/dashboard/SectionHeader.svelte';
 	import ServerBoard from '$components/dashboard/ServerBoard.svelte';
 	import StatStrip from '$components/dashboard/StatStrip.svelte';
 	import StatStripSkeleton from '$components/dashboard/StatStripSkeleton.svelte';
-	import { Button, Skeleton } from '$components/ui';
+	import { ButtonLink } from '$components/ui';
 	import { dashboardRepository } from '$lib/data';
-	import { formatNumber } from '$utils/format';
 	import { createResource } from '$utils/resource.svelte';
-	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import CirclePlus from '@lucide/svelte/icons/circle-plus';
-	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 
+	/*
+	 * This page answers one question: how are my servers right now.
+	 *
+	 * It used to also carry the recent-activity feed, which is a different
+	 * question — what happened lately — and which already has a page of its
+	 * own. Two feeds of the same rows in two places is two things to keep in
+	 * step and one more screen to scroll past.
+	 */
 	const servers = createResource((signal) => dashboardRepository.listServers(signal));
-	const activity = createResource((signal) => dashboardRepository.listActivity(signal));
 	const metrics = createResource((signal) => dashboardRepository.listMetrics(signal));
-
-	// The headline reports something we actually measure. An uptime percentage
-	// would need history we do not collect yet, and a made-up figure on the
-	// first screen would undermine everything under it.
-	const total = $derived(metrics.data?.find((m) => m.id === 'servers')?.value ?? null);
-	const online = $derived(metrics.data?.find((m) => m.id === 'online')?.value ?? null);
-
-	const headline = $derived(
-		total === null || online === null ? '—' : `${formatNumber(online)} of ${formatNumber(total)}`
-	);
-
-	const heading = $derived(
-		total === 0
-			? 'No servers yet'
-			: total !== null && online === total
-				? 'Everything is looking good'
-				: 'Some servers need a look'
-	);
 </script>
 
-<Seo title="Overview" description="How your servers are doing and what has run recently." noindex />
+<Seo title="Overview" description="How your servers are doing right now." noindex />
 
-<DashboardTopbar crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Overview' }]} unread={2} />
+<DashboardTopbar crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Overview' }]} />
 
 <div class="space-y-8 px-6 py-8">
-	<PageHeading
-		title={heading}
-		metric={headline}
-		caption="of your servers are running fine right now"
-	>
+	<DashboardGreeting>
 		{#snippet actions()}
-			<Button variant="secondary" size="sm">
-				<CalendarDays size={15} aria-hidden="true" />
-				Last 7 days
-			</Button>
-			<Button variant="secondary" size="sm">
-				<SlidersHorizontal size={15} aria-hidden="true" />
-				Filters
-			</Button>
+			<!-- A real action rather than the date-range and filter controls that
+			     used to sit here, which were never wired to anything. -->
+			<ButtonLink href="/dashboard/servers/new" size="sm">
+				<CirclePlus size={15} aria-hidden="true" />
+				Connect a server
+			</ButtonLink>
 		{/snippet}
-	</PageHeading>
+	</DashboardGreeting>
 
 	<ResourceView resource={metrics}>
 		{#snippet pending()}
@@ -86,32 +65,6 @@
 
 			{#snippet children(list)}
 				<ServerBoard servers={list} />
-			{/snippet}
-		</ResourceView>
-
-		<a
-			href="/dashboard/servers/new"
-			class="text-content-muted hover:text-content flex items-center gap-2 text-sm transition-colors duration-150"
-		>
-			<CirclePlus size={16} aria-hidden="true" />
-			Connect a server
-		</a>
-	</section>
-
-	<section class="space-y-5">
-		<SectionHeader
-			title="Recent activity"
-			description="What has run lately, who started it, and whether it worked."
-			linkHref="/dashboard/activity"
-		/>
-
-		<ResourceView resource={activity}>
-			{#snippet pending()}
-				<Skeleton shape="card" class="h-72" />
-			{/snippet}
-
-			{#snippet children(entries)}
-				<ActivityFeed {entries} />
 			{/snippet}
 		</ResourceView>
 	</section>

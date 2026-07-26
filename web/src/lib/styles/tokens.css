@@ -26,35 +26,34 @@
 	 * wide, so the ramp can stay saturated all the way down and the deep steps
 	 * still look like a colour rather than a grey-brown.
 	 */
-	--color-brand-50: oklch(0.974 0.018 348);
-	--color-brand-100: oklch(0.946 0.038 348);
-	--color-brand-200: oklch(0.9 0.072 347);
-	--color-brand-300: oklch(0.838 0.116 346);
-	--color-brand-400: oklch(0.764 0.166 345);
-	--color-brand-500: oklch(0.69 0.208 344);
-	--color-brand-600: oklch(0.606 0.216 343);
-	/* The button fill: dark enough to carry white text at about 5:1, and with
-	 * pink there is enough chroma left at that lightness for it to still look
-	 * like the brand rather than a muted plum. */
-	--color-brand-700: oklch(0.524 0.196 342);
-	--color-brand-800: oklch(0.444 0.166 341);
-	--color-brand-900: oklch(0.384 0.136 340);
-	--color-brand-950: oklch(0.264 0.092 339);
+	--color-brand-50: oklch(0.971 0.014 343);
+	--color-brand-100: oklch(0.948 0.028 343);
+	--color-brand-200: oklch(0.899 0.061 344);
+	--color-brand-300: oklch(0.823 0.12 346);
+	/* The button fill. Light enough that the label on it has to be dark — see
+	 * the accent notes below. */
+	--color-brand-400: oklch(0.718 0.202 349);
+	--color-brand-500: oklch(0.656 0.241 354);
+	--color-brand-600: oklch(0.592 0.249 0);
+	--color-brand-700: oklch(0.525 0.223 3);
+	--color-brand-800: oklch(0.459 0.187 4);
+	--color-brand-900: oklch(0.408 0.153 2);
+	--color-brand-950: oklch(0.284 0.109 3);
 
 	/* Neutrals — carry a trace of the brand hue so greys sit with the accent */
-	--color-ink-50: oklch(0.985 0.002 345);
-	--color-ink-100: oklch(0.968 0.003 345);
-	--color-ink-200: oklch(0.928 0.004 345);
-	--color-ink-300: oklch(0.868 0.005 345);
-	--color-ink-400: oklch(0.708 0.006 345);
-	--color-ink-500: oklch(0.572 0.006 345);
-	--color-ink-600: oklch(0.462 0.006 345);
-	--color-ink-700: oklch(0.378 0.007 345);
-	--color-ink-800: oklch(0.276 0.007 345);
-	--color-ink-850: oklch(0.222 0.007 345);
-	--color-ink-900: oklch(0.186 0.007 345);
-	--color-ink-950: oklch(0.148 0.006 345);
-	--color-ink-1000: oklch(0.118 0.005 345);
+	--color-ink-50: oklch(0.985 0.002 350);
+	--color-ink-100: oklch(0.968 0.003 350);
+	--color-ink-200: oklch(0.928 0.004 350);
+	--color-ink-300: oklch(0.868 0.005 350);
+	--color-ink-400: oklch(0.708 0.006 350);
+	--color-ink-500: oklch(0.572 0.006 350);
+	--color-ink-600: oklch(0.462 0.006 350);
+	--color-ink-700: oklch(0.378 0.007 350);
+	--color-ink-800: oklch(0.276 0.007 350);
+	--color-ink-850: oklch(0.222 0.007 350);
+	--color-ink-900: oklch(0.186 0.007 350);
+	--color-ink-950: oklch(0.148 0.006 350);
+	--color-ink-1000: oklch(0.118 0.005 350);
 
 	/*
 	 * Status — every tone has to stay distinguishable from the accent, or a
@@ -99,7 +98,7 @@
 	--ui-canvas: var(--color-ink-1000);
 	--ui-surface: var(--color-ink-950);
 	--ui-surface-raised: var(--color-ink-900);
-	--ui-surface-sunken: oklch(0.098 0.005 120);
+	--ui-surface-sunken: oklch(0.098 0.005 350);
 	--ui-surface-inverse: var(--color-ink-50);
 
 	--ui-border: var(--color-ink-850);
@@ -118,15 +117,17 @@
 	 * `accent-solid` is the brand as a *fill* behind text, so it must be dark
 	 * enough for its label to be legible on it.
 	 *
-	 * Lime happened to satisfy both at one value: it is so light that black
-	 * text sat on it comfortably. Pink does not — a pink light enough to carry
-	 * black text is a pale blush that disappears against a white dashboard. So
-	 * the fill is a deep pink carrying white, and the ink stays bright.
+	 * The fill is a light pink, which decides the label on it: white would come
+	 * out at 2.5:1 and be unreadable, dark text at about 8:1. So the label is
+	 * near-black — the same arrangement lime had, for the same reason.
+	 *
+	 * On this near-black canvas the ink can be the fill colour too; on white it
+	 * cannot, which is where the two tokens come apart. See the light block.
 	 */
 	--ui-accent: var(--color-brand-400);
-	--ui-accent-solid: var(--color-brand-700);
-	--ui-accent-hover: var(--color-brand-800);
-	--ui-accent-content: oklch(1 0 0);
+	--ui-accent-solid: var(--color-brand-400);
+	--ui-accent-hover: var(--color-brand-300);
+	--ui-accent-content: var(--color-ink-1000);
 	--ui-accent-soft: color-mix(in oklch, var(--color-brand-500) 14%, transparent);
 	--ui-accent-border: color-mix(in oklch, var(--color-brand-500) 34%, transparent);
 
@@ -158,18 +159,23 @@
 	--ui-content-subtle: var(--color-ink-500);
 	--ui-content-inverse: var(--color-ink-50);
 
-	/* On white the ink has to go the other way — dark enough to read. */
+	/*
+	 * Here the two accents genuinely diverge. The fill stays the light pink,
+	 * because that is the brand and it looks like it on a white page. But that
+	 * same pink as *text* on white is 2.5:1 and unreadable, so the ink drops
+	 * several steps. Same colour, two jobs, two values.
+	 */
 	--ui-accent: var(--color-brand-700);
-	--ui-accent-solid: var(--color-brand-700);
-	--ui-accent-hover: var(--color-brand-800);
-	--ui-accent-content: oklch(1 0 0);
+	--ui-accent-solid: var(--color-brand-400);
+	--ui-accent-hover: var(--color-brand-500);
+	--ui-accent-content: var(--color-ink-1000);
 	--ui-accent-soft: color-mix(in oklch, var(--color-brand-500) 18%, transparent);
 	--ui-accent-border: color-mix(in oklch, var(--color-brand-600) 38%, transparent);
 
 	--ui-ok: oklch(0.58 0.15 155);
 	--ui-warn: oklch(0.66 0.15 70);
-	--ui-error: oklch(0.56 0.2 25);
-	--ui-info: oklch(0.58 0.14 245);
+	--ui-error: oklch(0.555 0.198 30);
+	--ui-info: oklch(0.555 0.155 268);
 	--ui-pending: var(--color-ink-500);
 
 	--ui-ok-soft: color-mix(in oklch, var(--color-signal-ok) 18%, transparent);

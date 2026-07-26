@@ -115,7 +115,7 @@
 								{@const isPublic = tool.ports.some((port) => port.public)}
 								<Card>
 									<div class="flex items-start gap-4">
-										<IconTile icon={Icon} />
+										<IconTile icon={Icon} color={tool.accent} />
 										<div class="min-w-0">
 											<div class="flex flex-wrap items-center gap-x-2">
 												<h4 class="text-content text-sm font-medium">{tool.name}</h4>

@@ -21,6 +21,11 @@ type Tool struct {
 	Category string `json:"category"`
 	// Icon is a lucide name the dashboard imports.
 	Icon string `json:"icon"`
+	// Accent is the tool's own brand colour, so a catalogue of four grey rows
+	// becomes four things you recognise before reading a word. The dashboard
+	// tints rather than uses it flat, because these are real brand colours and
+	// some of them (ClickHouse yellow) are unreadable as-is on a white page.
+	Accent string `json:"accent"`
 	// Image is pinned to a major line: patch updates arrive when the tool is
 	// updated on purpose, never silently underneath a running server.
 	Image   string `json:"image"`

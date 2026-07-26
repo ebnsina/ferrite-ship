@@ -16,7 +16,11 @@
 
 	const WIDTH = 100;
 	const HEIGHT = 32;
-	const PAD = 2;
+	// Generous, because the lowest reading in a series is usually a long flat
+	// run. Pinned near the floor it draws a horizontal rule a few pixels above
+	// the card's own bottom border, and the two together read as one doubled
+	// border rather than as a chart.
+	const PAD = 5;
 
 	const STROKE: Record<Tone, string> = {
 		ok: 'var(--ui-ok)',
@@ -31,13 +35,16 @@
 
 		const min = Math.min(...series);
 		const max = Math.max(...series);
-		// A flat series would divide by zero; draw it down the middle instead.
-		const span = max - min || 1;
+		const span = max - min;
 		const usable = HEIGHT - PAD * 2;
 
 		return series.map((value, index) => ({
 			x: (index / (series.length - 1)) * WIDTH,
-			y: PAD + (1 - (value - min) / span) * usable
+			// A flat series is drawn down the middle. The old `|| 1` fallback
+			// meant to do this but divided by one instead of centring, so every
+			// value landed at the floor and a fleet whose size had not changed
+			// all week drew a straight line along the bottom of its card.
+			y: span === 0 ? HEIGHT / 2 : PAD + (1 - (value - min) / span) * usable
 		}));
 	});
 

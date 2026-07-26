@@ -15,7 +15,7 @@
 
 <Seo title="Servers" description="Every machine you have connected." noindex />
 
-<DashboardTopbar crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Servers' }]} unread={2} />
+<DashboardTopbar crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Servers' }]} />
 
 <div class="space-y-6 px-6 py-8">
 	<div class="flex flex-wrap items-end justify-between gap-4">

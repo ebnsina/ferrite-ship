@@ -24,6 +24,13 @@ export function formatDate(value: Date | string | number, locale?: LocaleOption)
 	return dateTimeFormatter(locale, { dateStyle: 'medium' }).format(toDate(value));
 }
 
+/** "Saturday, 26 July" — for a heading that orients rather than records. */
+export function formatDayAndMonth(value: Date | string | number, locale?: LocaleOption): string {
+	return dateTimeFormatter(locale, { weekday: 'long', day: 'numeric', month: 'long' }).format(
+		toDate(value)
+	);
+}
+
 export function formatDateTime(value: Date | string | number, locale?: LocaleOption): string {
 	return dateTimeFormatter(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
 		toDate(value)

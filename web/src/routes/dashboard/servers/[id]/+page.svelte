@@ -7,14 +7,15 @@
 	import SectionHeader from '$components/dashboard/SectionHeader.svelte';
 	import Seo from '$components/Seo.svelte';
 	import {
-		Button,
 		ButtonLink,
 		Card,
 		ConfirmDialog,
 		IconTile,
+		Menu,
 		Meter,
 		Skeleton,
-		StatusPill
+		StatusPill,
+		type MenuItem
 	} from '$components/ui';
 	import { dashboardCommands } from '$lib/data/commands';
 	import { dashboardRepository } from '$lib/data';
@@ -74,6 +75,34 @@
 			confirmOpen = false;
 		}
 	}
+
+	// Built from the server's own state: telling someone to "set up" a machine
+	// they set up last week is meaningless, so the label follows the facts.
+	const actions = $derived.by((): MenuItem[] => {
+		const isSetUp = Boolean(server.data?.setUpAt);
+
+		return [
+			{
+				label: isSetUp ? 'Re-run setup' : 'Set up',
+				icon: isSetUp ? RotateCw : Play,
+				disabled: starting,
+				onSelect: () => void start(false)
+			},
+			{
+				label: 'Check without changing anything',
+				icon: Search,
+				disabled: starting,
+				onSelect: () => void start(true)
+			},
+			{
+				label: 'Remove from Ferrite Ship',
+				icon: Trash2,
+				danger: true,
+				separated: true,
+				onSelect: () => (confirmOpen = true)
+			}
+		];
+	});
 </script>
 
 <Seo title="Server" description="Everything about one connected server." noindex />
@@ -121,51 +150,38 @@
 					</div>
 				</div>
 
+				<!--
+					Places on the left, things you do on the right.
+
+					These used to be seven controls in one row, which read as a
+					wall rather than a set of choices — and it put "Remove" the
+					same distance from the cursor as "Files". Navigation stays
+					visible because it is where you are going next; everything
+					that changes the machine is one deliberate click away.
+				-->
 				<div class="flex flex-wrap items-center gap-2">
 					<StatusPill {status} />
+
 					{#if s.connectionKind === 'ssh'}
-						<ButtonLink href="/dashboard/servers/{id}/tools" variant="secondary" size="sm">
+						<ButtonLink href="/dashboard/servers/{id}/tools" variant="ghost" size="sm">
 							<Package size={15} aria-hidden="true" />
 							Tools
 						</ButtonLink>
-						<ButtonLink href="/dashboard/servers/{id}/services" variant="secondary" size="sm">
+						<ButtonLink href="/dashboard/servers/{id}/services" variant="ghost" size="sm">
 							<Cog size={15} aria-hidden="true" />
 							Services
 						</ButtonLink>
-						<ButtonLink href="/dashboard/servers/{id}/files" variant="secondary" size="sm">
+						<ButtonLink href="/dashboard/servers/{id}/files" variant="ghost" size="sm">
 							<FolderOpen size={15} aria-hidden="true" />
 							Files
 						</ButtonLink>
-						<ButtonLink href="/dashboard/servers/{id}/terminal" variant="secondary" size="sm">
+						<ButtonLink href="/dashboard/servers/{id}/terminal" variant="ghost" size="sm">
 							<SquareTerminal size={15} aria-hidden="true" />
 							Terminal
 						</ButtonLink>
 					{/if}
-					<Button variant="ghost" size="sm" onclick={() => start(true)} disabled={starting}>
-						<Search size={15} aria-hidden="true" />
-						Check
-					</Button>
-					<Button
-						variant={s.setUpAt ? 'ghost' : 'secondary'}
-						size="sm"
-						onclick={() => start(false)}
-						disabled={starting}
-						title={s.setUpAt
-							? 'Runs every check again and repairs anything that has drifted.'
-							: 'Updates, a login account, firewall and automatic security updates.'}
-					>
-						{#if s.setUpAt}
-							<RotateCw size={15} aria-hidden="true" />
-							{starting ? 'Starting…' : 'Re-run setup'}
-						{:else}
-							<Play size={15} aria-hidden="true" />
-							{starting ? 'Starting…' : 'Set up'}
-						{/if}
-					</Button>
-					<Button variant="ghost" size="sm" onclick={() => (confirmOpen = true)}>
-						<Trash2 size={15} aria-hidden="true" />
-						Remove
-					</Button>
+
+					<Menu label={starting ? 'Starting…' : 'Actions'} items={actions} />
 				</div>
 			</div>
 

@@ -15,7 +15,6 @@
 
 <DashboardTopbar
 	crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'History' }]}
-	unread={2}
 />
 
 <div class="space-y-6 px-6 py-8">

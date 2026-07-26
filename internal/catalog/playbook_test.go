@@ -104,3 +104,13 @@ func TestKeepsDataMatchesTheVolumesThatExist(t *testing.T) {
 		}
 	}
 }
+
+// Every tool needs a brand colour, because the catalogue leans on them to be
+// recognisable at a glance and one missing entry renders as an invisible tile.
+func TestEveryToolHasABrandColour(t *testing.T) {
+	for _, tool := range All() {
+		if len(tool.Accent) != 7 || tool.Accent[0] != '#' {
+			t.Errorf("%s: accent %q is not a #rrggbb colour", tool.ID, tool.Accent)
+		}
+	}
+}
