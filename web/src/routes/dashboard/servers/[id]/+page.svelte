@@ -8,6 +8,7 @@
 	import Seo from '$components/Seo.svelte';
 	import {
 		Button,
+		ButtonLink,
 		Card,
 		ConfirmDialog,
 		IconTile,
@@ -28,6 +29,7 @@
 	import Play from '@lucide/svelte/icons/play';
 	import Search from '@lucide/svelte/icons/search';
 	import Server from '@lucide/svelte/icons/server';
+	import SquareTerminal from '@lucide/svelte/icons/square-terminal';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
 	const id = page.params.id ?? '';
@@ -104,6 +106,12 @@
 
 				<div class="flex flex-wrap items-center gap-2">
 					<StatusPill {status} />
+					{#if s.connectionKind === 'ssh'}
+						<ButtonLink href="/dashboard/servers/{id}/terminal" variant="secondary" size="sm">
+							<SquareTerminal size={15} aria-hidden="true" />
+							Terminal
+						</ButtonLink>
+					{/if}
 					<Button variant="ghost" size="sm" onclick={() => start(true)} disabled={starting}>
 						<Search size={15} aria-hidden="true" />
 						Check

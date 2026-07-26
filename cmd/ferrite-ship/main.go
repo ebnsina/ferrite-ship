@@ -18,6 +18,7 @@ import (
 	"github.com/ebnsina/ferrite-ship/internal/runner"
 	"github.com/ebnsina/ferrite-ship/internal/secret"
 	"github.com/ebnsina/ferrite-ship/internal/store"
+	"github.com/ebnsina/ferrite-ship/internal/terminal"
 )
 
 func main() {
@@ -59,12 +60,14 @@ func run(log *slog.Logger) error {
 
 	bus := runner.NewBus()
 	jobs := runner.New(st, sealer, bus, log)
+	terminals := terminal.NewService(st, sealer)
 
 	restAPI := api.New(api.Options{
 		Store:         st,
 		Runner:        jobs,
 		Bus:           bus,
 		Sealer:        sealer,
+		Terminals:     terminals,
 		Logger:        log,
 		AllowedOrigin: cfg.AllowedOrigin,
 	})

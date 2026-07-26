@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { Button, IconTile, StatusPill } from '$components/ui';
+	import { Button, ButtonLink, IconTile, StatusPill } from '$components/ui';
 	import { TONE_CLASSES, toneForUsage } from '$components/ui/tone';
 	import { SERVER_STATUS } from '$lib/domain/status';
 	import { usageRatio, type ManagedServer } from '$types/server';
@@ -10,6 +10,7 @@
 	import Play from '@lucide/svelte/icons/play';
 	import Search from '@lucide/svelte/icons/search';
 	import Server from '@lucide/svelte/icons/server';
+	import SquareTerminal from '@lucide/svelte/icons/square-terminal';
 
 	interface Props {
 		server: ManagedServer;
@@ -94,6 +95,16 @@
 			Checked {formatRelativeTime(server.lastSeenAt, { style: 'short' })}
 		</p>
 		<div class="flex shrink-0 items-center gap-2">
+			{#if server.connectionKind === 'ssh'}
+				<ButtonLink
+					href="/dashboard/servers/{server.id}/terminal"
+					size="sm"
+					variant="ghost"
+					aria-label="Open a terminal on {server.name}"
+				>
+					<SquareTerminal size={13} aria-hidden="true" />
+				</ButtonLink>
+			{/if}
 			<Button size="sm" variant="ghost" onclick={() => start(true)} disabled={starting}>
 				<Search size={13} aria-hidden="true" />
 				Check

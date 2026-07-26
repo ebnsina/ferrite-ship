@@ -6,21 +6,27 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"github.com/ebnsina/ferrite-ship/internal/ids"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
 	"github.com/ebnsina/ferrite-ship/internal/secret"
 	"github.com/ebnsina/ferrite-ship/internal/store"
+	"github.com/ebnsina/ferrite-ship/internal/terminal"
 )
 
 type API struct {
-	store  *store.Store
-	runner *runner.Runner
-	bus    *runner.Bus
-	sealer *secret.Sealer
-	log    *slog.Logger
+	store     *store.Store
+	runner    *runner.Runner
+	bus       *runner.Bus
+	sealer    *secret.Sealer
+	terminals *terminal.Service
+	log       *slog.Logger
 
 	allowedOrigin string
+	// allowedOriginHost is the same origin without its scheme, which is the
+	// form the websocket handshake checks against.
+	allowedOriginHost string
 }
 
 type Options struct {
@@ -28,19 +34,27 @@ type Options struct {
 	Runner        *runner.Runner
 	Bus           *runner.Bus
 	Sealer        *secret.Sealer
+	Terminals     *terminal.Service
 	Logger        *slog.Logger
 	AllowedOrigin string
 }
 
 func New(opts Options) *API {
-	return &API{
+	api := &API{
 		store:         opts.Store,
 		runner:        opts.Runner,
 		bus:           opts.Bus,
 		sealer:        opts.Sealer,
+		terminals:     opts.Terminals,
 		log:           opts.Logger,
 		allowedOrigin: opts.AllowedOrigin,
 	}
+
+	if parsed, err := url.Parse(opts.AllowedOrigin); err == nil {
+		api.allowedOriginHost = parsed.Host
+	}
+
+	return api
 }
 
 // Routes returns the API handler. Static assets are mounted separately.
@@ -55,6 +69,7 @@ func (a *API) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/servers", a.handleCreateServer)
 	mux.HandleFunc("DELETE /v1/servers/{id}", a.handleDeleteServer)
 	mux.HandleFunc("POST /v1/servers/{id}/jobs", a.handleStartJob)
+	mux.HandleFunc("GET /v1/servers/{id}/terminal", a.handleTerminal)
 
 	mux.HandleFunc("GET /v1/jobs/{id}", a.handleGetJob)
 	mux.HandleFunc("GET /v1/jobs/{id}/events", a.handleJobEvents)

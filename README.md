@@ -22,6 +22,8 @@ from a browser — files, services, updates, storage — without memorising anot
   dashboard as it runs.
 - **Run it again safely.** A second run of the same playbook changes nothing
   and says so.
+- **Open a real shell in the browser** — a PTY over SSH, with resize, colour
+  and full-screen programs.
 - **See your fleet** — status, CPU, memory, storage and uptime, gathered from
   the machines themselves.
 
@@ -81,7 +83,7 @@ set -a && . ./.env && set +a
 go run ./cmd/ferrite-ship
 ```
 
-It listens on `:8080` and creates the SQLite database on first run.
+It listens on `127.0.0.1:8080` and creates the SQLite database on first run.
 
 ### 3. Run the dashboard
 
@@ -148,7 +150,7 @@ configuration and enables a firewall.
 
 | Variable | Required | Meaning |
 |---|---|---|
-| `FERRITE_ADDR` | yes | Listen address, e.g. `:8080` |
+| `FERRITE_ADDR` | yes | Listen address. Keep it on loopback (`127.0.0.1:8080`) until there is authentication — this API holds root credentials for every connected server |
 | `FERRITE_DATABASE_PATH` | yes | SQLite file; created on first run |
 | `FERRITE_SECRET_KEY` | yes | Base64 of 32 bytes. Seals stored credentials — **lose it and every stored credential becomes unreadable** |
 | `FERRITE_ALLOWED_ORIGIN` | yes | Origin allowed to call the API cross-site, or `none` |
@@ -222,7 +224,8 @@ rather than drawing a trend that was never measured.
 │   ├── runner/         Job execution and the event bus
 │   ├── secret/         Credential sealing
 │   ├── steps/          The step engine and the baseline playbook
-│   └── store/          SQLite persistence
+│   ├── store/          SQLite persistence
+│   └── terminal/       Interactive shells over SSH
 └── web/                SvelteKit dashboard (own pnpm project)
 ```
 
@@ -242,6 +245,7 @@ multi-tenancy arrives is a change to `internal/store` alone.
 | `GET` | `/v1/jobs/{id}` | Job status |
 | `GET` | `/v1/jobs/{id}/events` | Live job log (SSE) |
 | `GET` | `/v1/activity` | Recent jobs |
+| `GET` | `/v1/servers/{id}/terminal` | Interactive shell (WebSocket) |
 | `GET` | `/v1/metrics` | Fleet metrics |
 
 Errors share one envelope: `{ "code", "message", "request_id" }`.
@@ -274,7 +278,8 @@ FERRITE_WEB_DIR=./web/build FERRITE_ALLOWED_ORIGIN=none go run ./cmd/ferrite-shi
 These are the reasons this is not production software yet:
 
 - **No authentication.** Anyone who can reach the API can control every
-  connected server. Do not expose it.
+  connected server, including opening a root shell on it. Bind to loopback and
+  do not expose it.
 - **SSH host keys are trusted on first use** and never verified again, which
   leaves the first connection open to interception. Pinning is required before
   this is used across an untrusted network.
