@@ -5,11 +5,9 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
-		<link rel="mask-icon" href="%sveltekit.assets%/favicon.svg" color="#bede4f" />
-		<!-- Marketing is dark and the dashboard light, so the browser chrome
-		     follows the reader's scheme rather than one fixed colour. -->
-		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#191a17" />
-		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfbfa" />
+		<!-- mask-icon and theme-color are rendered by BrandMeta from the
+		     generated brand module: a static file cannot read a design token,
+		     and hand-copied hexes here went stale across two brand changes. -->
 		<meta name="color-scheme" content="dark light" />
 		<script>
 			// Applied before first paint so a stored theme never flashes.

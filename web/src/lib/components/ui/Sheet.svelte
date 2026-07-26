@@ -66,9 +66,8 @@
 		if (!open) return;
 		requestAnimationFrame(() => {
 			body?.scrollTo({ top: 0 });
-			// Belt and braces: overflow-hidden should stop the dialog scrolling
-			// at all, but a stray scroll here hides the panel completely rather
-			// than merely misplacing it, so it is worth undoing explicitly.
+			// Belt and braces alongside overflow-clip: a stray scroll here hides
+			// the panel completely rather than merely misplacing it.
 			if (dialog) dialog.scrollTop = 0;
 		});
 	});
@@ -96,17 +95,20 @@
 		// banner, a translate prompt — leaves the panel taller than the room
 		// it has, and the first thing to fall off the bottom is the footer with
 		// the submit button in it. Pinning both edges cannot overflow.
-		// overflow-hidden matters as much as the positioning: a <dialog> is
-		// itself a scroll container, so the browser scrolling a checked radio
-		// into view scrolls the dialog rather than the body region inside it.
-		// The panel then sits hundreds of pixels above the viewport and the
-		// sheet renders as an empty backdrop. Exactly one thing here scrolls,
-		// and it is the middle region.
+		// overflow-clip, emphatically not overflow-hidden.
+		//
+		// A <dialog> is a scroll container, and the browser scrolls a radio
+		// into view when one is selected — scrolling the dialog rather than the
+		// body region inside it, which drags the whole panel up off the screen.
+		// `hidden` does not prevent that: a hidden box is still scrollable,
+		// merely without visible bars, so scrollIntoView moves it happily.
+		// `clip` is not a scroll container at all, which is the guarantee this
+		// actually needs. Exactly one thing here scrolls: the middle region.
 		// max-w-none and max-h-none both undo the UA stylesheet, which caps a
 		// <dialog> at calc(100% - 6px - 2em) in each direction. Left in, the
 		// panel is inset by 38px on a narrow screen and cannot go full width,
 		// which reads as the sheet hanging off the edge.
-		'text-content fixed inset-y-0 right-0 left-auto m-0 h-auto max-h-none w-full max-w-none overflow-hidden bg-transparent p-0',
+		'text-content fixed inset-y-0 right-0 left-auto m-0 h-auto max-h-none w-full max-w-none overflow-clip bg-transparent p-0',
 		'backdrop:bg-black/50 backdrop:backdrop-blur-sm',
 		WIDTHS[size]
 	)}
@@ -115,7 +117,7 @@
 		<!-- grid-rows so the middle region is the only thing that scrolls: the
 		     header and the actions stay put however long the form gets. -->
 		<div
-			class="border-border bg-surface grid h-full grid-rows-[auto_1fr_auto] overflow-hidden border-l sm:rounded-l-panel"
+			class="border-border bg-surface grid h-full grid-rows-[auto_1fr_auto] overflow-clip border-l sm:rounded-l-panel"
 		>
 			<header class="border-border flex items-start gap-4 border-b px-6 py-5">
 				<div class="min-w-0 flex-1">

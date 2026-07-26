@@ -14,60 +14,65 @@
 
 @theme {
 	/*
-	 * Brand — pink.
+	 * Brand — deep blue.
 	 *
-	 * Sits at the magenta end of pink rather than the rose end, deliberately.
-	 * A rosier pink lands within about 25° of the red used for errors, and two
-	 * colours that mean different things must not be two shades of the same
-	 * thing. Leaning magenta buys roughly 45° of separation while still
-	 * reading as unmistakably pink.
+	 * Chosen for one hard constraint: the button label is white, and white
+	 * needs the fill at roughly L≤0.55 to clear 4.5:1. Lime, pink and cyan all
+	 * failed that in the same way — their vivid form is *light*, so they had to
+	 * be either bright with dark text or dark and muddy.
 	 *
-	 * Unlike cyan, pink has chroma to spare: the magenta region of sRGB is
-	 * wide, so the ramp can stay saturated all the way down and the deep steps
-	 * still look like a colour rather than a grey-brown.
+	 * Blue is the opposite. sRGB is widest in the blue-violet region at low
+	 * lightness, so a deep blue stays genuinely saturated exactly where white
+	 * text starts to work. That is why infrastructure tools converge here; it
+	 * is a property of the gamut before it is a matter of taste.
+	 *
+	 * Every step sits just inside the sRGB boundary. Chroma set exactly at the
+	 * limit rounds out of gamut and gets clipped — the red channel pins to
+	 * zero, and the colour that renders is not the one written down.
 	 */
-	--color-brand-50: oklch(0.971 0.014 343);
-	--color-brand-100: oklch(0.948 0.028 343);
-	--color-brand-200: oklch(0.899 0.061 344);
-	--color-brand-300: oklch(0.823 0.12 346);
-	/* The button fill. Light enough that the label on it has to be dark — see
-	 * the accent notes below. */
-	--color-brand-400: oklch(0.718 0.202 349);
-	--color-brand-500: oklch(0.656 0.241 354);
-	--color-brand-600: oklch(0.592 0.249 0);
-	--color-brand-700: oklch(0.525 0.223 3);
-	--color-brand-800: oklch(0.459 0.187 4);
-	--color-brand-900: oklch(0.408 0.153 2);
-	--color-brand-950: oklch(0.284 0.109 3);
+	--color-brand-50: oklch(0.972 0.012 258);
+	--color-brand-100: oklch(0.936 0.03 258);
+	--color-brand-200: oklch(0.884 0.055 257);
+	--color-brand-300: oklch(0.809 0.093 257);
+	--color-brand-400: oklch(0.714 0.144 256);
+	--color-brand-500: oklch(0.62 0.19 256);
+	--color-brand-600: oklch(0.552 0.176 255);
+	/* The button fill: white on this is 6:1. */
+	--color-brand-700: oklch(0.5 0.16 255);
+	--color-brand-800: oklch(0.432 0.138 255);
+	--color-brand-900: oklch(0.378 0.126 256);
+	--color-brand-950: oklch(0.268 0.098 258);
 
 	/* Neutrals — carry a trace of the brand hue so greys sit with the accent */
-	--color-ink-50: oklch(0.985 0.002 350);
-	--color-ink-100: oklch(0.968 0.003 350);
-	--color-ink-200: oklch(0.928 0.004 350);
-	--color-ink-300: oklch(0.868 0.005 350);
-	--color-ink-400: oklch(0.708 0.006 350);
-	--color-ink-500: oklch(0.572 0.006 350);
-	--color-ink-600: oklch(0.462 0.006 350);
-	--color-ink-700: oklch(0.378 0.007 350);
-	--color-ink-800: oklch(0.276 0.007 350);
-	--color-ink-850: oklch(0.222 0.007 350);
-	--color-ink-900: oklch(0.186 0.007 350);
-	--color-ink-950: oklch(0.148 0.006 350);
-	--color-ink-1000: oklch(0.118 0.005 350);
+	--color-ink-50: oklch(0.985 0.002 258);
+	--color-ink-100: oklch(0.968 0.003 258);
+	--color-ink-200: oklch(0.928 0.004 258);
+	--color-ink-300: oklch(0.868 0.005 258);
+	--color-ink-400: oklch(0.708 0.006 258);
+	--color-ink-500: oklch(0.572 0.006 258);
+	--color-ink-600: oklch(0.462 0.006 258);
+	--color-ink-700: oklch(0.378 0.007 258);
+	--color-ink-800: oklch(0.276 0.007 258);
+	--color-ink-850: oklch(0.222 0.007 258);
+	--color-ink-900: oklch(0.186 0.007 258);
+	--color-ink-950: oklch(0.148 0.006 258);
+	--color-ink-1000: oklch(0.118 0.005 258);
 
 	/*
 	 * Status — every tone has to stay distinguishable from the accent, or a
 	 * badge reads as a button.
 	 *
-	 * This keeps moving as the brand does: "ok" was pushed to emerald to clear
-	 * lime, "info" to indigo to clear cyan, and now "error" is nudged warmer so
-	 * a red badge cannot be mistaken for a pink one. It stays firmly red — the
-	 * shift is toward scarlet, not orange.
+	 * This has moved with the brand every time: "ok" to emerald to clear lime,
+	 * "info" to indigo to clear cyan. A blue brand takes the whole blue-indigo
+	 * range, so "info" stops being a colour at all and becomes a slate — which
+	 * is the honest answer anyway. "Not needed" and "skipped" are the absence
+	 * of news; they were never worth a hue of their own, and spending one on
+	 * them is what kept forcing the collision.
 	 */
 	--color-signal-ok: oklch(0.72 0.17 155);
 	--color-signal-warn: oklch(0.8 0.16 75);
 	--color-signal-error: oklch(0.645 0.215 30);
-	--color-signal-info: oklch(0.68 0.15 268);
+	--color-signal-info: oklch(0.68 0.028 258);
 
 	/* Typography */
 	--font-sans: 'Mona Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -98,7 +103,7 @@
 	--ui-canvas: var(--color-ink-1000);
 	--ui-surface: var(--color-ink-950);
 	--ui-surface-raised: var(--color-ink-900);
-	--ui-surface-sunken: oklch(0.098 0.005 350);
+	--ui-surface-sunken: oklch(0.098 0.005 258);
 	--ui-surface-inverse: var(--color-ink-50);
 
 	--ui-border: var(--color-ink-850);
@@ -117,17 +122,14 @@
 	 * `accent-solid` is the brand as a *fill* behind text, so it must be dark
 	 * enough for its label to be legible on it.
 	 *
-	 * The fill is a light pink, which decides the label on it: white would come
-	 * out at 2.5:1 and be unreadable, dark text at about 8:1. So the label is
-	 * near-black — the same arrangement lime had, for the same reason.
-	 *
-	 * On this near-black canvas the ink can be the fill colour too; on white it
-	 * cannot, which is where the two tokens come apart. See the light block.
+	 * A deep blue fill carries white at about 6:1, which is the whole reason
+	 * for choosing it. The ink is several steps lighter so it reads against a
+	 * near-black canvas.
 	 */
 	--ui-accent: var(--color-brand-400);
-	--ui-accent-solid: var(--color-brand-400);
-	--ui-accent-hover: var(--color-brand-300);
-	--ui-accent-content: var(--color-ink-1000);
+	--ui-accent-solid: var(--color-brand-700);
+	--ui-accent-hover: var(--color-brand-800);
+	--ui-accent-content: oklch(1 0 0);
 	--ui-accent-soft: color-mix(in oklch, var(--color-brand-500) 14%, transparent);
 	--ui-accent-border: color-mix(in oklch, var(--color-brand-500) 34%, transparent);
 
@@ -160,22 +162,21 @@
 	--ui-content-inverse: var(--color-ink-50);
 
 	/*
-	 * Here the two accents genuinely diverge. The fill stays the light pink,
-	 * because that is the brand and it looks like it on a white page. But that
-	 * same pink as *text* on white is 2.5:1 and unreadable, so the ink drops
-	 * several steps. Same colour, two jobs, two values.
+	 * On white the ink darkens to stay readable; the fill is the same deep blue
+	 * as in dark mode, because a colour that already carries white text works
+	 * on either background.
 	 */
 	--ui-accent: var(--color-brand-700);
-	--ui-accent-solid: var(--color-brand-400);
-	--ui-accent-hover: var(--color-brand-500);
-	--ui-accent-content: var(--color-ink-1000);
+	--ui-accent-solid: var(--color-brand-700);
+	--ui-accent-hover: var(--color-brand-800);
+	--ui-accent-content: oklch(1 0 0);
 	--ui-accent-soft: color-mix(in oklch, var(--color-brand-500) 18%, transparent);
 	--ui-accent-border: color-mix(in oklch, var(--color-brand-600) 38%, transparent);
 
 	--ui-ok: oklch(0.58 0.15 155);
 	--ui-warn: oklch(0.66 0.15 70);
 	--ui-error: oklch(0.555 0.198 30);
-	--ui-info: oklch(0.555 0.155 268);
+	--ui-info: oklch(0.46 0.022 258);
 	--ui-pending: var(--color-ink-500);
 
 	--ui-ok-soft: color-mix(in oklch, var(--color-signal-ok) 18%, transparent);

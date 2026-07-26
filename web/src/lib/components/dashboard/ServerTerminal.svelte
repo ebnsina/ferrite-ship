@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { BRAND } from '$lib/theme/brand.generated';
 	import { env } from '$config/env';
 	import type { TerminalStatus } from '$types/terminal';
 	import { FitAddon } from '@xterm/addon-fit';
@@ -17,19 +18,25 @@
 
 	// Terminals are read as machine output, so this stays dark in both themes —
 	// the same convention every other terminal follows.
+	//
+	// The surface and cursor come from the generated brand module rather than
+	// literals: xterm paints to a canvas and cannot see the cascade, so this is
+	// one of the few places that needs a hex. Hand-written, the cursor stayed
+	// lime through two brand changes. The sixteen ANSI colours below are the
+	// terminal's own vocabulary and are deliberately not brand colours.
 	const THEME = {
-		background: '#161714',
-		foreground: '#e8ebe3',
-		cursor: '#bede4f',
-		selectionBackground: '#33361f',
-		black: '#161714',
+		background: BRAND.surfaceDark,
+		foreground: BRAND.contentDark,
+		cursor: BRAND.ink,
+		selectionBackground: '#2a3348',
+		black: BRAND.surfaceDark,
 		red: '#e0685f',
 		green: '#8fd18a',
 		yellow: '#d9c66a',
 		blue: '#7fa8e0',
 		magenta: '#c99ad8',
 		cyan: '#7fcfc4',
-		white: '#e8ebe3'
+		white: BRAND.contentDark
 	};
 
 	$effect(() => {

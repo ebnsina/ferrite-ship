@@ -124,14 +124,23 @@ them.
 
 **Design tokens are three-tier** (`web/src/lib/styles/tokens.css`): primitives →
 semantic → component. Components reference *only* the semantic tier
-(`bg-surface`, `text-content-muted`). Brand colour is pink.
+(`bg-surface`, `text-content-muted`). Brand colour is deep blue.
+
+**The brand is defined once, in `tokens.css`, and generated everywhere else.**
+`pnpm brand` derives the favicon and `src/lib/theme/brand.generated.ts` from
+the token ramp; `pnpm check` runs it in `--check` mode and fails if they have
+drifted. Anything that cannot read a CSS variable — the favicon, `<meta>`
+colours, the terminal's canvas palette — reads the generated module. Never
+hand-write a brand hex: the mark stayed lime through a cyan brand and a pink
+one precisely because it was copied by hand.
 
 **The accent is two tokens, not one.** `accent` is the brand as *ink* — text
 and icons, so it must be legible on the surface behind it, which means bright
 on dark and deep on light. `accent-solid` is the brand as a *fill* behind text
 (`bg-accent-solid text-accent-content`), so it must be dark enough to carry
-white. Pink runs out of lightness long before lime does, so one value cannot do
-both jobs. Never use `bg-accent`.
+white. A deep blue carries white text at 6:1, which is why it was chosen: lime,
+cyan and pink are all vivid only when *light*, so each forced dark labels or a
+muddy fill. Never use `bg-accent`.
 
 **Radius is a role-based scale**, never one value everywhere:
 `rounded-pill` (badges, meters), `rounded-control` (buttons), `rounded-field`
