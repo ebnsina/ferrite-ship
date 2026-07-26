@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Seo from '$components/Seo.svelte';
 	import { goto } from '$app/navigation';
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
 	import SectionHeader from '$components/dashboard/SectionHeader.svelte';
@@ -73,9 +74,7 @@
 	}
 </script>
 
-<svelte:head>
-	<title>Connect a server · ferrite-ship</title>
-</svelte:head>
+<Seo title="Connect a server" description="Point Ferrite Ship at a machine and set it up safely." noindex />
 
 <DashboardTopbar
 	crumbs={[

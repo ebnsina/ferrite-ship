@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Seo from '$components/Seo.svelte';
 	import { page } from '$app/state';
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
 	import JobTimeline from '$components/dashboard/JobTimeline.svelte';
@@ -54,9 +55,7 @@
 	const BannerIcon = $derived(banner.icon);
 </script>
 
-<svelte:head>
-	<title>Setting up · ferrite-ship</title>
-</svelte:head>
+<Seo title="Setting up" description="Watch a setup run as it happens." noindex />
 
 <DashboardTopbar
 	crumbs={[

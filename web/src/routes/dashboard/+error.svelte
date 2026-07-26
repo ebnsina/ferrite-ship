@@ -18,7 +18,8 @@
 </script>
 
 <svelte:head>
-	<title>{page.status} · ferrite-ship</title>
+	<title>{page.status} · Ferrite Ship</title>
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <DashboardTopbar crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Not found' }]} />

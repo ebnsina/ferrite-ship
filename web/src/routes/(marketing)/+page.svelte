@@ -10,15 +10,15 @@
 	import StatsBar from '$components/marketing/StatsBar.svelte';
 	import Testimonials from '$components/marketing/Testimonials.svelte';
 	import UseCases from '$components/marketing/UseCases.svelte';
+	import Seo from '$components/Seo.svelte';
 </script>
 
-<svelte:head>
-	<title>Ferrite Ship · Run your server from your browser</title>
-	<meta
-		name="description"
-		content="Connect a fresh Ubuntu server, get it set up safely in minutes, then manage everything — files, apps, updates, storage — from one dashboard. No command line needed."
-	/>
-</svelte:head>
+<Seo
+	bare
+	title="Ferrite Ship · Run your server from your browser"
+	description="Connect a fresh Ubuntu server, get it set up safely in minutes, then manage everything — files, apps, updates, storage — from one dashboard. No command line needed."
+	path="/"
+/>
 
 <Hero />
 <StatsBar />

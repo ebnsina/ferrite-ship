@@ -1,13 +1,12 @@
 <script lang="ts">
+	import Seo from '$components/Seo.svelte';
 	import ComingSoon from '$components/dashboard/ComingSoon.svelte';
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
 	import SectionHeader from '$components/dashboard/SectionHeader.svelte';
 	import Settings from '@lucide/svelte/icons/settings';
 </script>
 
-<svelte:head>
-	<title>Settings · ferrite-ship</title>
-</svelte:head>
+<Seo title="Settings" description="Your account, your team, and notifications." noindex />
 
 <DashboardTopbar
 	crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Settings' }]}

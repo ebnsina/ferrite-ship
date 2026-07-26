@@ -9,8 +9,4 @@
 	let { children }: Props = $props();
 </script>
 
-<svelte:head>
-	<meta name="description" content="Provision, harden and operate your VPS from the browser." />
-</svelte:head>
-
 {@render children()}

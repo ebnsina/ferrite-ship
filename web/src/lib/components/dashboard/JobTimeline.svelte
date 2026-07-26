@@ -19,7 +19,7 @@
 	});
 </script>
 
-<Card padded={false}>
+<Card padded={false} class="overflow-hidden">
 	{#if stream.steps.length === 0}
 		<div class="space-y-3 p-5">
 			<Skeleton class="h-5 w-2/3" />

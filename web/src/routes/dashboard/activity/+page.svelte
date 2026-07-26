@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Seo from '$components/Seo.svelte';
 	import ActivityFeed from '$components/dashboard/ActivityFeed.svelte';
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
 	import ResourceView from '$components/dashboard/ResourceView.svelte';
@@ -10,9 +11,7 @@
 	const activity = createResource((signal) => dashboardRepository.listActivity(signal));
 </script>
 
-<svelte:head>
-	<title>History · ferrite-ship</title>
-</svelte:head>
+<Seo title="History" description="Everything that has run, and how it went." noindex />
 
 <DashboardTopbar
 	crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'History' }]}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Seo from '$components/Seo.svelte';
 	import BoardSkeleton from '$components/dashboard/BoardSkeleton.svelte';
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
 	import ResourceView from '$components/dashboard/ResourceView.svelte';
@@ -12,9 +13,7 @@
 	const servers = createResource((signal) => dashboardRepository.listServers(signal));
 </script>
 
-<svelte:head>
-	<title>Servers · ferrite-ship</title>
-</svelte:head>
+<Seo title="Servers" description="Every machine you have connected." noindex />
 
 <DashboardTopbar crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Servers' }]} unread={2} />
 

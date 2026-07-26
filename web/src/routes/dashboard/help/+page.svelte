@@ -1,13 +1,12 @@
 <script lang="ts">
+	import Seo from '$components/Seo.svelte';
 	import ComingSoon from '$components/dashboard/ComingSoon.svelte';
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
 	import SectionHeader from '$components/dashboard/SectionHeader.svelte';
 	import LifeBuoy from '@lucide/svelte/icons/life-buoy';
 </script>
 
-<svelte:head>
-	<title>Help · ferrite-ship</title>
-</svelte:head>
+<Seo title="Help" description="Guides, answers and a way to reach a person." noindex />
 
 <DashboardTopbar
 	crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Help' }]}

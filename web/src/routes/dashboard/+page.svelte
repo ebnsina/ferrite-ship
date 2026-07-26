@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Seo from '$components/Seo.svelte';
 	import ActivityFeed from '$components/dashboard/ActivityFeed.svelte';
 	import BoardSkeleton from '$components/dashboard/BoardSkeleton.svelte';
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
@@ -39,9 +40,7 @@
 	);
 </script>
 
-<svelte:head>
-	<title>Overview · ferrite-ship</title>
-</svelte:head>
+<Seo title="Overview" description="How your servers are doing and what has run recently." noindex />
 
 <DashboardTopbar crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Overview' }]} unread={2} />
 
