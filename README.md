@@ -25,6 +25,15 @@ from a browser — files, services, updates, storage — without memorising anot
   copy. Databases listen on loopback only and are reached over an SSH tunnel
   the dashboard writes out for you; a media server is public, because a stream
   nobody can watch is not a stream.
+- **Query them without leaving the page.** Every installed database has a
+  console: SQL for PostgreSQL and ClickHouse, commands for Redis, with
+  ready-made queries to start from and somewhere to keep your own.
+- **Deploy your own code.** Point it at a git repository — public, or private
+  with a deploy key. A Dockerfile is used if there is one; otherwise the
+  project is read and built, which covers Rust, Go, Python and Node. Give it a
+  domain and it is served over HTTPS with a certificate that renews itself.
+- **Back it up somewhere else.** PostgreSQL and Redis stream to any
+  S3-compatible storage, and restore from it. Deliberately not the same disk.
 - **Take them away again.** Removing keeps your data unless you ask for it to
   go, and says which it is doing before you agree.
 - **Open a real shell in the browser** — a PTY over SSH, with resize, colour
@@ -299,6 +308,8 @@ rather than drawing a trend that was never measured.
 │   ├── auth/           Passwords and sessions
 │   ├── catalog/        The installable tools, and their playbooks
 │   ├── config/         Environment loading and validation
+│   ├── console/        Running a query against an installed database
+│   ├── deploy/         Building and running your own applications
 │   ├── dialer/         The one way an SSH connection is opened
 │   ├── executor/       Command transport (ssh, demo)
 │   ├── facts/          Reading what a server is and how busy it is
@@ -338,6 +349,18 @@ multi-tenancy arrives is a change to `internal/store` alone.
 | `GET` | `/v1/servers/{id}/files/content` | Read a text file |
 | `PUT` | `/v1/servers/{id}/files/content` | Save a text file |
 | `GET` | `/v1/servers/{id}/files/download` | Download a file |
+| `GET` | `/v1/servers/{id}/apps` | Applications on a server |
+| `POST` | `/v1/servers/{id}/apps` | Add an application |
+| `PUT` | `/v1/apps/{app}` | Change one |
+| `POST` | `/v1/apps/{app}/deploy` | Build and run it |
+| `DELETE` | `/v1/apps/{app}` | Stop it and remove its route |
+| `GET` | `/v1/backups/destination` | Where backups go (never returns keys) |
+| `PUT` | `/v1/backups/destination` | Set it |
+| `GET` | `/v1/servers/{id}/tools/{tool}/backups` | Backups taken |
+| `POST` | `/v1/servers/{id}/tools/{tool}/backups` | Take one |
+| `POST` | `/v1/backups/{backup}/restore` | Put one back |
+| `POST` | `/v1/servers/{id}/tools/{tool}/query` | Run a query |
+| `GET` | `/v1/servers/{id}/tools/{tool}/queries` | Saved queries |
 | `GET` | `/v1/catalog` | Everything installable |
 | `GET` | `/v1/servers/{id}/tools` | The catalogue, with what is installed here |
 | `POST` | `/v1/servers/{id}/tools` | Install a tool, or repair one |
@@ -392,18 +415,22 @@ These are the reasons this is not production software yet:
 - **Single tenant.** No organisations, users or roles.
 - **SSH, not an agent.** Servers behind NAT are unreachable, and the control
   plane holds credentials it would rather not have.
-- **No backups.** Nothing here copies your data anywhere. Deleting a tool's
-  data is final, which is why it has to be asked for explicitly.
-- **No ingress yet.** A tool is reached over an SSH tunnel or, where it is
-  meant to be public, on its own port. There is no reverse proxy and no
-  automatic TLS, so nothing gets a domain name of its own.
-- **No application deploys.** The catalogue installs software; it does not
-  build or run your code.
+- **Backups are manual.** You take them when you choose to; nothing runs on a
+  schedule yet, and a backup that depends on remembering is the one you find
+  missing. ClickHouse cannot be backed up at all — it needs a backup disk
+  declared in its compose file.
+- **TLS is unverified.** Certificates are issued automatically by Let's
+  Encrypt, but that path has only been exercised against a name with no public
+  TLD, which it correctly refuses. Proving it needs a real domain pointed at a
+  real server.
+- **`ssh-harden` has never applied.** It skips correctly on a
+  password-authenticated server, so the guard is proven and the code it guards
+  is not.
 
 ## Roadmap
 
-1. Connect-a-server flow and live log view in the dashboard
+1. Scheduled backups, retention, and ClickHouse support
 2. A long-lived agent, so credentials are not stored and NAT stops mattering
-3. Authentication, organisations and roles
-4. Day-2 operations: terminal, files, services, packages, disks
-5. Ingress with automatic TLS, and backups for the tools that hold data
+3. Organisations and roles, on PostgreSQL with row-level security
+4. Build logs and rollback for deployments
+5. Deploying from a push rather than a button
