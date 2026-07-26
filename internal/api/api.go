@@ -12,6 +12,7 @@ import (
 	"github.com/ebnsina/ferrite-ship/internal/ids"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
 	"github.com/ebnsina/ferrite-ship/internal/secret"
+	"github.com/ebnsina/ferrite-ship/internal/services"
 	"github.com/ebnsina/ferrite-ship/internal/store"
 	"github.com/ebnsina/ferrite-ship/internal/terminal"
 )
@@ -23,6 +24,7 @@ type API struct {
 	sealer    *secret.Sealer
 	terminals *terminal.Service
 	files     *files.Service
+	services  *services.Service
 	log       *slog.Logger
 
 	allowedOrigin string
@@ -38,6 +40,7 @@ type Options struct {
 	Sealer        *secret.Sealer
 	Terminals     *terminal.Service
 	Files         *files.Service
+	Services      *services.Service
 	Logger        *slog.Logger
 	AllowedOrigin string
 }
@@ -50,6 +53,7 @@ func New(opts Options) *API {
 		sealer:        opts.Sealer,
 		terminals:     opts.Terminals,
 		files:         opts.Files,
+		services:      opts.Services,
 		log:           opts.Logger,
 		allowedOrigin: opts.AllowedOrigin,
 	}
@@ -80,6 +84,10 @@ func (a *API) Routes() http.Handler {
 	mux.HandleFunc("GET /v1/servers/{id}/files/content", a.handleReadFile)
 	mux.HandleFunc("PUT /v1/servers/{id}/files/content", a.handleWriteFile)
 	mux.HandleFunc("GET /v1/servers/{id}/files/download", a.handleDownloadFile)
+
+	mux.HandleFunc("GET /v1/servers/{id}/services", a.handleListServices)
+	mux.HandleFunc("POST /v1/servers/{id}/services/{unit}/actions", a.handleServiceAction)
+	mux.HandleFunc("GET /v1/servers/{id}/services/{unit}/logs", a.handleServiceLogs)
 
 	mux.HandleFunc("GET /v1/jobs/{id}", a.handleGetJob)
 	mux.HandleFunc("GET /v1/jobs/{id}/events", a.handleJobEvents)

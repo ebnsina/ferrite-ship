@@ -26,6 +26,8 @@ from a browser — files, services, updates, storage — without memorising anot
   and full-screen programs.
 - **Browse and edit files** over SFTP: navigate, open a config, save it back
   with its permissions intact, download, delete.
+- **See and control services** — what is running, start, stop, restart, and
+  read the journal. Units that would cut off access refuse to be stopped.
 - **See your fleet** — status, CPU, memory, storage and uptime, gathered from
   the machines themselves.
 
@@ -226,6 +228,7 @@ rather than drawing a trend that was never measured.
 │   ├── files/          Browsing and editing files over SFTP
 │   ├── runner/         Job execution and the event bus
 │   ├── secret/         Credential sealing
+│   ├── services/       systemd units and their logs
 │   ├── steps/          The step engine and the baseline playbook
 │   ├── store/          SQLite persistence
 │   └── terminal/       Interactive shells over SSH
@@ -254,6 +257,9 @@ multi-tenancy arrives is a change to `internal/store` alone.
 | `GET` | `/v1/servers/{id}/files/content` | Read a text file |
 | `PUT` | `/v1/servers/{id}/files/content` | Save a text file |
 | `GET` | `/v1/servers/{id}/files/download` | Download a file |
+| `GET` | `/v1/servers/{id}/services` | List services |
+| `POST` | `/v1/servers/{id}/services/{unit}/actions` | Start, stop or restart a service |
+| `GET` | `/v1/servers/{id}/services/{unit}/logs` | Read a service's journal |
 | `GET` | `/v1/metrics` | Fleet metrics |
 
 Errors share one envelope: `{ "code", "message", "request_id" }`.
