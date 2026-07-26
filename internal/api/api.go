@@ -50,6 +50,8 @@ func (a *API) Routes() http.Handler {
 	mux.HandleFunc("GET /v1/health", a.handleHealth)
 
 	mux.HandleFunc("GET /v1/servers", a.handleListServers)
+	mux.HandleFunc("GET /v1/servers/{id}", a.handleGetServer)
+	mux.HandleFunc("GET /v1/servers/{id}/jobs", a.handleServerJobs)
 	mux.HandleFunc("POST /v1/servers", a.handleCreateServer)
 	mux.HandleFunc("DELETE /v1/servers/{id}", a.handleDeleteServer)
 	mux.HandleFunc("POST /v1/servers/{id}/jobs", a.handleStartJob)

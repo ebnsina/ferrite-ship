@@ -6,9 +6,13 @@ export interface ResourceUsage {
 	totalBytes: number;
 }
 
+/** How the control plane reaches a server. */
+export type ServerConnectionKind = 'demo' | 'ssh';
+
 export interface ManagedServer {
 	id: string;
 	name: string;
+	connectionKind: ServerConnectionKind;
 	hostname: string;
 	ipAddress: string;
 	region: string;

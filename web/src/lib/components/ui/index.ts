@@ -2,6 +2,7 @@ export { default as Button } from './Button.svelte';
 export { default as ButtonLink } from './ButtonLink.svelte';
 export { default as Card } from './Card.svelte';
 export { default as ChoiceCard } from './ChoiceCard.svelte';
+export { default as ConfirmDialog } from './ConfirmDialog.svelte';
 export { default as CountBadge } from './CountBadge.svelte';
 export { default as DeltaBadge } from './DeltaBadge.svelte';
 export { default as EmptyState } from './EmptyState.svelte';

@@ -45,6 +45,10 @@ type Runner struct {
 	// running guards against two jobs touching one server at once.
 	runningMu sync.Mutex
 	running   map[string]bool
+
+	// DemoLatency paces the simulated machine so streamed logs arrive at a
+	// readable speed. Tests set it to zero.
+	DemoLatency time.Duration
 }
 
 func New(st *store.Store, sealer *secret.Sealer, bus *Bus, log *slog.Logger) *Runner {
@@ -55,6 +59,7 @@ func New(st *store.Store, sealer *secret.Sealer, bus *Bus, log *slog.Logger) *Ru
 		log:          log,
 		demoMachines: make(map[string]*demoexec.Machine),
 		running:      make(map[string]bool),
+		DemoLatency:  140 * time.Millisecond,
 	}
 }
 
@@ -308,6 +313,7 @@ func (r *Runner) connect(ctx context.Context, server store.Server) (executor.Exe
 		machine, ok := r.demoMachines[server.ID]
 		if !ok {
 			machine = demoexec.New()
+			machine.Latency = r.DemoLatency
 			r.demoMachines[server.ID] = machine
 		}
 		return machine, nil

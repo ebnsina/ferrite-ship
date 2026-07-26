@@ -17,6 +17,7 @@ export const mockServers: ManagedServer[] = [
 	{
 		id: 'srv_01',
 		name: 'edge-fra-1',
+		connectionKind: 'demo',
 		hostname: 'edge-fra-1.ferrite.internal',
 		ipAddress: '198.51.100.24',
 		region: 'Frankfurt',
@@ -33,6 +34,7 @@ export const mockServers: ManagedServer[] = [
 	{
 		id: 'srv_02',
 		name: 'media-ams-1',
+		connectionKind: 'demo',
 		hostname: 'media-ams-1.ferrite.internal',
 		ipAddress: '198.51.100.71',
 		region: 'Amsterdam',
@@ -49,6 +51,7 @@ export const mockServers: ManagedServer[] = [
 	{
 		id: 'srv_03',
 		name: 'db-fra-1',
+		connectionKind: 'demo',
 		hostname: 'db-fra-1.ferrite.internal',
 		ipAddress: '198.51.100.9',
 		region: 'Frankfurt',
@@ -65,6 +68,7 @@ export const mockServers: ManagedServer[] = [
 	{
 		id: 'srv_04',
 		name: 'worker-sgp-1',
+		connectionKind: 'demo',
 		hostname: 'worker-sgp-1.ferrite.internal',
 		ipAddress: '203.0.113.44',
 		region: 'Singapore',
@@ -81,6 +85,7 @@ export const mockServers: ManagedServer[] = [
 	{
 		id: 'srv_05',
 		name: 'build-fra-2',
+		connectionKind: 'demo',
 		hostname: 'build-fra-2.ferrite.internal',
 		ipAddress: '198.51.100.132',
 		region: 'Frankfurt',

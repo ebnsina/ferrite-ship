@@ -31,6 +31,22 @@ function delayed<T>(value: T, signal?: AbortSignal): Promise<T> {
 
 export const mockRepository: DashboardRepository = {
 	listServers: (signal) => delayed<ManagedServer[]>(mockServers, signal),
+
+	getServer: (id, signal) => {
+		const found = mockServers.find((server) => server.id === id);
+		if (!found) {
+			return Promise.reject(
+				new AppError({ code: 'not_found', message: 'We could not find that server.' })
+			);
+		}
+		return delayed<ManagedServer>(found, signal);
+	},
+
+	listServerJobs: (id, signal) =>
+		delayed<ActivityEntry[]>(
+			mockActivity.filter((entry) => entry.serverName === mockServers.find((s) => s.id === id)?.name),
+			signal
+		),
 	listActivity: (signal) => delayed<ActivityEntry[]>(mockActivity, signal),
 	listMetrics: (signal) => delayed<FleetMetric[]>(mockMetrics, signal)
 };

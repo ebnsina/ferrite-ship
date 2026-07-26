@@ -46,7 +46,14 @@
 		<StatusPill {status} />
 	</div>
 
-	<h3 class="text-content mt-4 truncate text-sm font-medium">{server.name}</h3>
+	<h3 class="mt-4 truncate text-sm font-medium">
+		<a
+			href="/dashboard/servers/{server.id}"
+			class="text-content hover:text-accent transition-colors duration-150"
+		>
+			{server.name}
+		</a>
+	</h3>
 	<p class="text-content-subtle mt-1 truncate text-xs">
 		{server.region} · {server.operatingSystem}
 	</p>

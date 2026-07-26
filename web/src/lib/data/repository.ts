@@ -8,6 +8,8 @@ import type { ManagedServer } from '$types/server';
  */
 export interface DashboardRepository {
 	listServers(signal?: AbortSignal): Promise<ManagedServer[]>;
+	getServer(id: string, signal?: AbortSignal): Promise<ManagedServer>;
+	listServerJobs(id: string, signal?: AbortSignal): Promise<ActivityEntry[]>;
 	listActivity(signal?: AbortSignal): Promise<ActivityEntry[]>;
 	listMetrics(signal?: AbortSignal): Promise<FleetMetric[]>;
 }

@@ -205,6 +205,43 @@ func (a *API) applySSHDetails(srv *store.Server, req createServerRequest) error 
 	return nil
 }
 
+func (a *API) handleGetServer(w http.ResponseWriter, r *http.Request) {
+	server, err := a.store.GetServer(r.Context(), r.PathValue("id"))
+	if err != nil {
+		a.writeStoreError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toServerView(server))
+}
+
+func (a *API) handleServerJobs(w http.ResponseWriter, r *http.Request) {
+	server, err := a.store.GetServer(r.Context(), r.PathValue("id"))
+	if err != nil {
+		a.writeStoreError(w, err)
+		return
+	}
+
+	jobs, err := a.store.ListJobsForServer(r.Context(), server.ID, 20)
+	if err != nil {
+		a.writeStoreError(w, err)
+		return
+	}
+
+	views := make([]activityView, 0, len(jobs))
+	for _, job := range jobs {
+		views = append(views, activityView{
+			ID:         job.ID,
+			Title:      job.Title,
+			ServerName: server.Name,
+			Actor:      job.Actor,
+			Status:     string(job.Status),
+			StartedAt:  job.StartedAt.UTC().Format("2006-01-02T15:04:05Z"),
+			DurationMs: job.DurationMs(),
+		})
+	}
+	writeJSON(w, http.StatusOK, views)
+}
+
 func (a *API) handleDeleteServer(w http.ResponseWriter, r *http.Request) {
 	if err := a.store.DeleteServer(r.Context(), r.PathValue("id")); err != nil {
 		a.writeStoreError(w, err)

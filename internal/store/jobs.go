@@ -139,6 +139,31 @@ func (s *Store) ListEvents(ctx context.Context, jobID string, afterSeq int) ([]E
 	return events, rows.Err()
 }
 
+// ListJobsForServer powers a server's own history, newest first.
+func (s *Store) ListJobsForServer(ctx context.Context, serverID string, limit int) ([]Job, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+jobColumns+` FROM jobs WHERE server_id = ? ORDER BY started_at DESC LIMIT ?`,
+		serverID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("store: list jobs for server: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	jobs := []Job{}
+	for rows.Next() {
+		job, err := scanJob(rows)
+		if err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, rows.Err()
+}
+
 // CountJobsForServer is used to decide whether a server has ever been set up.
 func (s *Store) CountJobsForServer(ctx context.Context, serverID string) (int, error) {
 	var count int

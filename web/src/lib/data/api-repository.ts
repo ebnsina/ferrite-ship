@@ -7,6 +7,10 @@ import type { DashboardRepository } from './repository';
 /** Talks to the Go control plane. Errors surface as AppError from apiRequest. */
 export const apiRepository: DashboardRepository = {
 	listServers: (signal) => apiRequest<ManagedServer[]>('/v1/servers', { signal }),
+	getServer: (id, signal) =>
+		apiRequest<ManagedServer>(`/v1/servers/${encodeURIComponent(id)}`, { signal }),
+	listServerJobs: (id, signal) =>
+		apiRequest<ActivityEntry[]>(`/v1/servers/${encodeURIComponent(id)}/jobs`, { signal }),
 	listActivity: (signal) => apiRequest<ActivityEntry[]>('/v1/activity', { signal }),
 	listMetrics: (signal) => apiRequest<FleetMetric[]>('/v1/metrics', { signal })
 };

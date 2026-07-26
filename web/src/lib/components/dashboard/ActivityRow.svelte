@@ -23,7 +23,12 @@
 	</span>
 
 	<div class="min-w-0 flex-1">
-		<p class="text-content truncate text-sm">{entry.title}</p>
+		<a
+			href="/dashboard/jobs/{entry.id}"
+			class="text-content hover:text-accent block truncate text-sm transition-colors duration-150"
+		>
+			{entry.title}
+		</a>
 		<p class="text-content-subtle mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
 			<span class="flex items-center gap-1.5">
 				<Server size={12} aria-hidden="true" />
