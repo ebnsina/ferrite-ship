@@ -85,3 +85,27 @@ export function reachability(tool: Tool): { label: string; detail: string } {
 				detail: 'Nothing outside the server can reach it. Use the tunnel command to connect.'
 			};
 }
+
+/**
+ * How a deployed application's state is shown.
+ *
+ * Separate from SERVER_STATUS: "running" means something different about a
+ * container than it does about a machine, and sharing one vocabulary would
+ * make the two look interchangeable when they are not.
+ */
+const UNKNOWN_APP: StatusPresentation = {
+	label: 'Never deployed',
+	tone: 'pending',
+	icon: CircleDashed
+};
+
+export const APP_STATUS: Record<string, StatusPresentation> = {
+	running: { label: 'Running', tone: 'ok', icon: CircleCheck },
+	deploying: { label: 'Deploying', tone: 'info', icon: LoaderCircle, animated: true },
+	failed: { label: 'Did not deploy', tone: 'error', icon: CircleX },
+	new: UNKNOWN_APP
+};
+
+export function appStatus(status: string): StatusPresentation {
+	return APP_STATUS[status] ?? UNKNOWN_APP;
+}

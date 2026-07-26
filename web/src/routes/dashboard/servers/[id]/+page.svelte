@@ -24,6 +24,7 @@
 	import { usageRatio } from '$types/server';
 	import { formatBytes, formatDuration, formatRelativeTime } from '$utils/format';
 	import { createResource } from '$utils/resource.svelte';
+	import Boxes from '@lucide/svelte/icons/boxes';
 	import Cog from '@lucide/svelte/icons/cog';
 	import Cpu from '@lucide/svelte/icons/cpu';
 	import FolderOpen from '@lucide/svelte/icons/folder-open';
@@ -163,6 +164,10 @@
 					<StatusPill {status} />
 
 					{#if s.connectionKind === 'ssh'}
+						<ButtonLink href="/dashboard/servers/{id}/apps" variant="ghost" size="sm">
+							<Boxes size={15} aria-hidden="true" />
+							Apps
+						</ButtonLink>
 						<ButtonLink href="/dashboard/servers/{id}/tools" variant="ghost" size="sm">
 							<Package size={15} aria-hidden="true" />
 							Tools
