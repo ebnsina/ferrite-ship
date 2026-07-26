@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -148,6 +149,16 @@ func (a *API) handleSetup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) handleLogin(w http.ResponseWriter, r *http.Request) {
+	client := clientKey(r)
+
+	// Checked before reading the body and before hashing, so a locked-out
+	// client costs nothing to refuse.
+	if wait := a.signIns.retryAfter(client); wait > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
+		a.fail(w, apierr.TooManyAttempts)
+		return
+	}
+
 	var req credentialsRequest
 	if err := decodeJSON(r, &req); err != nil {
 		a.fail(w, apierr.BadRequest.WithCause(err))
@@ -156,12 +167,14 @@ func (a *API) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	session, err := a.auth.Authenticate(r.Context(), req.Email, req.Password)
 	if err != nil {
+		a.signIns.recordFailure(client)
 		// One message for both a wrong password and an unknown account, so the
 		// response cannot be used to discover which emails exist.
 		a.fail(w, apierr.WrongCredentials)
 		return
 	}
 
+	a.signIns.recordSuccess(client)
 	setSessionCookie(w, r, session.ID, session.ExpiresAt)
 	writeJSON(w, http.StatusOK, authStatusResponse{
 		Authenticated: true,

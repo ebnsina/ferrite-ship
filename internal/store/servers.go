@@ -15,7 +15,7 @@ var ErrNotFound = errors.New("not found")
 
 const serverColumns = `id, user_id, name, connection_kind, host, port, username, region, status,
 	facts_json, services_json, sealed_password, sealed_private_key, public_key,
-	created_at, last_seen_at`
+	host_key, created_at, last_seen_at`
 
 func (s *Store) CreateServer(ctx context.Context, srv Server) error {
 	factsJSON, err := json.Marshal(srv.Facts)
@@ -29,10 +29,10 @@ func (s *Store) CreateServer(ctx context.Context, srv Server) error {
 
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO servers (`+serverColumns+`)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		srv.ID, srv.UserID, srv.Name, string(srv.Kind), srv.Host, srv.Port, srv.User, srv.Region,
 		string(srv.Status), string(factsJSON), string(servicesJSON),
-		srv.SealedPassword, srv.SealedPrivateKey, srv.PublicKey,
+		srv.SealedPassword, srv.SealedPrivateKey, srv.PublicKey, srv.HostKey,
 		formatTime(srv.CreatedAt), formatTimePtr(srv.LastSeenAt))
 	if err != nil {
 		return fmt.Errorf("store: insert server: %w", err)
@@ -89,6 +89,18 @@ func (s *Store) DeleteServer(ctx context.Context, userID, id string) error {
 	return nil
 }
 
+// RememberHostKey records a server's identity the first time we see it.
+// Trust on first use is unavoidable without an out-of-band fingerprint, but
+// remembering it means every later connection is checked.
+func (s *Store) RememberHostKey(ctx context.Context, id, hostKey string) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE servers SET host_key = ? WHERE id = ? AND host_key = ''`, hostKey, id)
+	if err != nil {
+		return fmt.Errorf("store: remember host key: %w", err)
+	}
+	return nil
+}
+
 // UpdateServerState records what a probe or a job run just learned.
 func (s *Store) UpdateServerState(
 	ctx context.Context, id string, status ServerStatus, f facts.Facts, seenAt time.Time,
@@ -133,7 +145,7 @@ func scanServer(row rowScanner) (Server, error) {
 
 	err := row.Scan(&srv.ID, &srv.UserID, &srv.Name, &kind, &srv.Host, &srv.Port, &srv.User, &srv.Region,
 		&status, &factsJSON, &servicesJSON, &srv.SealedPassword, &srv.SealedPrivateKey,
-		&srv.PublicKey, &createdAt, &lastSeenAtRaw)
+		&srv.PublicKey, &srv.HostKey, &createdAt, &lastSeenAtRaw)
 	if err != nil {
 		return Server{}, err
 	}

@@ -3,6 +3,7 @@ package sshexec
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"io"
@@ -16,10 +17,19 @@ import (
 	"github.com/ebnsina/ferrite-ship/internal/executor"
 )
 
+// ErrHostKeyChanged means the server presented a different identity than the
+// one recorded. That is either a reinstalled machine or somebody standing in
+// the middle; both need a person to decide, so the connection is refused.
+var ErrHostKeyChanged = errors.New(
+	"this server's identity has changed since it was added")
+
 type Config struct {
 	Host string
 	Port int
 	User string
+	// KnownHostKey is the identity recorded on the first connection. Empty
+	// means we have not seen this server before and will learn it.
+	KnownHostKey string
 	// Exactly one of Password or PrivateKey must be set.
 	Password   string
 	PrivateKey string
@@ -31,6 +41,29 @@ type Config struct {
 type Client struct {
 	client *ssh.Client
 	target string
+	// hostKey is what the server actually presented, so a first connection can
+	// be recorded by the caller.
+	hostKey string
+}
+
+// HostKey returns the identity this server presented.
+func (c *Client) HostKey() string { return c.hostKey }
+
+// verifyHostKey checks the server is the one we recorded, and captures its key
+// when we have not seen it before.
+func verifyHostKey(expected string, observed *string) ssh.HostKeyCallback {
+	return func(_ string, _ net.Addr, key ssh.PublicKey) error {
+		presented := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key)))
+		*observed = presented
+
+		if expected == "" {
+			return nil // first sight: the caller records it
+		}
+		if subtle.ConstantTimeCompare([]byte(presented), []byte(expected)) == 1 {
+			return nil
+		}
+		return ErrHostKeyChanged
+	}
 }
 
 func Dial(ctx context.Context, cfg Config) (*Client, error) {
@@ -54,13 +87,12 @@ func Dial(ctx context.Context, cfg Config) (*Client, error) {
 
 	addr := net.JoinHostPort(cfg.Host, fmt.Sprint(cfg.Port))
 
+	var observedHostKey string
+
 	clientCfg := &ssh.ClientConfig{
-		User: cfg.User,
-		Auth: auth,
-		// MVP: trust on first use. Before this is exposed to anyone else, pin
-		// the host key on enrolment and verify it on every later connection —
-		// without that this is open to a man-in-the-middle.
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), //nolint:gosec // see comment
+		User:            cfg.User,
+		Auth:            auth,
+		HostKeyCallback: verifyHostKey(cfg.KnownHostKey, &observedHostKey),
 		Timeout:         cfg.Timeout,
 	}
 
@@ -73,12 +105,16 @@ func Dial(ctx context.Context, cfg Config) (*Client, error) {
 	sshConn, chans, reqs, err := ssh.NewClientConn(conn, addr, clientCfg)
 	if err != nil {
 		_ = conn.Close()
+		if errors.Is(err, ErrHostKeyChanged) {
+			return nil, ErrHostKeyChanged
+		}
 		return nil, fmt.Errorf("ssh: handshake with %s: %w", addr, err)
 	}
 
 	return &Client{
-		client: ssh.NewClient(sshConn, chans, reqs),
-		target: fmt.Sprintf("%s@%s", cfg.User, addr),
+		client:  ssh.NewClient(sshConn, chans, reqs),
+		target:  fmt.Sprintf("%s@%s", cfg.User, addr),
+		hostKey: observedHostKey,
 	}, nil
 }
 

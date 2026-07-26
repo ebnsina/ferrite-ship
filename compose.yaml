@@ -1,0 +1,46 @@
+# Ferrite Ship behind Caddy, which gets a certificate on its own.
+#
+# The control plane never listens on a public port: it is reachable only from
+# the proxy on the internal network. That matters because it holds credentials
+# for every server you have connected.
+
+services:
+  ferrite-ship:
+    build:
+      context: .
+      args:
+        # Same-origin: Caddy serves the dashboard and the API from one host,
+        # so the browser needs no cross-origin permission at all.
+        PUBLIC_API_BASE_URL: https://${FERRITE_DOMAIN:?set FERRITE_DOMAIN}
+        PUBLIC_APP_URL: https://${FERRITE_DOMAIN}
+    restart: unless-stopped
+    environment:
+      # Generate once with: docker compose run --rm ferrite-ship genkey
+      # Losing it makes every stored credential unreadable.
+      FERRITE_SECRET_KEY: ${FERRITE_SECRET_KEY:?set FERRITE_SECRET_KEY}
+      FERRITE_ALLOWED_ORIGIN: none
+    volumes:
+      - ferrite-data:/data
+    # No ports: only Caddy can reach it.
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      FERRITE_DOMAIN: ${FERRITE_DOMAIN:?set FERRITE_DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - ferrite-ship
+
+volumes:
+  ferrite-data:
+  caddy-data:
+  caddy-config:

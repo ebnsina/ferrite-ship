@@ -16,6 +16,7 @@ import (
 	"github.com/ebnsina/ferrite-ship/internal/api"
 	"github.com/ebnsina/ferrite-ship/internal/auth"
 	"github.com/ebnsina/ferrite-ship/internal/config"
+	"github.com/ebnsina/ferrite-ship/internal/dialer"
 	"github.com/ebnsina/ferrite-ship/internal/files"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
 	"github.com/ebnsina/ferrite-ship/internal/secret"
@@ -143,11 +144,15 @@ func run(log *slog.Logger) error {
 	}
 	defer func() { _ = st.Close() }()
 
+	// One dialer for everything that reaches a managed server, so host key
+	// checking happens in exactly one place.
+	connections := dialer.New(st, sealer)
+
 	bus := runner.NewBus()
-	jobs := runner.New(st, sealer, bus, log)
-	terminals := terminal.NewService(st, sealer)
-	fileBrowser := files.NewService(st, sealer)
-	units := services.NewService(st, sealer)
+	jobs := runner.New(st, connections, bus, log)
+	terminals := terminal.NewService(connections)
+	fileBrowser := files.NewService(connections)
+	units := services.NewService(connections)
 	accounts := auth.NewService(st)
 
 	restAPI := api.New(api.Options{

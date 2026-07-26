@@ -9,10 +9,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/ebnsina/ferrite-ship/internal/dialer"
 	"github.com/ebnsina/ferrite-ship/internal/executor/sshexec"
-	"github.com/ebnsina/ferrite-ship/internal/secret"
 	"github.com/ebnsina/ferrite-ship/internal/steps"
-	"github.com/ebnsina/ferrite-ship/internal/store"
 )
 
 var (
@@ -74,13 +73,10 @@ var protectedUnits = map[string]bool{
 var unitPattern = regexp.MustCompile(`^[a-zA-Z0-9@._:\-\\]{1,128}\.service$`)
 
 type Service struct {
-	store  *store.Store
-	sealer *secret.Sealer
+	dialer *dialer.Dialer
 }
 
-func NewService(st *store.Store, sealer *secret.Sealer) *Service {
-	return &Service{store: st, sealer: sealer}
-}
+func NewService(d *dialer.Dialer) *Service { return &Service{dialer: d} }
 
 // session bundles a connection with an elevated command runner.
 type session struct {
@@ -91,28 +87,11 @@ type session struct {
 func (s *session) Close() { _ = s.client.Close() }
 
 func (s *Service) connect(ctx context.Context, userID, serverID string) (*session, error) {
-	server, err := s.store.GetServer(ctx, userID, serverID)
+	client, _, err := s.dialer.Dial(ctx, userID, serverID)
 	if err != nil {
-		return nil, err
-	}
-	if server.Kind != store.ConnectionSSH {
-		return nil, ErrNotSupported
-	}
-
-	password, err := s.sealer.Open(server.SealedPassword)
-	if err != nil {
-		return nil, fmt.Errorf("could not read the stored password: %w", err)
-	}
-	privateKey, err := s.sealer.Open(server.SealedPrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("could not read the stored key: %w", err)
-	}
-
-	client, err := sshexec.Dial(ctx, sshexec.Config{
-		Host: server.Host, Port: server.Port, User: server.User,
-		Password: password, PrivateKey: privateKey,
-	})
-	if err != nil {
+		if _, simulated := err.(dialer.ErrNotSupported); simulated {
+			return nil, ErrNotSupported
+		}
 		return nil, err
 	}
 

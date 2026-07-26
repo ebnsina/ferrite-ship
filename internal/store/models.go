@@ -47,6 +47,10 @@ type Server struct {
 	// stored as-is rather than sealed.
 	PublicKey string `json:"publicKey"`
 
+	// HostKey is the server's SSH public key as first seen. Empty until the
+	// first successful connection.
+	HostKey string `json:"-"`
+
 	// Sealed credentials. Never serialised to the API.
 	SealedPassword   string `json:"-"`
 	SealedPrivateKey string `json:"-"`

@@ -10,6 +10,7 @@ import (
 
 	"github.com/ebnsina/ferrite-ship/internal/apierr"
 	"github.com/ebnsina/ferrite-ship/internal/auth"
+	"github.com/ebnsina/ferrite-ship/internal/executor/sshexec"
 	"github.com/ebnsina/ferrite-ship/internal/files"
 	"github.com/ebnsina/ferrite-ship/internal/ids"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
@@ -34,6 +35,9 @@ type API struct {
 	// allowedOriginHost is the same origin without its scheme, which is the
 	// form the websocket handshake checks against.
 	allowedOriginHost string
+
+	// signIns bounds password guessing.
+	signIns *throttle
 }
 
 type Options struct {
@@ -62,6 +66,8 @@ func New(opts Options) *API {
 		log:           opts.Logger,
 		allowedOrigin: opts.AllowedOrigin,
 	}
+
+	api.signIns = newThrottle()
 
 	if parsed, err := url.Parse(opts.AllowedOrigin); err == nil {
 		api.allowedOriginHost = parsed.Host
@@ -181,6 +187,9 @@ func (a *API) failServer(w http.ResponseWriter, err error) {
 func (a *API) failAs(w http.ResponseWriter, err error, missing *apierr.Error) {
 	if errors.Is(err, store.ErrNotFound) {
 		err = missing.WithCause(err)
+	}
+	if errors.Is(err, sshexec.ErrHostKeyChanged) {
+		err = apierr.HostKeyChanged.WithCause(err)
 	}
 
 	problem := apierr.From(err)

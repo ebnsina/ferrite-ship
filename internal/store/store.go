@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS servers (
 	sealed_password    TEXT NOT NULL DEFAULT '',
 	sealed_private_key TEXT NOT NULL DEFAULT '',
 	public_key         TEXT NOT NULL DEFAULT '',
+	host_key           TEXT NOT NULL DEFAULT '',
 	created_at         TEXT NOT NULL,
 	last_seen_at       TEXT
 );
@@ -141,6 +142,9 @@ var migrations = []string{
 	// are claimed by the first account created — see ClaimUnownedServers.
 	`ALTER TABLE servers ADD COLUMN user_id TEXT NOT NULL DEFAULT ''`,
 	`ALTER TABLE fleet_samples ADD COLUMN user_id TEXT NOT NULL DEFAULT ''`,
+	// The server's SSH identity, learned on first connection and checked on
+	// every one after.
+	`ALTER TABLE servers ADD COLUMN host_key TEXT NOT NULL DEFAULT ''`,
 	`CREATE INDEX IF NOT EXISTS servers_user_idx ON servers(user_id)`,
 }
 

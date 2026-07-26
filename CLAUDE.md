@@ -76,6 +76,11 @@ interface, never to SSH directly. Two implementations exist: real SSH, and
 exercised without a VPS. An agent transport is planned; adding it must not
 require changing a single step.
 
+**One way to reach a server (`internal/dialer`).** Everything that opens an SSH
+connection goes through it. Four packages used to resolve the server, decrypt
+its credentials and dial independently; host key checking would have had to be
+added to all four and kept in step. Do not reintroduce a second path.
+
 **Safety preconditions.** Steps declare `skipIf`. `ssh-harden` refuses to
 disable password logins when no key is installed anywhere — an unrecoverable
 server is worse than a slightly weaker one. Preserve that reasoning in any new

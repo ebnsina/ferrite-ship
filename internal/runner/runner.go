@@ -4,16 +4,14 @@ package runner
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
+	"github.com/ebnsina/ferrite-ship/internal/dialer"
 	"github.com/ebnsina/ferrite-ship/internal/executor"
 	"github.com/ebnsina/ferrite-ship/internal/executor/demoexec"
-	"github.com/ebnsina/ferrite-ship/internal/executor/sshexec"
 	"github.com/ebnsina/ferrite-ship/internal/facts"
-	"github.com/ebnsina/ferrite-ship/internal/secret"
 	"github.com/ebnsina/ferrite-ship/internal/steps"
 	"github.com/ebnsina/ferrite-ship/internal/store"
 )
@@ -33,7 +31,7 @@ const runTimeout = 20 * time.Minute
 
 type Runner struct {
 	store  *store.Store
-	sealer *secret.Sealer
+	dialer *dialer.Dialer
 	bus    *Bus
 	log    *slog.Logger
 
@@ -51,10 +49,10 @@ type Runner struct {
 	DemoLatency time.Duration
 }
 
-func New(st *store.Store, sealer *secret.Sealer, bus *Bus, log *slog.Logger) *Runner {
+func New(st *store.Store, d *dialer.Dialer, bus *Bus, log *slog.Logger) *Runner {
 	return &Runner{
 		store:        st,
-		sealer:       sealer,
+		dialer:       d,
 		bus:          bus,
 		log:          log,
 		demoMachines: make(map[string]*demoexec.Machine),
@@ -325,22 +323,11 @@ func (r *Runner) connect(ctx context.Context, server store.Server) (executor.Exe
 		return machine, nil
 	}
 
-	password, err := r.sealer.Open(server.SealedPassword)
+	client, _, err := r.dialer.Dial(ctx, server.UserID, server.ID)
 	if err != nil {
-		return nil, fmt.Errorf("could not read the stored password: %w", err)
+		return nil, err
 	}
-	privateKey, err := r.sealer.Open(server.SealedPrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("could not read the stored key: %w", err)
-	}
-
-	return sshexec.Dial(ctx, sshexec.Config{
-		Host:       server.Host,
-		Port:       server.Port,
-		User:       server.User,
-		Password:   password,
-		PrivateKey: privateKey,
-	})
+	return client, nil
 }
 
 func statusFor(summary steps.Summary) store.ServerStatus {

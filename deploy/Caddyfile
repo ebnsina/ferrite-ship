@@ -1,0 +1,22 @@
+# Caddy obtains and renews the certificate itself; there is nothing to set up
+# beyond pointing the domain at this machine.
+
+{$FERRITE_DOMAIN} {
+	encode zstd gzip
+
+	# Server-Sent Events and the terminal WebSocket must not be buffered, or
+	# job logs arrive in a lump at the end and the shell appears frozen.
+	reverse_proxy ferrite-ship:8080 {
+		flush_interval -1
+	}
+
+	header {
+		# The dashboard is same-origin and loads nothing from anywhere else.
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		X-Frame-Options "DENY"
+		-Server
+	}
+}

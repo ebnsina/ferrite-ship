@@ -4,9 +4,8 @@ Connect a fresh Ubuntu server, get it set up safely in minutes, then manage it
 from a browser — files, services, updates, storage — without memorising another
 `apt` incantation.
 
-> **Status: early.** SSH host keys are trusted on first use and the product is
-> single-tenant. See [Known limits](#known-limits) before pointing this at
-> anything you care about.
+> **Status: early, but deployable.** Single-tenant, and the roadmap below is
+> longer than what exists. See [Known limits](#known-limits) first.
 
 ---
 
@@ -165,6 +164,41 @@ configuration and enables a firewall.
 
 ---
 
+## Running it on a server
+
+The control plane holds credentials for every server you connect, so it should
+never face the internet directly. Both routes below put a proxy in front and
+keep the app itself on a private network or loopback.
+
+### With Docker
+
+```bash
+export FERRITE_DOMAIN=ferrite.example.com
+export FERRITE_SECRET_KEY=$(docker compose run --rm ferrite-ship genkey)
+
+docker compose up -d --build
+```
+
+Caddy gets a certificate on its own; point the domain at the machine first.
+The dashboard and API are served from one origin, so no cross-origin
+permission is needed at all.
+
+Keep `FERRITE_SECRET_KEY` somewhere safe. It decrypts every stored credential,
+and losing it means reconnecting every server.
+
+### Without Docker
+
+`deploy/ferrite-ship.service` runs the binary under systemd, bound to
+loopback, with the sandboxing options a process like this should have. Put
+Caddy, nginx or Traefik in front for TLS.
+
+Whichever proxy you use, **disable response buffering**. Job logs stream over
+Server-Sent Events and the terminal is a WebSocket; a buffering proxy makes
+logs arrive in a lump at the end and the shell appear frozen.
+`deploy/Caddyfile` shows the setting.
+
+---
+
 ## Configuration
 
 | Variable | Required | Meaning |
@@ -240,6 +274,7 @@ rather than drawing a trend that was never measured.
 │   ├── apierr/         Every user-facing error, in one catalogue
 │   ├── auth/           Passwords and sessions
 │   ├── config/         Environment loading and validation
+│   ├── dialer/         The one way an SSH connection is opened
 │   ├── executor/       Command transport (ssh, demo)
 │   ├── facts/          Reading what a server is and how busy it is
 │   ├── files/          Browsing and editing files over SFTP
@@ -319,11 +354,11 @@ These are the reasons this is not production software yet:
 - **Single account, no roles.** One person, no teams, no permissions. Servers
   are scoped to their owner and enforced in SQL, but row-level security waits
   for PostgreSQL — SQLite has none.
-- **No rate limiting on sign-in.** Argon2id makes guessing expensive, but
-  nothing stops an attacker trying repeatedly.
-- **SSH host keys are trusted on first use** and never verified again, which
-  leaves the first connection open to interception. Pinning is required before
-  this is used across an untrusted network.
+- **Trust on first use.** A server's SSH identity is recorded the first time it
+  is reached and checked on every connection after, but that first connection
+  is taken on trust. Verifying a fingerprint out of band would close it.
+- **Sign-in throttling is per process.** Restarting clears it, and behind a
+  proxy it counts the proxy rather than the caller.
 - **Single tenant.** No organisations, users or roles.
 - **SSH, not an agent.** Servers behind NAT are unreachable, and the control
   plane holds credentials it would rather not have.

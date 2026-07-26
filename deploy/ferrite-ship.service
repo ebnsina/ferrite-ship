@@ -1,0 +1,49 @@
+# systemd unit for running the binary directly, without Docker.
+#
+#   sudo cp deploy/ferrite-ship.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now ferrite-ship
+
+[Unit]
+Description=Ferrite Ship control plane
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ferrite
+Group=ferrite
+
+# Loopback only. Put a reverse proxy in front for TLS; this process holds
+# credentials for every connected server and has no business facing a network
+# directly.
+Environment=FERRITE_ADDR=127.0.0.1:8080
+Environment=FERRITE_DATABASE_PATH=/var/lib/ferrite-ship/ferrite.db
+Environment=FERRITE_WEB_DIR=/usr/share/ferrite-ship/web
+Environment=FERRITE_ALLOWED_ORIGIN=none
+
+# FERRITE_SECRET_KEY lives here, readable only by root: it decrypts every
+# stored credential. Create with `ferrite-ship genkey`.
+EnvironmentFile=/etc/ferrite-ship/secret.env
+
+ExecStart=/usr/local/bin/ferrite-ship
+Restart=on-failure
+RestartSec=5s
+
+# The process needs outbound SSH and its own data directory. Nothing else.
+StateDirectory=ferrite-ship
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+ReadWritePaths=/var/lib/ferrite-ship
+
+[Install]
+WantedBy=multi-user.target

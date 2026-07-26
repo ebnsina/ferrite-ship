@@ -8,12 +8,10 @@ package terminal
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 
+	"github.com/ebnsina/ferrite-ship/internal/dialer"
 	"github.com/ebnsina/ferrite-ship/internal/executor/sshexec"
-	"github.com/ebnsina/ferrite-ship/internal/secret"
-	"github.com/ebnsina/ferrite-ship/internal/store"
 )
 
 // ErrNotSupported is returned for servers with no real machine behind them.
@@ -64,45 +62,21 @@ func (s *Session) Close() error {
 var _ io.ReadWriter = (*Session)(nil)
 
 type Service struct {
-	store  *store.Store
-	sealer *secret.Sealer
+	dialer *dialer.Dialer
 }
 
-func NewService(st *store.Store, sealer *secret.Sealer) *Service {
-	return &Service{store: st, sealer: sealer}
-}
+func NewService(d *dialer.Dialer) *Service { return &Service{dialer: d} }
 
 // Open dials the server and starts a login shell.
 //
 // Each terminal gets its own SSH connection rather than sharing one: a shell
 // that hangs or is killed must not disturb a job running at the same time.
 func (s *Service) Open(ctx context.Context, userID, serverID string, size Size) (*Session, error) {
-	server, err := s.store.GetServer(ctx, userID, serverID)
+	client, _, err := s.dialer.Dial(ctx, userID, serverID)
 	if err != nil {
-		return nil, err
-	}
-
-	if server.Kind != store.ConnectionSSH {
-		return nil, ErrNotSupported
-	}
-
-	password, err := s.sealer.Open(server.SealedPassword)
-	if err != nil {
-		return nil, fmt.Errorf("could not read the stored password: %w", err)
-	}
-	privateKey, err := s.sealer.Open(server.SealedPrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("could not read the stored key: %w", err)
-	}
-
-	client, err := sshexec.Dial(ctx, sshexec.Config{
-		Host:       server.Host,
-		Port:       server.Port,
-		User:       server.User,
-		Password:   password,
-		PrivateKey: privateKey,
-	})
-	if err != nil {
+		if _, simulated := err.(dialer.ErrNotSupported); simulated {
+			return nil, ErrNotSupported
+		}
 		return nil, err
 	}
 

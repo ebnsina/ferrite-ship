@@ -110,6 +110,10 @@ var (
 		"An account already exists on this installation.",
 		"Sign in with it, or run `ferrite-ship reset-account` on the server.")
 
+	TooManyAttempts = newError(CodeConflict, 429,
+		"Too many sign-in attempts.",
+		"Wait a few minutes before trying again.")
+
 	Internal = newError(CodeInternal, 500,
 		"Something went wrong on our side.",
 		"Try again in a moment. If it keeps happening, the reference below will help.")
@@ -222,6 +226,14 @@ var (
 	ServerRejectedLogin = newError(CodeUpstream, 502,
 		"That server did not accept the sign-in details.",
 		"Check the username and the key or password you saved for it.")
+
+	// HostKeyChanged is deliberately alarming. It means either the machine was
+	// rebuilt or somebody is impersonating it, and only a person can tell
+	// which — so it must never read like a transient connection wobble.
+	HostKeyChanged = newError(CodeConflict, 409,
+		"This server's identity has changed since you added it.",
+		"If you rebuilt or replaced the machine, remove it here and connect it again. "+
+			"If you did not, stop and investigate — something may be impersonating it.")
 
 	ServerFailed = newError(CodeUpstream, 502,
 		"Something went wrong talking to that server.",
