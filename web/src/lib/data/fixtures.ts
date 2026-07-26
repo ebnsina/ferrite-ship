@@ -1,4 +1,5 @@
 import type { ActivityEntry } from '$types/activity';
+import type { FleetMetric } from '$types/metric';
 import type { ManagedServer } from '$types/server';
 
 /**
@@ -9,6 +10,7 @@ import type { ManagedServer } from '$types/server';
 const minutesAgo = (minutes: number): string =>
 	new Date(Date.now() - minutes * 60_000).toISOString();
 
+/** Decimal, matching how hosts advertise capacity and how Intl labels units. */
 const GB = 1000 ** 3;
 
 export const mockServers: ManagedServer[] = [
@@ -94,10 +96,49 @@ export const mockServers: ManagedServer[] = [
 	}
 ];
 
+export const mockMetrics: FleetMetric[] = [
+	{
+		id: 'servers',
+		label: 'Servers connected',
+		value: 5,
+		format: 'count',
+		deltaRatio: 0.25,
+		higherIsBetter: true,
+		series: [3, 3, 4, 4, 4, 5, 5]
+	},
+	{
+		id: 'uptime',
+		label: 'Time up and running',
+		value: 0.994,
+		format: 'percent',
+		deltaRatio: 0.008,
+		higherIsBetter: true,
+		series: [0.981, 0.986, 0.99, 0.984, 0.992, 0.993, 0.994]
+	},
+	{
+		id: 'busy',
+		label: 'How busy they are',
+		value: 0.41,
+		format: 'percent',
+		deltaRatio: -0.06,
+		higherIsBetter: false,
+		series: [0.52, 0.49, 0.47, 0.51, 0.44, 0.43, 0.41]
+	},
+	{
+		id: 'storage',
+		label: 'Storage in use',
+		value: 980 * GB,
+		format: 'bytes',
+		deltaRatio: 0.12,
+		higherIsBetter: false,
+		series: [720, 760, 800, 845, 890, 940, 980].map((value) => value * GB)
+	}
+];
+
 export const mockActivity: ActivityEntry[] = [
 	{
 		id: 'job_9f2',
-		title: 'Baseline hardening',
+		title: 'Setting up a new server',
 		serverName: 'build-fra-2',
 		actor: 'ebnsina',
 		status: 'running',
@@ -106,7 +147,7 @@ export const mockActivity: ActivityEntry[] = [
 	},
 	{
 		id: 'job_9f1',
-		title: 'Deploy mediamtx',
+		title: 'Installed live video streaming',
 		serverName: 'media-ams-1',
 		actor: 'ebnsina',
 		status: 'succeeded',
@@ -115,27 +156,27 @@ export const mockActivity: ActivityEntry[] = [
 	},
 	{
 		id: 'job_9e8',
-		title: 'Backup postgres',
+		title: 'Backed up the database',
 		serverName: 'db-fra-1',
-		actor: 'scheduler',
+		actor: 'Scheduled',
 		status: 'succeeded',
 		startedAt: minutesAgo(63),
 		durationMs: 412_000
 	},
 	{
 		id: 'job_9e4',
-		title: 'Agent upgrade 0.4.1 → 0.4.2',
+		title: 'Updated the helper program',
 		serverName: 'worker-sgp-1',
-		actor: 'scheduler',
+		actor: 'Scheduled',
 		status: 'failed',
 		startedAt: minutesAgo(38),
 		durationMs: 21_000
 	},
 	{
 		id: 'job_9e0',
-		title: 'Rotate TLS certificates',
+		title: 'Renewed security certificates',
 		serverName: 'edge-fra-1',
-		actor: 'scheduler',
+		actor: 'Scheduled',
 		status: 'succeeded',
 		startedAt: minutesAgo(155),
 		durationMs: 8_400

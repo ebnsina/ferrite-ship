@@ -1,28 +1,29 @@
-import type { ManagedServer } from '$types/server';
+import type { ManagedServer, ServerStatus } from '$types/server';
+import { SERVER_STATUS, type StatusPresentation } from './status';
 
-export interface FleetSummary {
-	total: number;
-	online: number;
-	needsAttention: number;
-	/** Mean CPU ratio across reachable servers only. */
-	averageCpu: number;
-	memoryUsedBytes: number;
-	memoryTotalBytes: number;
+export interface ServerGroup {
+	status: ServerStatus;
+	presentation: StatusPresentation;
+	servers: ManagedServer[];
 }
 
-export function summarizeFleet(servers: readonly ManagedServer[]): FleetSummary {
-	const reachable = servers.filter((server) => server.status !== 'offline');
+/** Column order on the board: healthy first, problems last but never hidden. */
+const GROUP_ORDER: readonly ServerStatus[] = [
+	'online',
+	'degraded',
+	'provisioning',
+	'offline',
+	'unknown'
+];
 
-	const cpuTotal = reachable.reduce((sum, server) => sum + server.cpuUsage, 0);
-
-	return {
-		total: servers.length,
-		online: servers.filter((server) => server.status === 'online').length,
-		needsAttention: servers.filter(
-			(server) => server.status === 'degraded' || server.status === 'offline'
-		).length,
-		averageCpu: reachable.length === 0 ? 0 : cpuTotal / reachable.length,
-		memoryUsedBytes: servers.reduce((sum, server) => sum + server.memory.usedBytes, 0),
-		memoryTotalBytes: servers.reduce((sum, server) => sum + server.memory.totalBytes, 0)
-	};
+/**
+ * Buckets servers into status columns. Empty statuses are dropped so the board
+ * never shows a column that says nothing.
+ */
+export function groupServersByStatus(servers: readonly ManagedServer[]): ServerGroup[] {
+	return GROUP_ORDER.map((status) => ({
+		status,
+		presentation: SERVER_STATUS[status],
+		servers: servers.filter((server) => server.status === status)
+	})).filter((group) => group.servers.length > 0);
 }

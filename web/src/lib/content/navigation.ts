@@ -3,6 +3,7 @@ import Blocks from '@lucide/svelte/icons/blocks';
 import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 import History from '@lucide/svelte/icons/history';
 import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
+import LifeBuoy from '@lucide/svelte/icons/life-buoy';
 import Server from '@lucide/svelte/icons/server';
 import Settings from '@lucide/svelte/icons/settings';
 import Sparkles from '@lucide/svelte/icons/sparkles';
@@ -12,16 +13,30 @@ export interface NavItem {
 	label: string;
 	href: string;
 	icon: Component<LucideProps>;
-	/** Shown under the label in the sidebar, so nothing needs explaining twice. */
-	hint?: string;
 }
 
-export const dashboardNav: NavItem[] = [
-	{ label: 'Overview', href: '/dashboard', icon: LayoutDashboard, hint: 'How everything is doing' },
-	{ label: 'Servers', href: '/dashboard/servers', icon: Server, hint: 'Your machines' },
-	{ label: 'Tools', href: '/dashboard/services', icon: Blocks, hint: 'Databases and add-ons' },
-	{ label: 'History', href: '/dashboard/activity', icon: History, hint: 'What has run lately' },
-	{ label: 'Settings', href: '/dashboard/settings', icon: Settings, hint: 'Account and team' }
+export interface NavGroup {
+	label: string;
+	items: NavItem[];
+}
+
+export const dashboardNavGroups: NavGroup[] = [
+	{
+		label: 'Main menu',
+		items: [
+			{ label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
+			{ label: 'Servers', href: '/dashboard/servers', icon: Server },
+			{ label: 'Tools', href: '/dashboard/services', icon: Blocks }
+		]
+	},
+	{
+		label: 'Workspace',
+		items: [
+			{ label: 'History', href: '/dashboard/activity', icon: History },
+			{ label: 'Settings', href: '/dashboard/settings', icon: Settings },
+			{ label: 'Help', href: '/dashboard/help', icon: LifeBuoy }
+		]
+	}
 ];
 
 export const marketingNav: NavItem[] = [

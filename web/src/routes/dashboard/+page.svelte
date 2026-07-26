@@ -1,73 +1,95 @@
 <script lang="ts">
 	import ActivityFeed from '$components/dashboard/ActivityFeed.svelte';
-	import CardSkeletonGrid from '$components/dashboard/CardSkeletonGrid.svelte';
-	import DashboardSection from '$components/dashboard/DashboardSection.svelte';
+	import BoardSkeleton from '$components/dashboard/BoardSkeleton.svelte';
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
-	import FleetStats from '$components/dashboard/FleetStats.svelte';
+	import PageHeading from '$components/dashboard/PageHeading.svelte';
 	import ResourceView from '$components/dashboard/ResourceView.svelte';
-	import ServerGrid from '$components/dashboard/ServerGrid.svelte';
-	import StatusLegend from '$components/dashboard/StatusLegend.svelte';
-	import { Skeleton } from '$components/ui';
+	import SectionHeader from '$components/dashboard/SectionHeader.svelte';
+	import ServerBoard from '$components/dashboard/ServerBoard.svelte';
+	import StatStrip from '$components/dashboard/StatStrip.svelte';
+	import StatStripSkeleton from '$components/dashboard/StatStripSkeleton.svelte';
+	import { Button, Skeleton } from '$components/ui';
 	import { dashboardRepository } from '$lib/data';
+	import { formatPercent } from '$utils/format';
 	import { createResource } from '$utils/resource.svelte';
-	import History from '@lucide/svelte/icons/history';
-	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
-	import Server from '@lucide/svelte/icons/server';
+	import CalendarDays from '@lucide/svelte/icons/calendar-days';
+	import CirclePlus from '@lucide/svelte/icons/circle-plus';
+	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 
 	const servers = createResource((signal) => dashboardRepository.listServers(signal));
 	const activity = createResource((signal) => dashboardRepository.listActivity(signal));
+	const metrics = createResource((signal) => dashboardRepository.listMetrics(signal));
+
+	const uptime = $derived(metrics.data?.find((metric) => metric.id === 'uptime') ?? null);
 </script>
 
 <svelte:head>
 	<title>Overview · ferrite-ship</title>
 </svelte:head>
 
-<DashboardTopbar
-	title="Overview"
-	description="A quick look at how your servers are doing and what has happened recently."
-	icon={LayoutDashboard}
-/>
+<DashboardTopbar crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Overview' }]} unread={2} />
 
-<div class="space-y-10 px-6 py-8">
-	<ResourceView resource={servers}>
+<div class="space-y-8 px-6 py-8">
+	<PageHeading
+		title="Everything is looking good"
+		metric={uptime ? formatPercent(uptime.value, { fractionDigits: 1 }) : '—'}
+		caption="of the time your servers were up and running this week"
+	>
+		{#snippet actions()}
+			<Button variant="secondary" size="sm">
+				<CalendarDays size={15} aria-hidden="true" />
+				Last 7 days
+			</Button>
+			<Button variant="secondary" size="sm">
+				<SlidersHorizontal size={15} aria-hidden="true" />
+				Filters
+			</Button>
+		{/snippet}
+	</PageHeading>
+
+	<ResourceView resource={metrics}>
 		{#snippet pending()}
-			<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-				{#each Array.from({ length: 4 }, (_, index) => index) as index (index)}
-					<Skeleton shape="card" class="h-28" />
-				{/each}
-			</div>
+			<StatStripSkeleton />
 		{/snippet}
 
 		{#snippet children(list)}
-			<FleetStats servers={list} />
+			<StatStrip metrics={list} />
 		{/snippet}
 	</ResourceView>
 
-	<DashboardSection
-		title="Your servers"
-		description="Each card shows how hard a server is working. The bars fill up as it gets busier."
-		icon={Server}
-	>
-		{#snippet aside()}
-			<StatusLegend />
-		{/snippet}
+	<section class="space-y-5">
+		<SectionHeader
+			title="Your servers"
+			description="Grouped by how they are doing. The bar shows how full each one's storage is."
+			linkHref="/dashboard/servers"
+		/>
 
 		<ResourceView resource={servers}>
 			{#snippet pending()}
-				<CardSkeletonGrid count={3} />
+				<BoardSkeleton />
 			{/snippet}
 
 			{#snippet children(list)}
-				<ServerGrid servers={list} />
+				<ServerBoard servers={list} />
 			{/snippet}
 		</ResourceView>
-	</DashboardSection>
 
-	<DashboardSection
-		title="Recent activity"
-		description="Everything that has run lately, who started it, and whether it worked."
-		icon={History}
-	>
+		<button
+			type="button"
+			class="text-content-muted hover:text-content flex items-center gap-2 text-sm transition-colors duration-150"
+		>
+			<CirclePlus size={16} aria-hidden="true" />
+			Connect a server
+		</button>
+	</section>
+
+	<section class="space-y-5">
+		<SectionHeader
+			title="Recent activity"
+			description="What has run lately, who started it, and whether it worked."
+			linkHref="/dashboard/activity"
+		/>
+
 		<ResourceView resource={activity}>
 			{#snippet pending()}
 				<Skeleton shape="card" class="h-72" />
@@ -77,5 +99,5 @@
 				<ActivityFeed {entries} />
 			{/snippet}
 		</ResourceView>
-	</DashboardSection>
+	</section>
 </div>

@@ -1,11 +1,17 @@
 export { default as Button } from './Button.svelte';
 export { default as ButtonLink } from './ButtonLink.svelte';
 export { default as Card } from './Card.svelte';
+export { default as CountBadge } from './CountBadge.svelte';
+export { default as DeltaBadge } from './DeltaBadge.svelte';
 export { default as EmptyState } from './EmptyState.svelte';
 export { default as ErrorState } from './ErrorState.svelte';
+export { default as IconTile } from './IconTile.svelte';
 export { default as Meter } from './Meter.svelte';
+export { default as SearchInput } from './SearchInput.svelte';
 export { default as Skeleton } from './Skeleton.svelte';
+export { default as Sparkline } from './Sparkline.svelte';
 export { default as StatusPill } from './StatusPill.svelte';
+export { default as ThemeScope } from './ThemeScope.svelte';
 export { default as ThemeToggle } from './ThemeToggle.svelte';
 
 export { buttonClasses, type ButtonSize, type ButtonVariant } from './button-styles';

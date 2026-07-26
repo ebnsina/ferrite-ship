@@ -17,7 +17,7 @@
 </script>
 
 <div class="flex flex-col items-center px-6 py-16 text-center">
-	<div class="bg-surface-raised text-content-subtle rounded-tile p-4">
+	<div class="bg-surface-sunken text-content-subtle rounded-tile p-4">
 		<Icon size={22} aria-hidden="true" />
 	</div>
 	<h3 class="text-content mt-5 text-base font-medium">{title}</h3>

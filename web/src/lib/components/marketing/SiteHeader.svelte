@@ -2,11 +2,14 @@
 	import Wordmark from '$components/brand/Wordmark.svelte';
 	import { ButtonLink, ThemeToggle } from '$components/ui';
 	import { marketingNav } from '$lib/content/navigation';
+	import { siteTheme } from '$lib/theme/theme.svelte';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 </script>
 
 <!-- No bottom border: the header sits over the hero's accent wash and blends. -->
-<header class="supports-[backdrop-filter]:bg-canvas/50 bg-canvas/80 sticky top-0 z-40 backdrop-blur-xl">
+<header
+	class="supports-[backdrop-filter]:bg-canvas/50 bg-canvas/80 sticky top-0 z-40 backdrop-blur-xl"
+>
 	<div class="mx-auto flex h-16 max-w-6xl items-center gap-6 px-5">
 		<Wordmark />
 
@@ -24,7 +27,7 @@
 		</nav>
 
 		<div class="ml-auto flex items-center gap-2">
-			<ThemeToggle />
+			<ThemeToggle theme={siteTheme.value} onToggle={() => siteTheme.toggle()} />
 			<ButtonLink href="/dashboard" size="sm">
 				Open dashboard
 				<ArrowRight size={15} aria-hidden="true" />

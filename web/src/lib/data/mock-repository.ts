@@ -1,7 +1,8 @@
 import { AppError } from '$lib/errors';
 import type { ActivityEntry } from '$types/activity';
+import type { FleetMetric } from '$types/metric';
 import type { ManagedServer } from '$types/server';
-import { mockActivity, mockServers } from './fixtures';
+import { mockActivity, mockMetrics, mockServers } from './fixtures';
 import type { DashboardRepository } from './repository';
 
 const LATENCY_MS = 320;
@@ -30,5 +31,6 @@ function delayed<T>(value: T, signal?: AbortSignal): Promise<T> {
 
 export const mockRepository: DashboardRepository = {
 	listServers: (signal) => delayed<ManagedServer[]>(mockServers, signal),
-	listActivity: (signal) => delayed<ActivityEntry[]>(mockActivity, signal)
+	listActivity: (signal) => delayed<ActivityEntry[]>(mockActivity, signal),
+	listMetrics: (signal) => delayed<FleetMetric[]>(mockMetrics, signal)
 };

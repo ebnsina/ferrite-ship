@@ -1,4 +1,5 @@
 import type { ActivityEntry } from '$types/activity';
+import type { FleetMetric } from '$types/metric';
 import type { ManagedServer } from '$types/server';
 
 /**
@@ -8,4 +9,5 @@ import type { ManagedServer } from '$types/server';
 export interface DashboardRepository {
 	listServers(signal?: AbortSignal): Promise<ManagedServer[]>;
 	listActivity(signal?: AbortSignal): Promise<ActivityEntry[]>;
+	listMetrics(signal?: AbortSignal): Promise<FleetMetric[]>;
 }

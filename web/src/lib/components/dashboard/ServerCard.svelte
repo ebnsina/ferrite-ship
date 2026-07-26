@@ -1,13 +1,10 @@
 <script lang="ts">
-	import { Card, Meter, StatusPill } from '$components/ui';
+	import { IconTile, StatusPill } from '$components/ui';
+	import { TONE_CLASSES, toneForUsage } from '$components/ui/tone';
 	import { SERVER_STATUS } from '$lib/domain/status';
 	import { usageRatio, type ManagedServer } from '$types/server';
 	import { formatBytes, formatDuration, formatRelativeTime } from '$utils/format';
-	import Clock from '@lucide/svelte/icons/clock';
-	import Cpu from '@lucide/svelte/icons/cpu';
-	import HardDrive from '@lucide/svelte/icons/hard-drive';
-	import MapPin from '@lucide/svelte/icons/map-pin';
-	import MemoryStick from '@lucide/svelte/icons/memory-stick';
+	import Server from '@lucide/svelte/icons/server';
 
 	interface Props {
 		server: ManagedServer;
@@ -15,64 +12,53 @@
 
 	let { server }: Props = $props();
 
-	const memoryRatio = $derived(usageRatio(server.memory));
+	const status = $derived(SERVER_STATUS[server.status]);
 	const diskRatio = $derived(usageRatio(server.disk));
+	const diskTone = $derived(toneForUsage(diskRatio));
 	const isOffline = $derived(server.status === 'offline');
 </script>
 
-<Card class="flex h-full flex-col">
+<article class="border-border bg-surface rounded-card border p-5">
 	<div class="flex items-start justify-between gap-3">
-		<div class="min-w-0">
-			<h3 class="text-content truncate text-sm font-medium">{server.name}</h3>
-			<p class="text-content-subtle font-machine mt-1 truncate text-xs">{server.ipAddress}</p>
-		</div>
-		<StatusPill status={SERVER_STATUS[server.status]} />
+		<IconTile icon={Server} tone={status.tone} size="sm" />
+		<StatusPill {status} />
 	</div>
 
-	<dl class="text-content-muted mt-5 space-y-2 text-xs">
-		<div class="flex items-center gap-2">
-			<dt class="flex items-center gap-1.5"><MapPin size={13} aria-hidden="true" /> Location</dt>
-			<dd class="text-content ml-auto truncate">{server.region}</dd>
-		</div>
-		<div class="flex items-center gap-2">
-			<dt class="flex items-center gap-1.5">
-				<Clock size={13} aria-hidden="true" />
-				{isOffline ? 'Last heard from' : 'Running for'}
-			</dt>
-			<dd class="text-content ml-auto truncate">
+	<h3 class="text-content mt-4 truncate text-sm font-medium">{server.name}</h3>
+	<p class="text-content-subtle mt-1 truncate text-xs">
+		{server.region} · {server.operatingSystem}
+	</p>
+
+	<dl class="mt-4 space-y-1 text-xs">
+		<div class="flex justify-between gap-2">
+			<dt class="text-content-subtle">{isOffline ? 'Last seen' : 'Running for'}</dt>
+			<dd class="text-content-muted truncate">
 				{isOffline ? formatRelativeTime(server.lastSeenAt) : formatDuration(server.uptimeMs)}
+			</dd>
+		</div>
+		<div class="flex justify-between gap-2">
+			<dt class="text-content-subtle">Storage</dt>
+			<dd class="text-content-muted truncate" data-numeric>
+				{formatBytes(server.disk.usedBytes)} of {formatBytes(server.disk.totalBytes)}
 			</dd>
 		</div>
 	</dl>
 
-	<div class="mt-6 space-y-3.5">
-		<Meter label="Processor" icon={Cpu} ratio={server.cpuUsage} />
-		<Meter
-			label="Memory"
-			icon={MemoryStick}
-			ratio={memoryRatio}
-			detail="{formatBytes(server.memory.usedBytes)} of {formatBytes(server.memory.totalBytes)}"
-		/>
-		<Meter
-			label="Storage"
-			icon={HardDrive}
-			ratio={diskRatio}
-			detail="{formatBytes(server.disk.usedBytes)} of {formatBytes(server.disk.totalBytes)}"
-		/>
+	<div
+		class="bg-surface-sunken mt-3 h-1.5 overflow-hidden rounded-pill"
+		role="meter"
+		aria-label="Storage used on {server.name}"
+		aria-valuenow={Math.round(diskRatio * 100)}
+		aria-valuemin={0}
+		aria-valuemax={100}
+	>
+		<div
+			class="h-full rounded-pill {TONE_CLASSES[diskTone].fill}"
+			style:width="{diskRatio * 100}%"
+		></div>
 	</div>
 
-	{#if server.services.length > 0}
-		<div class="mt-6">
-			<p class="text-content-subtle text-xs">Running here</p>
-			<ul class="mt-2 flex flex-wrap gap-1.5">
-				{#each server.services as service (service)}
-					<li
-						class="border-border text-content-muted rounded-pill border px-2.5 py-1 text-[0.6875rem]"
-					>
-						{service}
-					</li>
-				{/each}
-			</ul>
-		</div>
-	{/if}
-</Card>
+	<p class="border-border/70 text-content-subtle mt-4 border-t pt-3 text-xs">
+		Checked {formatRelativeTime(server.lastSeenAt)}
+	</p>
+</article>

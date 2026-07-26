@@ -1,13 +1,13 @@
 <script lang="ts">
-	import CardSkeletonGrid from '$components/dashboard/CardSkeletonGrid.svelte';
-	import DashboardSection from '$components/dashboard/DashboardSection.svelte';
+	import BoardSkeleton from '$components/dashboard/BoardSkeleton.svelte';
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
 	import ResourceView from '$components/dashboard/ResourceView.svelte';
-	import ServerGrid from '$components/dashboard/ServerGrid.svelte';
-	import StatusLegend from '$components/dashboard/StatusLegend.svelte';
+	import SectionHeader from '$components/dashboard/SectionHeader.svelte';
+	import ServerBoard from '$components/dashboard/ServerBoard.svelte';
+	import { Button } from '$components/ui';
 	import { dashboardRepository } from '$lib/data';
 	import { createResource } from '$utils/resource.svelte';
-	import Server from '@lucide/svelte/icons/server';
+	import CirclePlus from '@lucide/svelte/icons/circle-plus';
 
 	const servers = createResource((signal) => dashboardRepository.listServers(signal));
 </script>
@@ -16,30 +16,27 @@
 	<title>Servers · ferrite-ship</title>
 </svelte:head>
 
-<DashboardTopbar
-	title="Servers"
-	description="Every machine you have connected. Pick one to manage its files, apps and settings."
-	icon={Server}
-/>
+<DashboardTopbar crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Servers' }]} unread={2} />
 
-<div class="px-6 py-8">
-	<DashboardSection
-		title="Connected servers"
-		description="The bars show how much of each server is being used right now."
-		icon={Server}
-	>
-		{#snippet aside()}
-			<StatusLegend />
+<div class="space-y-6 px-6 py-8">
+	<div class="flex flex-wrap items-end justify-between gap-4">
+		<SectionHeader
+			title="Servers"
+			description="Every machine you have connected, grouped by how it is doing."
+		/>
+		<Button size="sm">
+			<CirclePlus size={15} aria-hidden="true" />
+			Connect a server
+		</Button>
+	</div>
+
+	<ResourceView resource={servers}>
+		{#snippet pending()}
+			<BoardSkeleton />
 		{/snippet}
 
-		<ResourceView resource={servers}>
-			{#snippet pending()}
-				<CardSkeletonGrid count={6} />
-			{/snippet}
-
-			{#snippet children(list)}
-				<ServerGrid servers={list} />
-			{/snippet}
-		</ResourceView>
-	</DashboardSection>
+		{#snippet children(list)}
+			<ServerBoard servers={list} />
+		{/snippet}
+	</ResourceView>
 </div>
