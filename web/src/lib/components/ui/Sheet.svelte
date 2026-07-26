@@ -102,7 +102,11 @@
 		// The panel then sits hundreds of pixels above the viewport and the
 		// sheet renders as an empty backdrop. Exactly one thing here scrolls,
 		// and it is the middle region.
-		'text-content fixed inset-y-0 right-0 left-auto m-0 h-auto max-h-none w-full overflow-hidden bg-transparent p-0',
+		// max-w-none and max-h-none both undo the UA stylesheet, which caps a
+		// <dialog> at calc(100% - 6px - 2em) in each direction. Left in, the
+		// panel is inset by 38px on a narrow screen and cannot go full width,
+		// which reads as the sheet hanging off the edge.
+		'text-content fixed inset-y-0 right-0 left-auto m-0 h-auto max-h-none w-full max-w-none overflow-hidden bg-transparent p-0',
 		'backdrop:bg-black/50 backdrop:backdrop-blur-sm',
 		WIDTHS[size]
 	)}
