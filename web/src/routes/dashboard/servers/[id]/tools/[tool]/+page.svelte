@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
 	import ToolConnection from '$components/dashboard/ToolConnection.svelte';
+	import ToolBackups from '$components/dashboard/ToolBackups.svelte';
 	import ToolConsole from '$components/dashboard/ToolConsole.svelte';
 	import Seo from '$components/Seo.svelte';
 	import { ButtonLink, Card, ErrorState, IconTile, Skeleton, StatusPill } from '$components/ui';
@@ -141,6 +142,12 @@
 				<h2 class="text-content text-sm font-medium">Connect from your own machine</h2>
 				<ToolConnection {serverId} toolId={tool.id} />
 			</section>
+
+			{#if tool.keepsData}
+				<Card size="lg">
+					<ToolBackups {serverId} {tool} />
+				</Card>
+			{/if}
 		{/if}
 	{/if}
 </div>
