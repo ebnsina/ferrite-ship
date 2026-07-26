@@ -10,9 +10,10 @@ import type { Component } from 'svelte';
 /**
  * The sections of one server, defined once.
  *
- * Both the sidebar and the breadcrumb read this. They were going to drift
- * otherwise — a section added to one and forgotten in the other is how a page
- * ends up reachable from exactly one place.
+ * Read by the breadcrumb, which offers them as places to jump to. Deliberately
+ * not by the sidebar: navigation that rearranges itself as you move is
+ * navigation you cannot learn, and the whole value of a sidebar is that the
+ * same thing is always in the same place.
  */
 export interface ServerSection {
 	label: string;

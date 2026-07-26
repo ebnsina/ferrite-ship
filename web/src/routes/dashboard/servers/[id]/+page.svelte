@@ -24,13 +24,18 @@
 	import { usageRatio } from '$types/server';
 	import { formatBytes, formatDuration, formatRelativeTime } from '$utils/format';
 	import { createResource } from '$utils/resource.svelte';
+	import Boxes from '@lucide/svelte/icons/boxes';
+	import Cog from '@lucide/svelte/icons/cog';
 	import Cpu from '@lucide/svelte/icons/cpu';
+	import FolderOpen from '@lucide/svelte/icons/folder-open';
 	import HardDrive from '@lucide/svelte/icons/hard-drive';
 	import MemoryStick from '@lucide/svelte/icons/memory-stick';
+	import Package from '@lucide/svelte/icons/package';
 	import Play from '@lucide/svelte/icons/play';
 	import RotateCw from '@lucide/svelte/icons/rotate-cw';
 	import Search from '@lucide/svelte/icons/search';
 	import Server from '@lucide/svelte/icons/server';
+	import SquareTerminal from '@lucide/svelte/icons/square-terminal';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
 	const id = page.params.id ?? '';
@@ -147,14 +152,40 @@
 				</div>
 
 				<!--
-					Only what you do here. Where you can go is in the sidebar and
-					in the trail at the top, both of which follow you into every
-					section — repeating the same five links in the header meant
-					they were only visible on this one page, and made a wall of
-					controls that put "Remove" beside "Files".
+					Places on the left, things you do on the right.
+
+					These used to be seven controls in one row, which read as a
+					wall rather than a set of choices — and it put "Remove" the
+					same distance from the cursor as "Files". Navigation stays
+					visible because it is where you are going next; everything
+					that changes the machine is one deliberate click away.
 				-->
 				<div class="flex flex-wrap items-center gap-2">
 					<StatusPill {status} />
+
+					{#if s.connectionKind === 'ssh'}
+						<ButtonLink href="/dashboard/servers/{id}/apps" variant="ghost" size="sm">
+							<Boxes size={15} aria-hidden="true" />
+							Apps
+						</ButtonLink>
+						<ButtonLink href="/dashboard/servers/{id}/tools" variant="ghost" size="sm">
+							<Package size={15} aria-hidden="true" />
+							Tools
+						</ButtonLink>
+						<ButtonLink href="/dashboard/servers/{id}/services" variant="ghost" size="sm">
+							<Cog size={15} aria-hidden="true" />
+							Services
+						</ButtonLink>
+						<ButtonLink href="/dashboard/servers/{id}/files" variant="ghost" size="sm">
+							<FolderOpen size={15} aria-hidden="true" />
+							Files
+						</ButtonLink>
+						<ButtonLink href="/dashboard/servers/{id}/terminal" variant="ghost" size="sm">
+							<SquareTerminal size={15} aria-hidden="true" />
+							Terminal
+						</ButtonLink>
+					{/if}
+
 					<Menu label={starting ? 'Starting…' : 'Actions'} items={actions} />
 				</div>
 			</div>
