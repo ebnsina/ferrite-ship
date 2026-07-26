@@ -281,3 +281,75 @@ func seedServer(t *testing.T, st *Store, userID, id, name string) string {
 	}
 	return id
 }
+
+// A saved query is written by hand and names real tables and columns, so
+// handing one account another's is handing over their schema.
+func TestSavedQueriesAreScoped(t *testing.T) {
+	st := openTestStore(t)
+	ctx := context.Background()
+
+	seedServer(t, st, "usr_alice", "srv_alice", "alice-box")
+	bobServer := seedServer(t, st, "usr_bob", "srv_bob", "bob-box")
+
+	bobs := SavedQuery{
+		ID: "qry_bob", UserID: "usr_bob", ServerID: bobServer, ToolID: "postgres",
+		Name: "revenue", Query: "select sum(amount) from bobs_private_orders",
+		SavedAt: time.Now().UTC(),
+	}
+	if err := st.SaveQuery(ctx, bobs); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	found, err := st.ListSavedQueries(ctx, "usr_alice", bobServer, "postgres")
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(found) != 0 {
+		t.Errorf("alice sees %d of bob's saved queries, revealing his schema", len(found))
+	}
+
+	if err := st.DeleteSavedQuery(ctx, "usr_alice", bobServer, "qry_bob"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("alice deleted bob's saved query; got %v, want ErrNotFound", err)
+	}
+
+	mine, err := st.ListSavedQueries(ctx, "usr_bob", bobServer, "postgres")
+	if err != nil || len(mine) != 1 {
+		t.Fatalf("bob cannot read his own: %d rows, err %v", len(mine), err)
+	}
+}
+
+// Saving under a name already used replaces it, which is what someone
+// refining a query expects rather than a growing pile of near-duplicates.
+func TestSavingTwiceUnderOneNameReplaces(t *testing.T) {
+	st := openTestStore(t)
+	ctx := context.Background()
+
+	server := seedServer(t, st, "usr_alice", "srv_alice", "alice-box")
+	now := time.Now().UTC()
+
+	first := SavedQuery{
+		ID: "qry_1", UserID: "usr_alice", ServerID: server, ToolID: "postgres",
+		Name: "signups", Query: "select 1", SavedAt: now,
+	}
+	if err := st.SaveQuery(ctx, first); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	second := first
+	second.ID = "qry_2"
+	second.Query = "select count(*) from users"
+	if err := st.SaveQuery(ctx, second); err != nil {
+		t.Fatalf("resave: %v", err)
+	}
+
+	found, err := st.ListSavedQueries(ctx, "usr_alice", server, "postgres")
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(found) != 1 {
+		t.Fatalf("got %d saved queries under one name, want 1", len(found))
+	}
+	if found[0].Query != second.Query {
+		t.Errorf("query is %q, want the newer one", found[0].Query)
+	}
+}

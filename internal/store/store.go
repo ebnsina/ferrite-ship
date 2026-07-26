@@ -129,6 +129,27 @@ CREATE TABLE IF NOT EXISTS installations (
 );
 
 CREATE INDEX IF NOT EXISTS installations_server_idx ON installations(server_id);
+
+-- Queries someone has kept for later.
+--
+-- Per server and tool rather than global: "yesterday's signups" means a
+-- different table on a different machine, and a saved query that silently
+-- refers to somewhere else is worse than no saved query.
+CREATE TABLE IF NOT EXISTS saved_queries (
+	id         TEXT PRIMARY KEY,
+	user_id    TEXT NOT NULL,
+	server_id  TEXT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+	tool_id    TEXT NOT NULL,
+	name       TEXT NOT NULL,
+	query      TEXT NOT NULL,
+	created_at TEXT NOT NULL,
+	-- Saving under a name you have used before replaces it, which is what
+	-- someone refining a query expects rather than a second entry.
+	UNIQUE(user_id, server_id, tool_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS saved_queries_lookup_idx
+	ON saved_queries(user_id, server_id, tool_id);
 `
 
 func Open(path string) (*Store, error) {

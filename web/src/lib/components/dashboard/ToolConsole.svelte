@@ -1,4 +1,5 @@
 <script lang="ts">
+	import QueryLibrary from '$components/dashboard/QueryLibrary.svelte';
 	import { Button } from '$components/ui';
 	import { toolsClient, type QueryResult, type Tool } from '$lib/data/tools';
 	import { toAppError, type AppError } from '$lib/errors';
@@ -73,6 +74,8 @@
 			{running ? 'Running…' : 'Run'}
 		</Button>
 	</div>
+
+	<QueryLibrary {serverId} {tool} current={query} onPick={(picked) => (query = picked)} />
 
 	<textarea
 		bind:value={query}

@@ -6,10 +6,13 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/ebnsina/ferrite-ship/internal/apierr"
 	"github.com/ebnsina/ferrite-ship/internal/catalog"
 	"github.com/ebnsina/ferrite-ship/internal/console"
+	"github.com/ebnsina/ferrite-ship/internal/ids"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
 	"github.com/ebnsina/ferrite-ship/internal/store"
 )
@@ -311,4 +314,94 @@ func (a *API) handleToolQuery(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, http.StatusOK, result)
+}
+
+// --- saved queries ------------------------------------------------------------
+
+type saveQueryRequest struct {
+	Name  string `json:"name"`
+	Query string `json:"query"`
+}
+
+func (a *API) handleListSavedQueries(w http.ResponseWriter, r *http.Request) {
+	server, err := a.store.GetServer(r.Context(), currentUser(r).ID, r.PathValue("id"))
+	if err != nil {
+		a.failServer(w, err)
+		return
+	}
+
+	saved, err := a.store.ListSavedQueries(
+		r.Context(), currentUser(r).ID, server.ID, r.PathValue("tool"))
+	if err != nil {
+		a.failServer(w, err)
+		return
+	}
+
+	// Saved queries describe someone's schema, so they are no more cacheable
+	// than the rows they return.
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, saved)
+}
+
+func (a *API) handleSaveQuery(w http.ResponseWriter, r *http.Request) {
+	var req saveQueryRequest
+	if err := decodeJSON(r, &req); err != nil {
+		a.fail(w, apierr.BadRequest.WithCause(err))
+		return
+	}
+
+	req.Name = strings.TrimSpace(req.Name)
+	req.Query = strings.TrimSpace(req.Query)
+
+	if req.Name == "" {
+		a.fail(w, apierr.QueryNameRequired)
+		return
+	}
+	if req.Query == "" {
+		a.fail(w, apierr.EmptyQuery)
+		return
+	}
+
+	server, err := a.store.GetServer(r.Context(), currentUser(r).ID, r.PathValue("id"))
+	if err != nil {
+		a.failServer(w, err)
+		return
+	}
+
+	toolID := r.PathValue("tool")
+	if _, err := catalog.Find(toolID); err != nil {
+		a.failTool(w, err)
+		return
+	}
+
+	saved := store.SavedQuery{
+		ID:       ids.New("qry"),
+		UserID:   currentUser(r).ID,
+		ServerID: server.ID,
+		ToolID:   toolID,
+		Name:     req.Name,
+		Query:    req.Query,
+		SavedAt:  time.Now().UTC(),
+	}
+	if err := a.store.SaveQuery(r.Context(), saved); err != nil {
+		a.failServer(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, saved)
+}
+
+func (a *API) handleDeleteSavedQuery(w http.ResponseWriter, r *http.Request) {
+	server, err := a.store.GetServer(r.Context(), currentUser(r).ID, r.PathValue("id"))
+	if err != nil {
+		a.failServer(w, err)
+		return
+	}
+
+	err = a.store.DeleteSavedQuery(r.Context(), currentUser(r).ID, server.ID, r.PathValue("query"))
+	if err != nil {
+		a.fail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

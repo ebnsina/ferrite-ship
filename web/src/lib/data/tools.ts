@@ -19,6 +19,22 @@ export interface ToolAccess {
 	port: number;
 }
 
+/** A ready-made query offered as a starting point. */
+export interface Preset {
+	label: string;
+	description: string;
+	query: string;
+}
+
+/** A query the owner kept for later. */
+export interface SavedQuery {
+	id: string;
+	toolId: string;
+	name: string;
+	query: string;
+	savedAt: string;
+}
+
 export interface Tool {
 	id: string;
 	name: string;
@@ -33,6 +49,8 @@ export interface Tool {
 	/** What you type into the console, e.g. "SQL". */
 	consoleLanguage?: string;
 	consolePlaceholder?: string;
+	/** Ready-made queries to start from. */
+	consolePresets?: Preset[];
 	image: string;
 	version: string;
 	ports: ToolPort[];
@@ -108,6 +126,22 @@ export const toolsClient = {
 			body: { query },
 			signal
 		}),
+
+	savedQueries: (serverId: string, toolId: string, signal?: AbortSignal) =>
+		apiRequest<SavedQuery[]>(`${base(serverId)}/${encodeURIComponent(toolId)}/queries`, { signal }),
+
+	saveQuery: (serverId: string, toolId: string, name: string, query: string, signal?: AbortSignal) =>
+		apiRequest<SavedQuery>(`${base(serverId)}/${encodeURIComponent(toolId)}/queries`, {
+			method: 'POST',
+			body: { name, query },
+			signal
+		}),
+
+	deleteSavedQuery: (serverId: string, toolId: string, queryId: string, signal?: AbortSignal) =>
+		apiRequest<void>(
+			`${base(serverId)}/${encodeURIComponent(toolId)}/queries/${encodeURIComponent(queryId)}`,
+			{ method: 'DELETE', signal }
+		),
 
 	connection: (serverId: string, toolId: string, signal?: AbortSignal) =>
 		apiRequest<ToolConnection>(

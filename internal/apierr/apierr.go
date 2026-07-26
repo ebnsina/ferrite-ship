@@ -185,6 +185,10 @@ var (
 		"There is nothing to query in this tool.",
 		"Only databases can be queried. Use the terminal for anything else.")
 
+	QueryNameRequired = newError(CodeInvalid, 400,
+		"Give this query a name.",
+		"Something you will recognise later, like \"signups this week\".")
+
 	EmptyQuery = newError(CodeInvalid, 400,
 		"There is nothing to run.",
 		"Type a query first.")

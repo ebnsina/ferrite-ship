@@ -42,6 +42,8 @@ type Tool struct {
 	ConsoleLanguage string `json:"consoleLanguage,omitempty"`
 	// ConsolePlaceholder is an example query for an empty editor.
 	ConsolePlaceholder string `json:"consolePlaceholder,omitempty"`
+	// ConsolePresets are ready-made queries to start from.
+	ConsolePresets []Preset `json:"consolePresets,omitempty"`
 	// KeepsData is whether removing this tool can leave something behind, and
 	// therefore whether it is worth offering to delete it. Derived from Volumes
 	// in All() rather than written out per tool, so the two cannot disagree —
@@ -112,6 +114,7 @@ func All() []Tool {
 			tools[i].HasConsole = true
 			tools[i].ConsoleLanguage = spec.Language
 			tools[i].ConsolePlaceholder = spec.Placeholder
+			tools[i].ConsolePresets = spec.Presets
 		}
 	}
 	return tools
