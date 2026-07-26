@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/ebnsina/ferrite-ship/internal/executor"
@@ -218,4 +219,15 @@ func (s *Shell) Close() error {
 	_ = s.stdin.Close()
 	_ = s.output.Close()
 	return s.session.Close()
+}
+
+// OpenSFTP starts the SFTP subsystem on this connection, for browsing and
+// editing files. It rides the same connection as everything else, so it needs
+// no extra port and no second credential.
+func (c *Client) OpenSFTP() (*sftp.Client, error) {
+	client, err := sftp.NewClient(c.client)
+	if err != nil {
+		return nil, fmt.Errorf("ssh: open sftp: %w", err)
+	}
+	return client, nil
 }

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/ebnsina/ferrite-ship/internal/files"
 	"github.com/ebnsina/ferrite-ship/internal/ids"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
 	"github.com/ebnsina/ferrite-ship/internal/secret"
@@ -21,6 +22,7 @@ type API struct {
 	bus       *runner.Bus
 	sealer    *secret.Sealer
 	terminals *terminal.Service
+	files     *files.Service
 	log       *slog.Logger
 
 	allowedOrigin string
@@ -35,6 +37,7 @@ type Options struct {
 	Bus           *runner.Bus
 	Sealer        *secret.Sealer
 	Terminals     *terminal.Service
+	Files         *files.Service
 	Logger        *slog.Logger
 	AllowedOrigin string
 }
@@ -46,6 +49,7 @@ func New(opts Options) *API {
 		bus:           opts.Bus,
 		sealer:        opts.Sealer,
 		terminals:     opts.Terminals,
+		files:         opts.Files,
 		log:           opts.Logger,
 		allowedOrigin: opts.AllowedOrigin,
 	}
@@ -71,6 +75,12 @@ func (a *API) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/servers/{id}/jobs", a.handleStartJob)
 	mux.HandleFunc("GET /v1/servers/{id}/terminal", a.handleTerminal)
 
+	mux.HandleFunc("GET /v1/servers/{id}/files", a.handleListFiles)
+	mux.HandleFunc("DELETE /v1/servers/{id}/files", a.handleRemoveFile)
+	mux.HandleFunc("GET /v1/servers/{id}/files/content", a.handleReadFile)
+	mux.HandleFunc("PUT /v1/servers/{id}/files/content", a.handleWriteFile)
+	mux.HandleFunc("GET /v1/servers/{id}/files/download", a.handleDownloadFile)
+
 	mux.HandleFunc("GET /v1/jobs/{id}", a.handleGetJob)
 	mux.HandleFunc("GET /v1/jobs/{id}/events", a.handleJobEvents)
 
@@ -90,7 +100,7 @@ func (a *API) withCORS(next http.Handler) http.Handler {
 			h.Set("Access-Control-Allow-Origin", a.allowedOrigin)
 			h.Set("Access-Control-Allow-Credentials", "true")
 			h.Set("Access-Control-Allow-Headers", "Content-Type")
-			h.Set("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS")
+			h.Set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
 			h.Add("Vary", "Origin")
 		}
 

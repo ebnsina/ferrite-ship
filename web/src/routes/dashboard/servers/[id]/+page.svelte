@@ -24,6 +24,7 @@
 	import { formatBytes, formatDuration, formatRelativeTime } from '$utils/format';
 	import { createResource } from '$utils/resource.svelte';
 	import Cpu from '@lucide/svelte/icons/cpu';
+	import FolderOpen from '@lucide/svelte/icons/folder-open';
 	import HardDrive from '@lucide/svelte/icons/hard-drive';
 	import MemoryStick from '@lucide/svelte/icons/memory-stick';
 	import Play from '@lucide/svelte/icons/play';
@@ -107,6 +108,10 @@
 				<div class="flex flex-wrap items-center gap-2">
 					<StatusPill {status} />
 					{#if s.connectionKind === 'ssh'}
+						<ButtonLink href="/dashboard/servers/{id}/files" variant="secondary" size="sm">
+							<FolderOpen size={15} aria-hidden="true" />
+							Files
+						</ButtonLink>
 						<ButtonLink href="/dashboard/servers/{id}/terminal" variant="secondary" size="sm">
 							<SquareTerminal size={15} aria-hidden="true" />
 							Terminal

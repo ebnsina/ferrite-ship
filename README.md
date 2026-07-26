@@ -24,6 +24,8 @@ from a browser — files, services, updates, storage — without memorising anot
   and says so.
 - **Open a real shell in the browser** — a PTY over SSH, with resize, colour
   and full-screen programs.
+- **Browse and edit files** over SFTP: navigate, open a config, save it back
+  with its permissions intact, download, delete.
 - **See your fleet** — status, CPU, memory, storage and uptime, gathered from
   the machines themselves.
 
@@ -221,6 +223,7 @@ rather than drawing a trend that was never measured.
 │   ├── config/         Environment loading and validation
 │   ├── executor/       Command transport (ssh, demo)
 │   ├── facts/          Reading what a server is and how busy it is
+│   ├── files/          Browsing and editing files over SFTP
 │   ├── runner/         Job execution and the event bus
 │   ├── secret/         Credential sealing
 │   ├── steps/          The step engine and the baseline playbook
@@ -246,6 +249,11 @@ multi-tenancy arrives is a change to `internal/store` alone.
 | `GET` | `/v1/jobs/{id}/events` | Live job log (SSE) |
 | `GET` | `/v1/activity` | Recent jobs |
 | `GET` | `/v1/servers/{id}/terminal` | Interactive shell (WebSocket) |
+| `GET` | `/v1/servers/{id}/files` | List a directory |
+| `DELETE` | `/v1/servers/{id}/files` | Delete a file or empty folder |
+| `GET` | `/v1/servers/{id}/files/content` | Read a text file |
+| `PUT` | `/v1/servers/{id}/files/content` | Save a text file |
+| `GET` | `/v1/servers/{id}/files/download` | Download a file |
 | `GET` | `/v1/metrics` | Fleet metrics |
 
 Errors share one envelope: `{ "code", "message", "request_id" }`.

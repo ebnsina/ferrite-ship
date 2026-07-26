@@ -15,6 +15,7 @@ import (
 
 	"github.com/ebnsina/ferrite-ship/internal/api"
 	"github.com/ebnsina/ferrite-ship/internal/config"
+	"github.com/ebnsina/ferrite-ship/internal/files"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
 	"github.com/ebnsina/ferrite-ship/internal/secret"
 	"github.com/ebnsina/ferrite-ship/internal/store"
@@ -61,6 +62,7 @@ func run(log *slog.Logger) error {
 	bus := runner.NewBus()
 	jobs := runner.New(st, sealer, bus, log)
 	terminals := terminal.NewService(st, sealer)
+	fileBrowser := files.NewService(st, sealer)
 
 	restAPI := api.New(api.Options{
 		Store:         st,
@@ -68,6 +70,7 @@ func run(log *slog.Logger) error {
 		Bus:           bus,
 		Sealer:        sealer,
 		Terminals:     terminals,
+		Files:         fileBrowser,
 		Logger:        log,
 		AllowedOrigin: cfg.AllowedOrigin,
 	})
