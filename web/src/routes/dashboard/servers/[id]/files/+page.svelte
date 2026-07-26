@@ -1,10 +1,14 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
+	import DeleteFileDialog from '$components/dashboard/DeleteFileDialog.svelte';
 	import FileBrowser from '$components/dashboard/FileBrowser.svelte';
+	import FileBrowserSkeleton from '$components/dashboard/FileBrowserSkeleton.svelte';
 	import FileEditor from '$components/dashboard/FileEditor.svelte';
+	import FilePathBreadcrumb from '$components/dashboard/FilePathBreadcrumb.svelte';
 	import Seo from '$components/Seo.svelte';
-	import { ButtonLink, Card, ConfirmDialog, ErrorState, Skeleton } from '$components/ui';
+	import { ButtonLink, Card, ErrorState, Skeleton } from '$components/ui';
+	import { dashboardRepository } from '$lib/data';
 	import {
 		filesClient,
 		type DirectoryListing,
@@ -12,9 +16,14 @@
 		type FileEntry
 	} from '$lib/data/files';
 	import { toAppError, type AppError } from '$lib/errors';
+	import { createResource } from '$utils/resource.svelte';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 
 	const serverId = page.params.id ?? '';
+
+	// Loaded alongside the listing so the trail can name the server rather than
+	// saying "Server", which tells nobody which machine they are editing.
+	const server = createResource((signal) => dashboardRepository.getServer(serverId, signal));
 
 	let path = $state('/');
 	let listing = $state<DirectoryListing | null>(null);
@@ -29,6 +38,7 @@
 	async function load(next: string) {
 		loading = true;
 		error = null;
+		openFile = null;
 
 		try {
 			listing = await filesClient.list(serverId, next);
@@ -69,20 +79,6 @@
 		}
 	}
 
-	// Each segment of the path is clickable, which is how people navigate back
-	// up several levels at once.
-	const crumbs = $derived.by(() => {
-		const parts = path.split('/').filter(Boolean);
-		let built = '';
-		return [
-			{ label: '/', path: '/' },
-			...parts.map((part) => {
-				built += `/${part}`;
-				return { label: part, path: built };
-			})
-		];
-	});
-
 	$effect(() => {
 		void load('/');
 	});
@@ -94,7 +90,7 @@
 	crumbs={[
 		{ label: 'Dashboard', href: '/dashboard' },
 		{ label: 'Servers', href: '/dashboard/servers' },
-		{ label: 'Server', href: `/dashboard/servers/${serverId}` },
+		{ label: server.data?.name ?? 'Server', href: `/dashboard/servers/${serverId}` },
 		{ label: 'Files' }
 	]}
 />
@@ -102,21 +98,11 @@
 <div class="space-y-5 px-6 py-8">
 	{#if !openFile}
 		<div class="flex flex-wrap items-center justify-between gap-3">
-			<nav aria-label="Folder path" class="flex flex-wrap items-center gap-1 text-sm">
-				{#each crumbs as crumb, index (crumb.path)}
-					{#if index > 0}
-						<span class="text-content-subtle" aria-hidden="true">/</span>
-					{/if}
-					<button
-						type="button"
-						onclick={() => load(crumb.path)}
-						class="text-content-muted hover:text-content font-machine rounded-tile px-1.5 py-0.5 text-xs transition-colors duration-150"
-						aria-current={index === crumbs.length - 1 ? 'page' : undefined}
-					>
-						{crumb.label}
-					</button>
-				{/each}
-			</nav>
+			{#if loading && !listing}
+				<Skeleton class="h-6 w-48" />
+			{:else}
+				<FilePathBreadcrumb {path} onNavigate={load} />
+			{/if}
 
 			<ButtonLink href="/dashboard/servers/{serverId}" variant="secondary" size="sm">
 				<ArrowLeft size={15} aria-hidden="true" />
@@ -130,7 +116,7 @@
 			<ErrorState {error} onRetry={() => load(path)} />
 		</Card>
 	{:else if loading}
-		<Skeleton shape="card" class="h-96" />
+		<FileBrowserSkeleton />
 	{:else if openFile}
 		<FileEditor {serverId} file={openFile} onClose={() => (openFile = null)} />
 	{:else if listing}
@@ -143,12 +129,8 @@
 		/>
 	{/if}
 
-	<ConfirmDialog
-		open={pendingDelete !== null}
-		title="Delete {pendingDelete?.name ?? ''}?"
-		description="This removes it from the server for good. There is no undo, and nothing is backed up first."
-		confirmLabel="Delete it"
-		danger
+	<DeleteFileDialog
+		entry={pendingDelete}
 		busy={deleting}
 		onConfirm={confirmDelete}
 		onCancel={() => (pendingDelete = null)}
