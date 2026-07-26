@@ -5,33 +5,31 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/ebnsina/ferrite-ship/internal/apierr"
 	"github.com/ebnsina/ferrite-ship/internal/services"
-	"github.com/ebnsina/ferrite-ship/internal/store"
 )
 
-func (a *API) writeServicesError(w http.ResponseWriter, err error) {
+// failServices maps the service layer's sentinels onto catalogue entries. The
+// unit name is added where it helps, since the catalogue cannot know it.
+func (a *API) failServices(w http.ResponseWriter, err error, unit string) {
 	switch {
-	case errors.Is(err, store.ErrNotFound):
-		a.writeError(w, http.StatusNotFound, "not_found", "We could not find that server.")
 	case errors.Is(err, services.ErrNotSupported):
-		a.writeError(w, http.StatusBadRequest, "parse",
-			"This is a simulated server, so there are no services to manage. Connect a real server to use this.")
+		a.fail(w, apierr.NeedsRealServer)
 	case errors.Is(err, services.ErrBadUnit):
-		a.writeError(w, http.StatusBadRequest, "parse", "That is not a service name we recognise.")
+		a.fail(w, apierr.UnknownService)
 	case errors.Is(err, services.ErrBadAction):
-		a.writeError(w, http.StatusBadRequest, "parse",
-			"You can start, stop, restart, turn on or turn off a service — nothing else.")
+		a.fail(w, apierr.UnknownServiceAction)
 	case errors.Is(err, services.ErrProtected):
-		a.writeError(w, http.StatusConflict, "conflict", err.Error())
+		a.fail(w, apierr.ServiceProtected.WithMessage(unit+" is protected."))
 	default:
-		a.writeError(w, http.StatusBadGateway, "network", friendlyFileError(err))
+		a.failServer(w, err)
 	}
 }
 
 func (a *API) handleListServices(w http.ResponseWriter, r *http.Request) {
 	units, err := a.services.List(r.Context(), currentUser(r).ID, r.PathValue("id"))
 	if err != nil {
-		a.writeServicesError(w, err)
+		a.failServices(w, err, "")
 		return
 	}
 	writeJSON(w, http.StatusOK, units)
@@ -44,14 +42,14 @@ type serviceActionRequest struct {
 func (a *API) handleServiceAction(w http.ResponseWriter, r *http.Request) {
 	var req serviceActionRequest
 	if err := decodeJSON(r, &req); err != nil {
-		a.writeError(w, http.StatusBadRequest, "parse", "We could not read that request.")
+		a.fail(w, apierr.BadRequest.WithCause(err))
 		return
 	}
 
 	err := a.services.Perform(
 		r.Context(), currentUser(r).ID, r.PathValue("id"), r.PathValue("unit"), services.Action(req.Action))
 	if err != nil {
-		a.writeServicesError(w, err)
+		a.failServices(w, err, r.PathValue("unit"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -62,7 +60,7 @@ func (a *API) handleServiceLogs(w http.ResponseWriter, r *http.Request) {
 
 	text, err := a.services.Logs(r.Context(), currentUser(r).ID, r.PathValue("id"), r.PathValue("unit"), lines)
 	if err != nil {
-		a.writeServicesError(w, err)
+		a.failServices(w, err, r.PathValue("unit"))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"text": text})

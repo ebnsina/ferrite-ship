@@ -237,6 +237,7 @@ rather than drawing a trend that was never measured.
 ├── cmd/ferrite-ship/   Entry point
 ├── internal/
 │   ├── api/            HTTP handlers, SSE, static hosting
+│   ├── apierr/         Every user-facing error, in one catalogue
 │   ├── auth/           Passwords and sessions
 │   ├── config/         Environment loading and validation
 │   ├── executor/       Command transport (ssh, demo)
@@ -284,7 +285,9 @@ multi-tenancy arrives is a change to `internal/store` alone.
 
 Everything except `/v1/health` and `/v1/auth/*` requires a session cookie.
 
-Errors share one envelope: `{ "code", "message", "request_id" }`.
+Errors share one envelope: `{ "code", "message", "action", "request_id" }`.
+Every message and action is defined in `internal/apierr`, and the dashboard
+shows what it is sent — the wording exists in one place.
 
 ---
 

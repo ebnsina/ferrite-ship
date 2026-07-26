@@ -1,13 +1,19 @@
 import { goto } from '$app/navigation';
 import { env } from '$config/env';
-import { AppError, codeForStatus, describe, toAppError } from '$lib/errors';
+import { AppError, toAppError, type ErrorCode } from '$lib/errors';
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 
-/** Error envelope the Go control plane returns for every non-2xx response. */
+/**
+ * The envelope the Go control plane returns for every non-2xx response. Its
+ * message and action are written in `internal/apierr` and shown verbatim: the
+ * browser keeping its own phrasing would mean maintaining the same sentence in
+ * two repositories.
+ */
 interface ApiErrorEnvelope {
 	code?: string;
 	message?: string;
+	action?: string;
 	request_id?: string;
 }
 
@@ -36,16 +42,24 @@ async function readEnvelope(response: Response): Promise<ApiErrorEnvelope> {
 }
 
 async function toResponseError(response: Response): Promise<AppError> {
-	const code = codeForStatus(response.status);
-	const copy = describe(code);
 	const envelope = await readEnvelope(response);
 
+	// A proxy or gateway can answer instead of the API, in which case there is
+	// no envelope and nothing meaningful to quote.
+	if (!envelope.message) {
+		return new AppError({
+			code: response.status >= 500 ? 'internal' : 'invalid',
+			status: response.status,
+			message: 'The control plane did not answer properly.',
+			action: 'Try again. If it keeps happening, check the server is healthy.'
+		});
+	}
+
 	return new AppError({
-		code,
+		code: (envelope.code as ErrorCode) ?? 'internal',
 		status: response.status,
-		// Prefer the server's message only when it is meant for humans.
-		message: envelope.message?.trim() || copy.message,
-		action: copy.action,
+		message: envelope.message,
+		action: envelope.action,
 		requestId: envelope.request_id
 	});
 }

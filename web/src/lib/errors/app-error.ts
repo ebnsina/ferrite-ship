@@ -1,28 +1,43 @@
 /**
- * A single error type for everything the UI has to render. Anything thrown
- * inside the app is normalised into this before it reaches a component, so
- * error rendering never has to guess at an unknown shape.
+ * One error type for everything the UI renders. Anything catchable is
+ * normalised into this before it reaches a component, so error rendering never
+ * has to guess at an unknown shape.
  */
 
+/**
+ * The shared vocabulary.
+ *
+ * `internal/apierr` on the Go side is the source of truth; these codes mirror
+ * it. The last four can only ever be raised here, because they describe a
+ * request that never got an answer — the server cannot describe those.
+ */
 export type ErrorCode =
-	| 'network'
-	| 'timeout'
+	// Answered by the API
+	| 'invalid'
 	| 'unauthorized'
 	| 'forbidden'
 	| 'not_found'
 	| 'conflict'
-	| 'rate_limited'
-	| 'server'
+	| 'too_large'
+	| 'unsupported'
+	| 'upstream'
+	| 'internal'
+	// Raised in the browser
+	| 'network'
+	| 'timeout'
 	| 'parse'
-	| 'config'
-	| 'unknown';
+	| 'config';
 
 export interface AppErrorOptions {
 	code: ErrorCode;
 	status?: number;
-	/** Safe to show a user. Never contains internals or secrets. */
+	/**
+	 * What happened, in words safe to show. For anything the API answered this
+	 * is the server's own wording — the browser does not paraphrase it, because
+	 * then the same sentence would live in two repositories.
+	 */
 	message: string;
-	/** What the user can actually do next, if anything. */
+	/** What to do next, if anything. */
 	action?: string;
 	/** Correlation id from the API, quotable in a support request. */
 	requestId?: string;
@@ -49,7 +64,8 @@ export class AppError extends Error {
 	}
 }
 
-const RETRYABLE_CODES = new Set<ErrorCode>(['network', 'timeout', 'rate_limited', 'server']);
+/** Codes where trying the same thing again could plausibly work. */
+const RETRYABLE_CODES = new Set<ErrorCode>(['network', 'timeout', 'upstream', 'internal']);
 
 export function isAppError(value: unknown): value is AppError {
 	return value instanceof AppError;

@@ -85,6 +85,15 @@ step that could lock someone out.
 published to the bus, so a reconnecting SSE client resumes by sequence number
 with nothing lost. Do not reorder that.
 
+**Errors have one home (`internal/apierr`).** Every failure a person can see —
+its code, HTTP status, what happened, and what to do next — is defined in that
+catalogue. Handlers pick an entry; they do not write sentences or choose status
+codes. Infrastructure wording (SSH, SFTP, systemd) is interpreted once in
+`apierr.From`. The web client renders the `message` and `action` it is sent
+rather than keeping a second copy, so the words live in one repository. The
+only copy the browser owns is for failures the API could not describe because
+it never answered: network, timeout, parse, config.
+
 **Credentials (`internal/secret`).** SSH passwords and keys are sealed with
 AES-256-GCM before storage. Never log them, never put them in a response type —
 `api.serverView` is deliberately separate from `store.Server` for this reason.

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/ebnsina/ferrite-ship/internal/apierr"
 	"github.com/ebnsina/ferrite-ship/internal/auth"
 	"github.com/ebnsina/ferrite-ship/internal/files"
 	"github.com/ebnsina/ferrite-ship/internal/ids"
@@ -141,11 +142,14 @@ func (a *API) handleHealth(w http.ResponseWriter, _ *http.Request) {
 
 // --- responses --------------------------------------------------------------
 
-// errorBody is the single error envelope every non-2xx response uses. The web
-// client depends on this shape.
+// errorBody is the one shape every non-2xx response uses. Message says what
+// happened; Action says what to do next. Both come from the catalogue in
+// internal/apierr, so the wording lives in exactly one place and the web
+// client renders it rather than keeping a second copy.
 type errorBody struct {
 	Code      string `json:"code"`
 	Message   string `json:"message"`
+	Action    string `json:"action,omitempty"`
 	RequestID string `json:"request_id,omitempty"`
 }
 
@@ -161,21 +165,41 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	}
 }
 
-func (a *API) writeError(w http.ResponseWriter, status int, code, message string) {
-	requestID := ids.New("req")
-	if status >= http.StatusInternalServerError {
-		a.log.Error("request failed", "code", code, "message", message, "request_id", requestID)
-	}
-	writeJSON(w, status, errorBody{Code: code, Message: message, RequestID: requestID})
+// fail is the only way a handler reports a problem. Anything catchable can be
+// passed in: the catalogue classifies it, so no handler decides on a status
+// code or writes a sentence of its own.
+func (a *API) fail(w http.ResponseWriter, err error) {
+	a.failAs(w, err, apierr.NotFound)
 }
 
-// writeStoreError maps storage failures onto status codes.
-func (a *API) writeStoreError(w http.ResponseWriter, err error) {
+// failServer is the same, but a missing row means a missing server — the
+// wording every route under /v1/servers/{id} wants.
+func (a *API) failServer(w http.ResponseWriter, err error) {
+	a.failAs(w, err, apierr.ServerNotFound)
+}
+
+func (a *API) failAs(w http.ResponseWriter, err error, missing *apierr.Error) {
 	if errors.Is(err, store.ErrNotFound) {
-		a.writeError(w, http.StatusNotFound, "not_found", "We could not find that.")
-		return
+		err = missing.WithCause(err)
 	}
-	a.writeError(w, http.StatusInternalServerError, "server", "Something went wrong on our side.")
+
+	problem := apierr.From(err)
+	requestID := ids.New("req")
+
+	// Only our own failures are worth logging as errors; a wrong password or a
+	// missing file is the system working.
+	if problem.Status >= http.StatusInternalServerError {
+		a.log.Error("request failed",
+			"code", problem.Code, "message", problem.Message,
+			"cause", problem.Unwrap(), "request_id", requestID)
+	}
+
+	writeJSON(w, problem.Status, errorBody{
+		Code:      string(problem.Code),
+		Message:   problem.Message,
+		Action:    problem.Action,
+		RequestID: requestID,
+	})
 }
 
 func jsonBytes(payload any) ([]byte, error) {

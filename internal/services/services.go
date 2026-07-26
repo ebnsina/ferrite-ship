@@ -197,12 +197,7 @@ func (s *Service) Perform(ctx context.Context, userID, serverID, unit string, ac
 		return fmt.Errorf("%w: %q", ErrBadAction, action)
 	}
 	if protectedUnits[unit] && (action == ActionStop || action == ActionDisable) {
-		verb := "Stopping"
-		if action == ActionDisable {
-			verb = "Turning off"
-		}
-		return fmt.Errorf("%w: %s %s would cut off access to this server. Restarting it is allowed.",
-			ErrProtected, verb, unit)
+		return ErrProtected
 	}
 
 	sess, err := s.connect(ctx, userID, serverID)

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ebnsina/ferrite-ship/internal/apierr"
 	"github.com/ebnsina/ferrite-ship/internal/auth"
 	"github.com/ebnsina/ferrite-ship/internal/store"
 )
@@ -66,7 +67,7 @@ func (a *API) requireSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, err := a.auth.UserForSession(r.Context(), sessionID(r))
 		if err != nil {
-			a.writeError(w, http.StatusUnauthorized, "unauthorized", "Sign in to continue.")
+			a.fail(w, apierr.NotSignedIn)
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userContextKey, user)))
@@ -92,7 +93,7 @@ type authStatusResponse struct {
 func (a *API) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 	needsSetup, err := a.auth.NeedsSetup(r.Context())
 	if err != nil {
-		a.writeError(w, http.StatusInternalServerError, "server", "Something went wrong on our side.")
+		a.fail(w, apierr.Internal.WithCause(err))
 		return
 	}
 
@@ -113,22 +114,23 @@ type credentialsRequest struct {
 func (a *API) handleSetup(w http.ResponseWriter, r *http.Request) {
 	var req credentialsRequest
 	if err := decodeJSON(r, &req); err != nil {
-		a.writeError(w, http.StatusBadRequest, "parse", "We could not read that request.")
+		a.fail(w, apierr.BadRequest.WithCause(err))
 		return
 	}
 
 	user, err := a.auth.Setup(r.Context(), req.Email, req.Password)
 	switch {
 	case errors.Is(err, auth.ErrSetupClosed):
-		a.writeError(w, http.StatusConflict, "conflict",
-			"An account already exists on this installation.")
+		a.fail(w, apierr.SetupClosed)
 		return
 	case errors.Is(err, auth.ErrWeakPassword):
-		a.writeError(w, http.StatusBadRequest, "parse",
-			"Choose a password of at least 10 characters. Length matters more than symbols.")
+		a.fail(w, apierr.WeakPassword)
+		return
+	case errors.Is(err, store.ErrEmailTaken):
+		a.fail(w, apierr.SetupClosed)
 		return
 	case err != nil:
-		a.writeError(w, http.StatusBadRequest, "parse", err.Error())
+		a.fail(w, apierr.InvalidEmail.WithCause(err))
 		return
 	}
 
@@ -136,7 +138,7 @@ func (a *API) handleSetup(w http.ResponseWriter, r *http.Request) {
 	// serves nobody.
 	session, err := a.auth.Authenticate(r.Context(), req.Email, req.Password)
 	if err != nil {
-		a.writeError(w, http.StatusInternalServerError, "server", "Account created, but signing in failed.")
+		a.fail(w, apierr.Internal.WithCause(err).WithMessage("Your account was created, but signing you in failed."))
 		return
 	}
 
@@ -148,7 +150,7 @@ func (a *API) handleSetup(w http.ResponseWriter, r *http.Request) {
 func (a *API) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var req credentialsRequest
 	if err := decodeJSON(r, &req); err != nil {
-		a.writeError(w, http.StatusBadRequest, "parse", "We could not read that request.")
+		a.fail(w, apierr.BadRequest.WithCause(err))
 		return
 	}
 
@@ -156,8 +158,7 @@ func (a *API) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// One message for both a wrong password and an unknown account, so the
 		// response cannot be used to discover which emails exist.
-		a.writeError(w, http.StatusUnauthorized, "unauthorized",
-			"That email and password do not match.")
+		a.fail(w, apierr.WrongCredentials)
 		return
 	}
 

@@ -5,76 +5,32 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/ebnsina/ferrite-ship/internal/apierr"
 	"github.com/ebnsina/ferrite-ship/internal/files"
-	"github.com/ebnsina/ferrite-ship/internal/store"
 )
 
-// writeFilesError maps filesystem failures onto messages a person can act on.
-// SFTP errors are terse ("permission denied", "file does not exist") and worth
-// translating rather than passing through raw.
-func (a *API) writeFilesError(w http.ResponseWriter, err error) {
+// failFiles maps the file service's sentinels onto catalogue entries.
+// Everything else — SSH timeouts, SFTP's terse wording — is classified by
+// apierr.From, so the interpreting happens in one place rather than here.
+func (a *API) failFiles(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, store.ErrNotFound):
-		a.writeError(w, http.StatusNotFound, "not_found", "We could not find that server.")
 	case errors.Is(err, files.ErrNotSupported):
-		a.writeError(w, http.StatusBadRequest, "parse",
-			"This is a simulated server, so there are no files to browse. Connect a real server to use this.")
+		a.fail(w, apierr.NeedsRealServer)
 	case errors.Is(err, files.ErrBadPath):
-		a.writeError(w, http.StatusBadRequest, "parse", "That path does not look right.")
+		a.fail(w, apierr.PathNotAbsolute)
 	case errors.Is(err, files.ErrTooLarge):
-		a.writeError(w, http.StatusRequestEntityTooLarge, "parse",
-			"That file is too big to open here. Download it instead.")
+		a.fail(w, apierr.FileTooLarge)
 	case errors.Is(err, files.ErrNotText):
-		a.writeError(w, http.StatusUnsupportedMediaType, "parse",
-			"That does not look like a text file, so there is nothing sensible to show. Download it instead.")
+		a.fail(w, apierr.FileNotText)
 	default:
-		a.writeError(w, http.StatusBadGateway, "network", friendlyFileError(err))
+		a.failServer(w, err)
 	}
-}
-
-// friendlyFileError turns SSH and SFTP's terse output into something a person
-// can act on. Raw messages like "ssh: dial tcp ...: i/o timeout" say nothing
-// useful to someone who does not already know what they mean.
-func friendlyFileError(err error) string {
-	message := err.Error()
-	switch {
-	// Connection problems come first: they explain everything after them.
-	case containsAny(message, "i/o timeout", "connection timed out"):
-		return "That server did not answer in time. Check it is running and that its firewall allows you in."
-	case containsAny(message, "connection refused"):
-		return "That server refused the connection. Check the address and port are right."
-	case containsAny(message, "no such host", "lookup"):
-		return "We could not find that address. Check it is spelled correctly."
-	case containsAny(message, "unable to authenticate", "handshake"):
-		return "The sign-in details for that server were not accepted. Check the username and key or password."
-	case containsAny(message, "network is unreachable", "no route to host"):
-		return "That server cannot be reached from here."
-
-	case containsAny(message, "permission denied"):
-		return "You do not have permission to do that on this server."
-	case containsAny(message, "does not exist", "no such file"):
-		return "That file or folder is not there any more."
-	case containsAny(message, "directory not empty"):
-		return "That folder still has things in it. Empty it first."
-	default:
-		return "Something went wrong talking to that server: " + message
-	}
-}
-
-func containsAny(haystack string, needles ...string) bool {
-	for _, needle := range needles {
-		if len(needle) > 0 && len(haystack) >= len(needle) &&
-			indexFold(haystack, needle) >= 0 {
-			return true
-		}
-	}
-	return false
 }
 
 func (a *API) handleListFiles(w http.ResponseWriter, r *http.Request) {
 	listing, err := a.files.List(r.Context(), currentUser(r).ID, r.PathValue("id"), r.URL.Query().Get("path"))
 	if err != nil {
-		a.writeFilesError(w, err)
+		a.failFiles(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, listing)
@@ -83,7 +39,7 @@ func (a *API) handleListFiles(w http.ResponseWriter, r *http.Request) {
 func (a *API) handleReadFile(w http.ResponseWriter, r *http.Request) {
 	content, err := a.files.Read(r.Context(), currentUser(r).ID, r.PathValue("id"), r.URL.Query().Get("path"))
 	if err != nil {
-		a.writeFilesError(w, err)
+		a.failFiles(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, content)
@@ -97,12 +53,12 @@ type writeFileRequest struct {
 func (a *API) handleWriteFile(w http.ResponseWriter, r *http.Request) {
 	var req writeFileRequest
 	if err := decodeJSON(r, &req); err != nil {
-		a.writeError(w, http.StatusBadRequest, "parse", "We could not read that request.")
+		a.fail(w, apierr.BadRequest.WithCause(err))
 		return
 	}
 
 	if err := a.files.Write(r.Context(), currentUser(r).ID, r.PathValue("id"), req.Path, req.Text); err != nil {
-		a.writeFilesError(w, err)
+		a.failFiles(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -125,7 +81,7 @@ func (a *API) handleDownloadFile(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) handleRemoveFile(w http.ResponseWriter, r *http.Request) {
 	if err := a.files.Remove(r.Context(), currentUser(r).ID, r.PathValue("id"), r.URL.Query().Get("path")); err != nil {
-		a.writeFilesError(w, err)
+		a.failFiles(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -141,26 +97,4 @@ func baseName(p string) string {
 		return "download"
 	}
 	return p
-}
-
-// indexFold is a case-insensitive substring search, kept local to avoid
-// pulling strings into this file for one call.
-func indexFold(haystack, needle string) int {
-	h, n := toLowerASCII(haystack), toLowerASCII(needle)
-	for i := 0; i+len(n) <= len(h); i++ {
-		if h[i:i+len(n)] == n {
-			return i
-		}
-	}
-	return -1
-}
-
-func toLowerASCII(s string) string {
-	out := []byte(s)
-	for i, c := range out {
-		if c >= 'A' && c <= 'Z' {
-			out[i] = c + 32
-		}
-	}
-	return string(out)
 }

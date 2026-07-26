@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ebnsina/ferrite-ship/internal/apierr"
 	"github.com/ebnsina/ferrite-ship/internal/ids"
 	"github.com/ebnsina/ferrite-ship/internal/store"
 )
@@ -96,13 +97,13 @@ func formatOptionalTime(t time.Time) string {
 func (a *API) handleListServers(w http.ResponseWriter, r *http.Request) {
 	servers, err := a.store.ListServers(r.Context(), currentUser(r).ID)
 	if err != nil {
-		a.writeStoreError(w, err)
+		a.failServer(w, err)
 		return
 	}
 
 	setUp, err := a.store.LastSetupByServer(r.Context(), currentUser(r).ID)
 	if err != nil {
-		a.writeStoreError(w, err)
+		a.failServer(w, err)
 		return
 	}
 
@@ -132,14 +133,13 @@ type createServerRequest struct {
 func (a *API) handleCreateServer(w http.ResponseWriter, r *http.Request) {
 	var req createServerRequest
 	if err := decodeJSON(r, &req); err != nil {
-		a.writeError(w, http.StatusBadRequest, "parse",
-			"We could not read that request. Check the fields and try again.")
+		a.fail(w, apierr.BadRequest.WithCause(err))
 		return
 	}
 
 	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" {
-		a.writeError(w, http.StatusBadRequest, "parse", "Give the server a name.")
+		a.fail(w, apierr.NameRequired)
 		return
 	}
 
@@ -166,18 +166,17 @@ func (a *API) handleCreateServer(w http.ResponseWriter, r *http.Request) {
 
 	case store.ConnectionSSH:
 		if err := a.applySSHDetails(&srv, req); err != nil {
-			a.writeError(w, http.StatusBadRequest, "parse", err.Error())
+			a.fail(w, err)
 			return
 		}
 
 	default:
-		a.writeError(w, http.StatusBadRequest, "parse",
-			`Connection must be either "demo" or "ssh".`)
+		a.fail(w, apierr.InvalidConnectionKind)
 		return
 	}
 
 	if err := a.store.CreateServer(r.Context(), srv); err != nil {
-		a.writeStoreError(w, err)
+		a.failServer(w, err)
 		return
 	}
 
@@ -190,13 +189,13 @@ func (a *API) applySSHDetails(srv *store.Server, req createServerRequest) error 
 	user := strings.TrimSpace(req.User)
 
 	if host == "" {
-		return errText("Enter the server's address.")
+		return apierr.AddressRequired
 	}
 	if user == "" {
-		return errText("Enter the username to log in with.")
+		return apierr.UsernameRequired
 	}
 	if req.Password == "" && req.PrivateKey == "" {
-		return errText("Provide either a password or a private key.")
+		return apierr.CredentialRequired
 	}
 
 	port := req.Port
@@ -204,16 +203,16 @@ func (a *API) applySSHDetails(srv *store.Server, req createServerRequest) error 
 		port = 22
 	}
 	if port < 1 || port > 65535 {
-		return errText("That port number is not valid.")
+		return apierr.InvalidPort
 	}
 
 	sealedPassword, err := a.sealer.Seal(req.Password)
 	if err != nil {
-		return errText("We could not store that password safely.")
+		return apierr.CredentialNotStored.WithCause(err)
 	}
 	sealedKey, err := a.sealer.Seal(req.PrivateKey)
 	if err != nil {
-		return errText("We could not store that key safely.")
+		return apierr.CredentialNotStored.WithCause(err)
 	}
 
 	srv.Host = host
@@ -228,12 +227,12 @@ func (a *API) applySSHDetails(srv *store.Server, req createServerRequest) error 
 func (a *API) handleGetServer(w http.ResponseWriter, r *http.Request) {
 	server, err := a.store.GetServer(r.Context(), currentUser(r).ID, r.PathValue("id"))
 	if err != nil {
-		a.writeStoreError(w, err)
+		a.failServer(w, err)
 		return
 	}
 	setUp, err := a.store.LastSetupByServer(r.Context(), currentUser(r).ID)
 	if err != nil {
-		a.writeStoreError(w, err)
+		a.failServer(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, toServerView(server, setUp[server.ID]))
@@ -242,13 +241,13 @@ func (a *API) handleGetServer(w http.ResponseWriter, r *http.Request) {
 func (a *API) handleServerJobs(w http.ResponseWriter, r *http.Request) {
 	server, err := a.store.GetServer(r.Context(), currentUser(r).ID, r.PathValue("id"))
 	if err != nil {
-		a.writeStoreError(w, err)
+		a.failServer(w, err)
 		return
 	}
 
 	jobs, err := a.store.ListJobsForServer(r.Context(), server.ID, 20)
 	if err != nil {
-		a.writeStoreError(w, err)
+		a.failServer(w, err)
 		return
 	}
 
@@ -269,17 +268,11 @@ func (a *API) handleServerJobs(w http.ResponseWriter, r *http.Request) {
 
 func (a *API) handleDeleteServer(w http.ResponseWriter, r *http.Request) {
 	if err := a.store.DeleteServer(r.Context(), currentUser(r).ID, r.PathValue("id")); err != nil {
-		a.writeStoreError(w, err)
+		a.failServer(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
-
-type textError string
-
-func (e textError) Error() string { return string(e) }
-
-func errText(msg string) error { return textError(msg) }
 
 func orDefault(value, fallback string) string {
 	if value == "" {

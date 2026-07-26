@@ -10,7 +10,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/ebnsina/ferrite-ship/internal/store"
+	"github.com/ebnsina/ferrite-ship/internal/apierr"
 	"github.com/ebnsina/ferrite-ship/internal/terminal"
 )
 
@@ -43,15 +43,12 @@ func (a *API) handleTerminal(w http.ResponseWriter, r *http.Request) {
 	// client can actually read rather than an immediate socket close.
 	session, err := a.terminals.Open(r.Context(), currentUser(r).ID, r.PathValue("id"), size)
 	switch {
-	case errors.Is(err, store.ErrNotFound):
-		a.writeError(w, http.StatusNotFound, "not_found", "We could not find that server.")
-		return
 	case errors.Is(err, terminal.ErrNotSupported):
-		a.writeError(w, http.StatusBadRequest, "parse",
-			"This is a simulated server, so there is no shell to open. Connect a real server to use the terminal.")
+		a.fail(w, apierr.NeedsRealServer.WithMessage(
+			"This is a simulated server, so there is no shell to open."))
 		return
 	case err != nil:
-		a.writeError(w, http.StatusBadGateway, "network", friendlyFileError(err))
+		a.failServer(w, err)
 		return
 	}
 	defer func() { _ = session.Close() }()

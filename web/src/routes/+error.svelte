@@ -2,7 +2,6 @@
 	import { page } from '$app/state';
 	import Wordmark from '$components/brand/Wordmark.svelte';
 	import { ButtonLink } from '$components/ui';
-	import { codeForStatus, describe } from '$lib/errors';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
 	import { formatNumber } from '$utils/format';
@@ -20,8 +19,9 @@
 		'Unauthorized'
 	]);
 
-	const fallback = $derived(describe(codeForStatus(page.status)));
-	const heading = $derived(page.status === 404 ? 'We cannot find that page' : fallback.message);
+	const heading = $derived(
+		page.status === 404 ? 'We cannot find that page' : 'Something went wrong'
+	);
 
 	const detail = $derived.by(() => {
 		const message = page.error?.message;
@@ -52,7 +52,11 @@
 				<p class="text-content-muted mt-3 text-sm">{detail}</p>
 			{/if}
 
-			<p class="text-content-muted mt-3 text-sm">{fallback.action}</p>
+			<p class="text-content-muted mt-3 text-sm">
+				{page.status === 404
+					? 'Check the address, or head back to where you were.'
+					: 'Try again in a moment.'}
+			</p>
 
 			{#if page.error?.requestId}
 				<p class="text-content-subtle font-machine mt-6 text-xs">

@@ -2,7 +2,6 @@
 	import { page } from '$app/state';
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
 	import { ButtonLink } from '$components/ui';
-	import { codeForStatus, describe } from '$lib/errors';
 	import { formatNumber } from '$utils/format';
 	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
 
@@ -11,9 +10,8 @@
 	 * falls through to the root error page, which renders outside the theme
 	 * scope and flips the user from a light console to a dark full-page error.
 	 */
-	const fallback = $derived(describe(codeForStatus(page.status)));
 	const heading = $derived(
-		page.status === 404 ? 'We cannot find that page' : fallback.message
+		page.status === 404 ? 'We cannot find that page' : 'Something went wrong'
 	);
 </script>
 
@@ -30,7 +28,11 @@
 			{formatNumber(page.status, { useGrouping: false })}
 		</p>
 		<h1 class="text-content mt-4 text-xl font-semibold tracking-tight">{heading}</h1>
-		<p class="text-content-muted mt-2 text-sm">{fallback.action}</p>
+		<p class="text-content-muted mt-2 text-sm">
+			{page.status === 404
+				? 'Check the address, or go back to the overview.'
+				: 'Try again in a moment.'}
+		</p>
 
 		<div class="mt-7 flex justify-center">
 			<ButtonLink href="/dashboard" size="sm">

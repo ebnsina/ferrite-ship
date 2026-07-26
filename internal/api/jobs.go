@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/ebnsina/ferrite-ship/internal/apierr"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
 	"github.com/ebnsina/ferrite-ship/internal/store"
 )
@@ -21,14 +22,13 @@ func (a *API) handleStartJob(w http.ResponseWriter, r *http.Request) {
 	var req startJobRequest
 	if r.ContentLength > 0 {
 		if err := decodeJSON(r, &req); err != nil {
-			a.writeError(w, http.StatusBadRequest, "parse", "We could not read that request.")
+			a.fail(w, apierr.BadRequest.WithCause(err))
 			return
 		}
 	}
 
 	if req.Kind != "" && req.Kind != "baseline" {
-		a.writeError(w, http.StatusBadRequest, "parse",
-			`The only job available right now is "baseline".`)
+		a.fail(w, apierr.UnknownJobKind)
 		return
 	}
 	if req.Actor == "" {
@@ -38,11 +38,10 @@ func (a *API) handleStartJob(w http.ResponseWriter, r *http.Request) {
 	job, err := a.runner.StartBaseline(r.Context(), currentUser(r).ID, r.PathValue("id"), req.Actor, req.DryRun)
 	switch {
 	case errors.Is(err, runner.ErrAlreadyRunning):
-		a.writeError(w, http.StatusConflict, "conflict",
-			"Something is already running on this server. Wait for it to finish.")
+		a.fail(w, apierr.ServerBusy)
 		return
 	case err != nil:
-		a.writeStoreError(w, err)
+		a.failServer(w, err)
 		return
 	}
 
@@ -52,7 +51,7 @@ func (a *API) handleStartJob(w http.ResponseWriter, r *http.Request) {
 func (a *API) handleGetJob(w http.ResponseWriter, r *http.Request) {
 	job, err := a.store.GetJob(r.Context(), currentUser(r).ID, r.PathValue("id"))
 	if err != nil {
-		a.writeStoreError(w, err)
+		a.failServer(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, job)
@@ -68,14 +67,13 @@ func (a *API) handleJobEvents(w http.ResponseWriter, r *http.Request) {
 
 	job, err := a.store.GetJob(r.Context(), currentUser(r).ID, jobID)
 	if err != nil {
-		a.writeStoreError(w, err)
+		a.failServer(w, err)
 		return
 	}
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		a.writeError(w, http.StatusInternalServerError, "server",
-			"Live updates are not available on this connection.")
+		a.fail(w, apierr.Internal.WithMessage("Live updates are not available on this connection."))
 		return
 	}
 
@@ -184,13 +182,13 @@ type activityView struct {
 func (a *API) handleActivity(w http.ResponseWriter, r *http.Request) {
 	jobs, err := a.store.ListRecentJobs(r.Context(), currentUser(r).ID, 25)
 	if err != nil {
-		a.writeStoreError(w, err)
+		a.failServer(w, err)
 		return
 	}
 
 	servers, err := a.store.ListServers(r.Context(), currentUser(r).ID)
 	if err != nil {
-		a.writeStoreError(w, err)
+		a.failServer(w, err)
 		return
 	}
 

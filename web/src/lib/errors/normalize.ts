@@ -1,90 +1,65 @@
 import { AppError, isAppError, type ErrorCode } from './app-error';
 
-const STATUS_TO_CODE: ReadonlyMap<number, ErrorCode> = new Map([
-	[400, 'parse'],
-	[401, 'unauthorized'],
-	[403, 'forbidden'],
-	[404, 'not_found'],
-	[408, 'timeout'],
-	[409, 'conflict'],
-	[429, 'rate_limited']
-]);
-
-export function codeForStatus(status: number): ErrorCode {
-	const mapped = STATUS_TO_CODE.get(status);
-	if (mapped) return mapped;
-	if (status >= 500) return 'server';
-	if (status >= 400) return 'parse';
-	return 'unknown';
-}
-
-const COPY: Record<ErrorCode, { message: string; action: string }> = {
-	network: {
-		message: 'Could not reach the control plane.',
-		action: 'Check your connection and try again.'
-	},
-	timeout: {
-		message: 'The request took too long to complete.',
-		action: 'Try again in a moment.'
-	},
-	unauthorized: {
-		message: 'Your session has expired.',
-		action: 'Sign in again to continue.'
-	},
-	forbidden: {
-		message: 'You do not have access to this resource.',
-		action: 'Ask an organisation owner to grant you access.'
-	},
-	not_found: {
-		message: 'We could not find what you were looking for.',
-		action: 'Check the address, or head back to the dashboard.'
-	},
-	conflict: {
-		message: 'That change conflicts with the current state.',
-		action: 'Reload to see the latest, then try again.'
-	},
-	rate_limited: {
-		message: 'Too many requests.',
-		action: 'Wait a moment before retrying.'
-	},
-	server: {
-		message: 'Something broke on our side.',
-		action: 'We have been notified. Try again shortly.'
-	},
-	parse: {
-		message: 'The control plane returned an unexpected response.',
-		action: 'Try again, or contact support if it persists.'
-	},
-	config: {
-		message: 'The application is misconfigured.',
-		action: 'Check the deployment environment variables.'
-	},
-	unknown: {
-		message: 'Something unexpected happened.',
-		action: 'Try again, or contact support if it persists.'
-	}
-};
-
-export function describe(code: ErrorCode): { message: string; action: string } {
-	return COPY[code];
-}
+/**
+ * Wording for the four failures the API cannot describe, because in each case
+ * it never answered. Everything else arrives with the server's own message and
+ * action, and is shown as sent — the catalogue in `internal/apierr` is the
+ * single source of truth for that copy.
+ */
+const LOCAL_COPY: Record<'network' | 'timeout' | 'parse' | 'config', { message: string; action: string }> =
+	{
+		network: {
+			message: 'We could not reach the control plane.',
+			action: 'Check your connection, and that the server is running.'
+		},
+		timeout: {
+			message: 'That took too long to come back.',
+			action: 'Try again in a moment.'
+		},
+		parse: {
+			message: 'The control plane sent something we could not read.',
+			action: 'Try again. If it keeps happening it is a bug worth reporting.'
+		},
+		config: {
+			message: 'This app is not set up correctly.',
+			action: 'Check the environment variables it was built with.'
+		}
+	};
 
 /**
- * Convert anything catchable into an AppError. Never throws, never leaks an
- * internal message into user-facing copy — the original is kept as `cause`
- * for logging.
+ * Convert anything catchable into an AppError. Never throws, and never puts an
+ * internal message in front of a person — the original is kept as `cause` for
+ * the console.
  */
-export function toAppError(value: unknown, fallbackCode: ErrorCode = 'unknown'): AppError {
+export function toAppError(value: unknown, fallback: ErrorCode = 'internal'): AppError {
 	if (isAppError(value)) return value;
 
-	// fetch() rejects with a TypeError when the request never reached the server.
+	// fetch() rejects with a TypeError when the request never reached the
+	// server, and with an AbortError when it ran out of time.
 	const code: ErrorCode =
 		value instanceof DOMException && value.name === 'AbortError'
 			? 'timeout'
 			: value instanceof TypeError
 				? 'network'
-				: fallbackCode;
+				: fallback;
 
-	const copy = describe(code);
-	return new AppError({ code, message: copy.message, action: copy.action, cause: value });
+	if (code === 'network' || code === 'timeout' || code === 'parse' || code === 'config') {
+		const copy = LOCAL_COPY[code];
+		return new AppError({ code, message: copy.message, action: copy.action, cause: value });
+	}
+
+	// Something threw that is neither an AppError nor a recognisable transport
+	// failure. Say so plainly rather than surfacing its internals.
+	return new AppError({
+		code: 'internal',
+		message: 'Something unexpected happened.',
+		action: 'Try again. If it keeps happening it is a bug worth reporting.',
+		cause: value
+	});
+}
+
+/** Copy for a transport failure, used where no error object exists yet. */
+export function localError(code: keyof typeof LOCAL_COPY, cause?: unknown): AppError {
+	const copy = LOCAL_COPY[code];
+	return new AppError({ code, message: copy.message, action: copy.action, cause });
 }
