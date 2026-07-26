@@ -1,0 +1,147 @@
+# CLAUDE.md
+
+Guidance for Claude Code when working in this repository.
+
+## What this is
+
+Ferrite Ship is a control plane for Ubuntu servers: connect one over SSH, run an
+idempotent hardening playbook against it, and manage it from a browser. The
+repository root is a Go module; `web/` is a separate SvelteKit project with its
+own pnpm setup.
+
+Read `README.md` for the product overview and `docs/product-scope.md` for the
+longer-range plan. **`docs/` and `data/` are gitignored on purpose** — internal
+planning and local state, never committed.
+
+## Commands
+
+```bash
+# Go (from repo root)
+go build ./...
+go vet ./...
+gofmt -l .                       # must print nothing
+go run ./cmd/ferrite-ship        # needs .env loaded
+go run ./cmd/ferrite-ship genkey # generate FERRITE_SECRET_KEY
+
+# Run the control plane
+set -a && . ./.env && set +a && go run ./cmd/ferrite-ship
+
+# Web (from web/)
+pnpm check                       # svelte-check + TypeScript — must be 0 errors
+pnpm build
+pnpm dev --port 5173 --strictPort
+```
+
+Always run `go vet ./...` and `pnpm check` before considering work done.
+
+## Non-negotiable conventions
+
+These were set by the repository owner. Follow them without being asked.
+
+1. **Environment variables fail fast.** No defaults, no fallbacks, for anything
+   that decides where data goes or how it is protected. Validate at load
+   (`internal/config`, `web/src/lib/config/env.ts`) and throw. Turning a feature
+   off is written down explicitly with the literal `none` — an unset variable is
+   always an error, never a quiet "no".
+2. **Never assume a library API.** Check current docs (context7, `npm view`,
+   `go doc`) before writing framework code. This repo already caught
+   `lucide-svelte` being renamed to `@lucide/svelte`.
+3. **All formatting goes through `Intl`** — numbers, bytes, dates, relative
+   time, durations. See `web/src/lib/utils/format/`. Never hand-roll a formatter.
+4. **Small, composable files.** No ~200-line components. Split content, styles
+   and logic out of Svelte files; `$lib/content/*` holds copy, `$lib/domain/*`
+   holds mapping logic.
+5. **Handle every error path.** 404, 500, network, empty and loading states are
+   first-class. `AppError` normalises anything catchable; `createResource` gives
+   async views loading/error/retry.
+6. **UI copy is plain language, no technical jargon.** "Not responding", not
+   "unreachable". Every dashboard section says what it shows and how to read it.
+7. **Use icons generously** (`@lucide/svelte`, per-icon imports).
+8. **Never invent data.** No fabricated metrics, adoption numbers, testimonials
+   or trends. Where history is missing, return an empty series and let the UI
+   omit the chart. Placeholder content must be marked as such in its module.
+
+## Architecture invariants
+
+Breaking these costs far more later than the shortcut saves now.
+
+**Step engine (`internal/steps`).** Every step implements `Check` and `Apply`.
+`Check` asks whether the desired state already holds; `Apply` establishes it.
+Running the baseline twice must report zero changes. Most steps are declarative
+`shellStep` values — prefer that over bespoke Go.
+
+**Executor boundary (`internal/executor`).** Steps talk to an `Executor`
+interface, never to SSH directly. Two implementations exist: real SSH, and
+`demoexec`, a simulated Ubuntu machine that models state so the pipeline can be
+exercised without a VPS. An agent transport is planned; adding it must not
+require changing a single step.
+
+**Safety preconditions.** Steps declare `skipIf`. `ssh-harden` refuses to
+disable password logins when no key is installed anywhere — an unrecoverable
+server is worse than a slightly weaker one. Preserve that reasoning in any new
+step that could lock someone out.
+
+**Job events (`internal/runner`).** Events are persisted *before* being
+published to the bus, so a reconnecting SSE client resumes by sequence number
+with nothing lost. Do not reorder that.
+
+**Credentials (`internal/secret`).** SSH passwords and keys are sealed with
+AES-256-GCM before storage. Never log them, never put them in a response type —
+`api.serverView` is deliberately separate from `store.Server` for this reason.
+
+**Storage (`internal/store`).** Plain SQL behind narrow methods. SQLite today;
+the move to PostgreSQL when multi-tenancy lands should touch this package alone.
+
+## Web conventions
+
+**Design tokens are three-tier** (`web/src/lib/styles/tokens.css`): primitives →
+semantic → component. Components reference *only* the semantic tier
+(`bg-surface`, `text-content-muted`). Brand colour is lime.
+
+**Radius is a role-based scale**, never one value everywhere:
+`rounded-pill` (badges, meters), `rounded-control` (buttons), `rounded-field`
+(inputs), `rounded-tile` (small tiles, nav, icon chips), `rounded-card` (cards),
+`rounded-panel` (large surfaces). A radius that flatters a 40px button turns a
+60px tile into a lozenge.
+
+**Theming is scoped.** Tokens are declared against `[data-theme]`, which matches
+any element. Marketing is dark; the dashboard is wrapped in `ThemeScope` and is
+light. They are independent by design (`web/src/lib/theme/theme.svelte.ts`).
+
+**Design system is custom** — no component library. Unstyled behaviour
+primitives are fine; reimplementing accessibility is not.
+
+**Status vocabulary is shared.** One set of tones (`ok`/`warn`/`error`/`info`/
+`pending`) in `$components/ui/tone.ts`, mapped to domain states in
+`$lib/domain/status.ts`. Never encode status by colour alone.
+
+**Adapter is `adapter-static`.** Marketing routes prerender; `/dashboard` sets
+`ssr = false` and is served from the `200.html` fallback. The Go API is the
+backend — do not add `+page.server.ts` or form actions.
+
+**Data access goes through `DashboardRepository`** (`web/src/lib/data/`). No
+component calls `fetch`. `PUBLIC_DATA_SOURCE` selects the mock or API
+implementation.
+
+## Git
+
+- Author every commit as `ebnsina <ebnsina.me@gmail.com>` (already set in the
+  repo's git config).
+- **Do not add a `Co-Authored-By: Claude` trailer**, or any other identity.
+- Remote uses the `github-es` SSH host alias.
+- `docs/` and `data/` stay out of the repository.
+- Commit messages: explain *why*, not just what. Wrap at ~76 columns.
+
+## Gotchas
+
+- **Deleting and recreating a file leaves Vite serving the stale transform.**
+  If a change appears not to take effect, restart the dev server before
+  debugging the code. This has already cost time twice.
+- **Always start Vite with `--strictPort`.** Without it, a stale process keeps
+  the port and the new server silently moves to 5174, so you end up testing the
+  old build.
+- **zsh does not word-split unquoted variables.** `for f in $files` iterates
+  once with the whole string. Use arrays or explicit lists in Bash calls.
+- **`cd` persists between Bash tool calls.** Prefer absolute paths.
+- SQLite runs with `MaxOpenConns(1)`; it tolerates one writer, and more
+  connections buy contention rather than speed.
