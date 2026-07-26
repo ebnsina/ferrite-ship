@@ -16,7 +16,9 @@
 	const Icon = $derived(icon);
 
 	const SIZES = {
-		sm: { box: 'size-8 rounded-[0.625rem]', glyph: 15 },
+		// Component-tier override: a 2rem box takes the full tile radius almost
+		// to a circle, so the small size gets its own proportional value.
+		sm: { box: 'size-8 rounded-[0.75rem]', glyph: 15 },
 		md: { box: 'size-10 rounded-tile', glyph: 18 }
 	} as const;
 </script>

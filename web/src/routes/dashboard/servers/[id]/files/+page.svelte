@@ -112,7 +112,7 @@
 	{/if}
 
 	{#if error}
-		<Card padded={false} class="overflow-hidden">
+		<Card size="lg" padded={false} class="overflow-hidden">
 			<ErrorState {error} onRetry={() => load(path)} />
 		</Card>
 	{:else if loading}

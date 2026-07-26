@@ -38,7 +38,7 @@
 	});
 </script>
 
-<Card class="bg-surface-sunken/40">
+<Card size="sm" class="bg-surface-sunken/40">
 	{#if loading}
 		<div class="space-y-3">
 			<Skeleton class="h-3 w-32" />

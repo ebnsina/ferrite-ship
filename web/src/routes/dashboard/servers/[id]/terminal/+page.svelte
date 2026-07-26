@@ -44,7 +44,7 @@
 
 		{#snippet children(s)}
 			{#if s.connectionKind === 'demo'}
-				<Card padded={false} class="overflow-hidden">
+				<Card size="lg" padded={false} class="overflow-hidden">
 					<EmptyState
 						icon={FlaskConical}
 						title="There is no shell here"

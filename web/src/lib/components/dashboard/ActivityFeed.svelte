@@ -11,7 +11,7 @@
 	let { entries }: Props = $props();
 </script>
 
-<Card padded={false} class="overflow-hidden">
+<Card size="lg" padded={false} class="overflow-hidden">
 	{#if entries.length === 0}
 		<EmptyState
 			icon={History}

@@ -40,7 +40,7 @@
 	};
 </script>
 
-<div class="border-border bg-surface-sunken overflow-hidden rounded-card border">
+<div class="border-border bg-surface-sunken overflow-hidden rounded-panel border">
 	<div class="border-border/70 flex items-center gap-2 border-b px-5 py-3.5">
 		<span class="bg-error/70 size-2.5 rounded-pill"></span>
 		<span class="bg-warn/70 size-2.5 rounded-pill"></span>

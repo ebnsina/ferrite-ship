@@ -108,6 +108,6 @@
 
 <div
 	bind:this={host}
-	class="h-[60vh] min-h-80 w-full overflow-hidden rounded-card p-3"
+	class="h-[60vh] min-h-80 w-full overflow-hidden rounded-panel p-3"
 	style="background-color: {THEME.background}"
 ></div>

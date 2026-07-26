@@ -124,7 +124,7 @@
 	</div>
 
 	{#if actionError}
-		<Card class="border-error/40 bg-error-soft">
+		<Card size="sm" class="border-error/40 bg-error-soft">
 			<p class="text-error text-sm">{actionError}</p>
 		</Card>
 	{/if}

@@ -12,7 +12,7 @@
 	const NAME_WIDTHS = ['w-40', 'w-28', 'w-56', 'w-36', 'w-24', 'w-48', 'w-32', 'w-44'];
 </script>
 
-<Card padded={false} class="overflow-hidden">
+<Card size="lg" padded={false} class="overflow-hidden">
 	<div class="border-border/70 flex items-center gap-4 border-b px-5 py-2.5">
 		<Skeleton class="h-3 w-16" />
 		<div class="ml-auto hidden gap-8 sm:flex">

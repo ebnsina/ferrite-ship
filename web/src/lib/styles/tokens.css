@@ -6,46 +6,65 @@
  *   2. Semantic   — role-based names. The ONLY tier components may use.
  *   3. Component  — per-component overrides, defined alongside the component.
  *
- * Brand: "lime peel" — a high-chroma yellow-green. Used as the single accent.
+ * Brand: cyan — used as the single accent.
  * Theme: dark-first (operations tooling lives in dark mode); light is derived.
  */
 
 /* ── Tier 1: primitives ──────────────────────────────────────────────────── */
 
 @theme {
-	/* Brand — lime peel */
-	--color-brand-50: oklch(0.982 0.028 122);
-	--color-brand-100: oklch(0.958 0.058 122);
-	--color-brand-200: oklch(0.918 0.108 122);
-	--color-brand-300: oklch(0.868 0.152 123);
-	--color-brand-400: oklch(0.812 0.186 124);
-	--color-brand-500: oklch(0.762 0.196 125);
-	--color-brand-600: oklch(0.652 0.172 126);
-	--color-brand-700: oklch(0.532 0.14 127);
-	--color-brand-800: oklch(0.432 0.112 128);
-	--color-brand-900: oklch(0.362 0.09 129);
-	--color-brand-950: oklch(0.242 0.062 130);
+	/*
+	 * Brand — cyan.
+	 *
+	 * Chroma peaks lower here than a yellow-green does: cyan simply has less
+	 * room in sRGB, and pushing past roughly 0.13 at these lightnesses clips to
+	 * the same colour while looking dirtier. The hue drifts a few degrees
+	 * bluewards as it darkens, which is how cyan behaves in the real world —
+	 * holding one hue across the ramp makes the dark end look sickly green.
+	 */
+	--color-brand-50: oklch(0.984 0.018 200);
+	--color-brand-100: oklch(0.96 0.038 201);
+	--color-brand-200: oklch(0.918 0.068 202);
+	--color-brand-300: oklch(0.866 0.096 203);
+	--color-brand-400: oklch(0.81 0.118 205);
+	--color-brand-500: oklch(0.756 0.128 207);
+	--color-brand-600: oklch(0.652 0.118 210);
+	/* The button fill. Chroma is pushed as far as sRGB allows at this
+	 * lightness — the lightness is what carries white text at 5:1, so
+	 * saturation is the only place left to find any life. */
+	--color-brand-700: oklch(0.538 0.118 213);
+	--color-brand-800: oklch(0.442 0.082 215);
+	--color-brand-900: oklch(0.372 0.066 217);
+	--color-brand-950: oklch(0.252 0.046 219);
 
 	/* Neutrals — carry a trace of the brand hue so greys sit with the accent */
-	--color-ink-50: oklch(0.985 0.002 120);
-	--color-ink-100: oklch(0.968 0.003 120);
-	--color-ink-200: oklch(0.928 0.004 120);
-	--color-ink-300: oklch(0.868 0.005 120);
-	--color-ink-400: oklch(0.708 0.006 120);
-	--color-ink-500: oklch(0.572 0.006 120);
-	--color-ink-600: oklch(0.462 0.006 120);
-	--color-ink-700: oklch(0.378 0.007 120);
-	--color-ink-800: oklch(0.276 0.007 120);
-	--color-ink-850: oklch(0.222 0.007 120);
-	--color-ink-900: oklch(0.186 0.007 120);
-	--color-ink-950: oklch(0.148 0.006 120);
-	--color-ink-1000: oklch(0.118 0.005 120);
+	--color-ink-50: oklch(0.985 0.002 210);
+	--color-ink-100: oklch(0.968 0.003 210);
+	--color-ink-200: oklch(0.928 0.004 210);
+	--color-ink-300: oklch(0.868 0.005 210);
+	--color-ink-400: oklch(0.708 0.006 210);
+	--color-ink-500: oklch(0.572 0.006 210);
+	--color-ink-600: oklch(0.462 0.006 210);
+	--color-ink-700: oklch(0.378 0.007 210);
+	--color-ink-800: oklch(0.276 0.007 210);
+	--color-ink-850: oklch(0.222 0.007 210);
+	--color-ink-900: oklch(0.186 0.007 210);
+	--color-ink-950: oklch(0.148 0.006 210);
+	--color-ink-1000: oklch(0.118 0.005 210);
 
-	/* Status — "ok" is deliberately shifted to emerald so it never reads as brand */
+	/*
+	 * Status — every tone has to stay distinguishable from the accent, or a
+	 * badge reads as a button.
+	 *
+	 * "ok" was pushed to emerald to clear a lime brand. With a cyan brand the
+	 * collision moves to "info", which was a plain blue only ~30° away, so it
+	 * is now indigo. Two things that mean different things must not be two
+	 * shades of the same thing.
+	 */
 	--color-signal-ok: oklch(0.72 0.17 155);
 	--color-signal-warn: oklch(0.8 0.16 75);
 	--color-signal-error: oklch(0.65 0.21 25);
-	--color-signal-info: oklch(0.7 0.14 240);
+	--color-signal-info: oklch(0.68 0.15 268);
 
 	/* Typography */
 	--font-sans: 'Mona Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -57,11 +76,12 @@
 	 * so each role gets its own value and components use these names only.
 	 */
 	--radius-pill: 9999px; /* badges, status pills, meter bars */
-	--radius-control: 9999px; /* buttons — fully rounded by intent */
-	--radius-field: 0.75rem; /* inputs, selects */
+	--radius-control: 1rem; /* buttons — 2xl: soft, but still a rectangle */
+	--radius-field: 0.875rem; /* inputs, selects — a shade tighter than a button */
 	--radius-tile: 0.875rem; /* small tiles, nav items, icon chips */
-	--radius-card: 1.25rem; /* cards and panels */
-	--radius-panel: 1.75rem; /* large feature surfaces and hero blocks */
+	--radius-card-sm: 1.25rem; /* compact cards: banners, nested panels */
+	--radius-card: 1.5rem; /* the everyday card */
+	--radius-panel: 2rem; /* 4xl — large surfaces only */
 
 	/* Motion */
 	--ease-snappy: cubic-bezier(0.2, 0, 0, 1);
@@ -86,9 +106,24 @@
 	--ui-content-subtle: var(--color-ink-500);
 	--ui-content-inverse: var(--color-ink-1000);
 
-	--ui-accent: var(--color-brand-500);
-	--ui-accent-hover: var(--color-brand-400);
-	--ui-accent-content: var(--color-ink-1000);
+	/*
+	 * Two accents, because one colour cannot do both jobs.
+	 *
+	 * `accent` is the brand as *ink* — it has to be legible as text and icons
+	 * on this surface, so on a near-black canvas it must be bright.
+	 * `accent-solid` is the brand as a *fill* behind text, so it must be dark
+	 * enough for its label to be legible on it.
+	 *
+	 * Lime happened to satisfy both at one value: it is so light that black
+	 * text sat on it comfortably. Cyan does not have that luxury — it runs out
+	 * of lightness far sooner, and a cyan pale enough for black text is a
+	 * washed-out sky blue. So the fill is a deep cyan carrying white, and the
+	 * ink stays bright.
+	 */
+	--ui-accent: var(--color-brand-400);
+	--ui-accent-solid: var(--color-brand-700);
+	--ui-accent-hover: var(--color-brand-800);
+	--ui-accent-content: oklch(1 0 0);
 	--ui-accent-soft: color-mix(in oklch, var(--color-brand-500) 14%, transparent);
 	--ui-accent-border: color-mix(in oklch, var(--color-brand-500) 34%, transparent);
 
@@ -120,9 +155,11 @@
 	--ui-content-subtle: var(--color-ink-500);
 	--ui-content-inverse: var(--color-ink-50);
 
-	--ui-accent: var(--color-brand-600);
-	--ui-accent-hover: var(--color-brand-700);
-	--ui-accent-content: var(--color-ink-1000);
+	/* On white the ink has to go the other way — dark enough to read. */
+	--ui-accent: var(--color-brand-700);
+	--ui-accent-solid: var(--color-brand-700);
+	--ui-accent-hover: var(--color-brand-800);
+	--ui-accent-content: oklch(1 0 0);
 	--ui-accent-soft: color-mix(in oklch, var(--color-brand-500) 18%, transparent);
 	--ui-accent-border: color-mix(in oklch, var(--color-brand-600) 38%, transparent);
 
@@ -160,6 +197,7 @@
 	--color-content-inverse: var(--ui-content-inverse);
 
 	--color-accent: var(--ui-accent);
+	--color-accent-solid: var(--ui-accent-solid);
 	--color-accent-hover: var(--ui-accent-hover);
 	--color-accent-content: var(--ui-accent-content);
 	--color-accent-soft: var(--ui-accent-soft);

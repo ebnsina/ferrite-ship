@@ -38,7 +38,10 @@
 
 <Card>
 	<div class="flex items-start gap-4">
-		<IconTile icon={Icon} tone={installed ? 'ok' : 'neutral'} />
+		<!-- Neutral whatever the state. The pill beside it already says "Running",
+		     with an icon and a word; tinting the logo green as well says the same
+		     thing a second time in the one channel that cannot be read aloud. -->
+		<IconTile icon={Icon} />
 
 		<div class="min-w-0 flex-1">
 			<div class="flex flex-wrap items-center gap-x-2 gap-y-1">

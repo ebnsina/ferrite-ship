@@ -124,13 +124,26 @@ them.
 
 **Design tokens are three-tier** (`web/src/lib/styles/tokens.css`): primitives →
 semantic → component. Components reference *only* the semantic tier
-(`bg-surface`, `text-content-muted`). Brand colour is lime.
+(`bg-surface`, `text-content-muted`). Brand colour is cyan.
+
+**The accent is two tokens, not one.** `accent` is the brand as *ink* — text
+and icons, so it must be legible on the surface behind it, which means bright
+on dark and deep on light. `accent-solid` is the brand as a *fill* behind text
+(`bg-accent-solid text-accent-content`), so it must be dark enough to carry
+white. Cyan runs out of lightness long before lime does, so one value cannot do
+both jobs. Never use `bg-accent`.
 
 **Radius is a role-based scale**, never one value everywhere:
 `rounded-pill` (badges, meters), `rounded-control` (buttons), `rounded-field`
-(inputs), `rounded-tile` (small tiles, nav, icon chips), `rounded-card` (cards),
-`rounded-panel` (large surfaces). A radius that flatters a 40px button turns a
-60px tile into a lozenge.
+(inputs), `rounded-tile` (small tiles, nav, icon chips), `rounded-card-sm` /
+`rounded-card` / `rounded-panel` (surfaces, by size).
+
+**Radius scales with the element**, and that applies within a role as well as
+between them. `Card` takes `size="sm|md|lg"` and `Button` sets its own corner
+per size, because the same number does not read the same way at two heights: a
+2rem corner that looks generous on a full-width panel turns a 56px banner into
+a lozenge, since the curve then eats most of the edge it is meant to soften.
+Pick the size, do not override the radius.
 
 **Theming is scoped.** Tokens are declared against `[data-theme]`, which matches
 any element. Marketing is dark; the dashboard is wrapped in `ThemeScope` and is

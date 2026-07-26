@@ -23,7 +23,7 @@
 	const atRoot = $derived(listing.path === '/');
 </script>
 
-<Card padded={false} class="overflow-hidden">
+<Card size="lg" padded={false} class="overflow-hidden">
 	<table class="w-full text-sm">
 		<caption class="sr-only">Files in {listing.path}</caption>
 		<thead class="border-border/70 text-content-subtle border-b text-xs">

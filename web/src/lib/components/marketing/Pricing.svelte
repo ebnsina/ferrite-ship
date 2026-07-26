@@ -37,7 +37,7 @@
 				<div class="flex items-center justify-between gap-3">
 					<h3 class="text-content text-base font-medium">{plan.name}</h3>
 					{#if plan.featured}
-						<span class="bg-accent text-accent-content rounded-pill px-2.5 py-1 text-xs font-medium">
+						<span class="bg-accent-solid text-accent-content rounded-pill px-2.5 py-1 text-xs font-medium">
 							Most popular
 						</span>
 					{/if}

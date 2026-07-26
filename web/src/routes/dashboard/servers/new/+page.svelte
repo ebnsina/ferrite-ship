@@ -91,7 +91,7 @@
 	/>
 
 	{#if error}
-		<Card padded={false}>
+		<Card size="lg" padded={false}>
 			<ErrorState {error} onRetry={() => (error = null)} />
 		</Card>
 	{/if}
@@ -202,7 +202,7 @@
 					{/if}
 				</fieldset>
 
-				<div class="border-warn/40 bg-warn-soft flex gap-3 rounded-card border p-4">
+				<div class="border-warn/40 bg-warn-soft flex gap-3 rounded-card-sm border p-4">
 					<TriangleAlert size={17} aria-hidden="true" class="text-warn mt-0.5 shrink-0" />
 					<p class="text-content-muted text-xs leading-relaxed">
 						Setting up changes how the server accepts logins and turns on a firewall. Try it on a

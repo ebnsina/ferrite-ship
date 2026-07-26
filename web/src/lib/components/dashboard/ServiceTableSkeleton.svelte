@@ -13,7 +13,7 @@
 	const DESC_WIDTHS = ['w-56', 'w-40', 'w-64', 'w-48'];
 </script>
 
-<Card padded={false} class="overflow-hidden">
+<Card size="lg" padded={false} class="overflow-hidden">
 	<div class="border-border/70 flex items-center gap-4 border-b px-5 py-2.5">
 		<Skeleton class="h-3 w-16" />
 		<Skeleton class="h-3 w-12" />

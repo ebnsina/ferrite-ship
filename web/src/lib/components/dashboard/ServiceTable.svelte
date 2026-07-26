@@ -20,7 +20,7 @@
 	let { units, busyUnit, onAction, onViewLogs }: Props = $props();
 </script>
 
-<Card padded={false} class="overflow-hidden">
+<Card size="lg" padded={false} class="overflow-hidden">
 	<div class="overflow-x-auto">
 		<table class="w-full min-w-3xl text-sm">
 			<caption class="sr-only">Services on this server</caption>

@@ -62,7 +62,7 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<Card padded={false} class="overflow-hidden">
+<Card size="lg" padded={false} class="overflow-hidden">
 	<div class="border-border/70 flex flex-wrap items-center gap-3 border-b px-5 py-3">
 		<Button variant="ghost" size="sm" onclick={onClose}>
 			<ArrowLeft size={15} aria-hidden="true" />

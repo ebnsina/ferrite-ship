@@ -9,7 +9,7 @@
 		<SectionHeading eyebrow="Questions" title="Things people ask before signing up" />
 
 		<!-- Native <details> keeps this keyboard- and screen-reader-friendly with no JS. -->
-		<div class="border-border bg-surface divide-border/70 mt-14 divide-y overflow-hidden rounded-card border">
+		<div class="border-border bg-surface divide-border/70 mt-14 divide-y overflow-hidden rounded-panel border">
 			{#each faqEntries as entry (entry.question)}
 				<details class="group">
 					<summary
