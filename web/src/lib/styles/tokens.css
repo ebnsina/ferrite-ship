@@ -6,7 +6,7 @@
  *   2. Semantic   — role-based names. The ONLY tier components may use.
  *   3. Component  — per-component overrides, defined alongside the component.
  *
- * Brand: cyan — used as the single accent.
+ * Brand: pink — used as the single accent.
  * Theme: dark-first (operations tooling lives in dark mode); light is derived.
  */
 
@@ -14,56 +14,60 @@
 
 @theme {
 	/*
-	 * Brand — cyan.
+	 * Brand — pink.
 	 *
-	 * Chroma peaks lower here than a yellow-green does: cyan simply has less
-	 * room in sRGB, and pushing past roughly 0.13 at these lightnesses clips to
-	 * the same colour while looking dirtier. The hue drifts a few degrees
-	 * bluewards as it darkens, which is how cyan behaves in the real world —
-	 * holding one hue across the ramp makes the dark end look sickly green.
+	 * Sits at the magenta end of pink rather than the rose end, deliberately.
+	 * A rosier pink lands within about 25° of the red used for errors, and two
+	 * colours that mean different things must not be two shades of the same
+	 * thing. Leaning magenta buys roughly 45° of separation while still
+	 * reading as unmistakably pink.
+	 *
+	 * Unlike cyan, pink has chroma to spare: the magenta region of sRGB is
+	 * wide, so the ramp can stay saturated all the way down and the deep steps
+	 * still look like a colour rather than a grey-brown.
 	 */
-	--color-brand-50: oklch(0.984 0.018 200);
-	--color-brand-100: oklch(0.96 0.038 201);
-	--color-brand-200: oklch(0.918 0.068 202);
-	--color-brand-300: oklch(0.866 0.096 203);
-	--color-brand-400: oklch(0.81 0.118 205);
-	--color-brand-500: oklch(0.756 0.128 207);
-	--color-brand-600: oklch(0.652 0.118 210);
-	/* The button fill. Chroma is pushed as far as sRGB allows at this
-	 * lightness — the lightness is what carries white text at 5:1, so
-	 * saturation is the only place left to find any life. */
-	--color-brand-700: oklch(0.538 0.118 213);
-	--color-brand-800: oklch(0.442 0.082 215);
-	--color-brand-900: oklch(0.372 0.066 217);
-	--color-brand-950: oklch(0.252 0.046 219);
+	--color-brand-50: oklch(0.974 0.018 348);
+	--color-brand-100: oklch(0.946 0.038 348);
+	--color-brand-200: oklch(0.9 0.072 347);
+	--color-brand-300: oklch(0.838 0.116 346);
+	--color-brand-400: oklch(0.764 0.166 345);
+	--color-brand-500: oklch(0.69 0.208 344);
+	--color-brand-600: oklch(0.606 0.216 343);
+	/* The button fill: dark enough to carry white text at about 5:1, and with
+	 * pink there is enough chroma left at that lightness for it to still look
+	 * like the brand rather than a muted plum. */
+	--color-brand-700: oklch(0.524 0.196 342);
+	--color-brand-800: oklch(0.444 0.166 341);
+	--color-brand-900: oklch(0.384 0.136 340);
+	--color-brand-950: oklch(0.264 0.092 339);
 
 	/* Neutrals — carry a trace of the brand hue so greys sit with the accent */
-	--color-ink-50: oklch(0.985 0.002 210);
-	--color-ink-100: oklch(0.968 0.003 210);
-	--color-ink-200: oklch(0.928 0.004 210);
-	--color-ink-300: oklch(0.868 0.005 210);
-	--color-ink-400: oklch(0.708 0.006 210);
-	--color-ink-500: oklch(0.572 0.006 210);
-	--color-ink-600: oklch(0.462 0.006 210);
-	--color-ink-700: oklch(0.378 0.007 210);
-	--color-ink-800: oklch(0.276 0.007 210);
-	--color-ink-850: oklch(0.222 0.007 210);
-	--color-ink-900: oklch(0.186 0.007 210);
-	--color-ink-950: oklch(0.148 0.006 210);
-	--color-ink-1000: oklch(0.118 0.005 210);
+	--color-ink-50: oklch(0.985 0.002 345);
+	--color-ink-100: oklch(0.968 0.003 345);
+	--color-ink-200: oklch(0.928 0.004 345);
+	--color-ink-300: oklch(0.868 0.005 345);
+	--color-ink-400: oklch(0.708 0.006 345);
+	--color-ink-500: oklch(0.572 0.006 345);
+	--color-ink-600: oklch(0.462 0.006 345);
+	--color-ink-700: oklch(0.378 0.007 345);
+	--color-ink-800: oklch(0.276 0.007 345);
+	--color-ink-850: oklch(0.222 0.007 345);
+	--color-ink-900: oklch(0.186 0.007 345);
+	--color-ink-950: oklch(0.148 0.006 345);
+	--color-ink-1000: oklch(0.118 0.005 345);
 
 	/*
 	 * Status — every tone has to stay distinguishable from the accent, or a
 	 * badge reads as a button.
 	 *
-	 * "ok" was pushed to emerald to clear a lime brand. With a cyan brand the
-	 * collision moves to "info", which was a plain blue only ~30° away, so it
-	 * is now indigo. Two things that mean different things must not be two
-	 * shades of the same thing.
+	 * This keeps moving as the brand does: "ok" was pushed to emerald to clear
+	 * lime, "info" to indigo to clear cyan, and now "error" is nudged warmer so
+	 * a red badge cannot be mistaken for a pink one. It stays firmly red — the
+	 * shift is toward scarlet, not orange.
 	 */
 	--color-signal-ok: oklch(0.72 0.17 155);
 	--color-signal-warn: oklch(0.8 0.16 75);
-	--color-signal-error: oklch(0.65 0.21 25);
+	--color-signal-error: oklch(0.645 0.215 30);
 	--color-signal-info: oklch(0.68 0.15 268);
 
 	/* Typography */
@@ -115,10 +119,9 @@
 	 * enough for its label to be legible on it.
 	 *
 	 * Lime happened to satisfy both at one value: it is so light that black
-	 * text sat on it comfortably. Cyan does not have that luxury — it runs out
-	 * of lightness far sooner, and a cyan pale enough for black text is a
-	 * washed-out sky blue. So the fill is a deep cyan carrying white, and the
-	 * ink stays bright.
+	 * text sat on it comfortably. Pink does not — a pink light enough to carry
+	 * black text is a pale blush that disappears against a white dashboard. So
+	 * the fill is a deep pink carrying white, and the ink stays bright.
 	 */
 	--ui-accent: var(--color-brand-400);
 	--ui-accent-solid: var(--color-brand-700);

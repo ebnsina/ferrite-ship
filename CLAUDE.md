@@ -124,13 +124,13 @@ them.
 
 **Design tokens are three-tier** (`web/src/lib/styles/tokens.css`): primitives →
 semantic → component. Components reference *only* the semantic tier
-(`bg-surface`, `text-content-muted`). Brand colour is cyan.
+(`bg-surface`, `text-content-muted`). Brand colour is pink.
 
 **The accent is two tokens, not one.** `accent` is the brand as *ink* — text
 and icons, so it must be legible on the surface behind it, which means bright
 on dark and deep on light. `accent-solid` is the brand as a *fill* behind text
 (`bg-accent-solid text-accent-content`), so it must be dark enough to carry
-white. Cyan runs out of lightness long before lime does, so one value cannot do
+white. Pink runs out of lightness long before lime does, so one value cannot do
 both jobs. Never use `bg-accent`.
 
 **Radius is a role-based scale**, never one value everywhere:
