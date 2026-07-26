@@ -15,9 +15,21 @@ type Backup struct {
 	// Dump writes the backup to stdout and nothing else to it. Anything
 	// chatty has to be sent to stderr or the archive is corrupt.
 	Dump string
-	// Restore reads the backup from stdin. It must be safe to run over a
-	// database that already has data in it.
+	// RestoreBefore runs before the data arrives — stopping a service that
+	// will not accept a replacement while it is running, say.
+	//
+	// Separate from Restore rather than chained onto it with `&&`, and that is
+	// not a stylistic choice: `stream | a && b` binds the pipe to `a`, so the
+	// backup would be fed to the command that stops the container and `b`
+	// would write an empty file. Which is precisely what happened.
+	RestoreBefore []string
+	// Restore reads the backup from stdin, and is the only part that does. It
+	// must be safe to run over a database that already has data in it.
 	Restore string
+	// RestoreAfter runs once the data is in place, for tools that need coaxing
+	// into reading it. Separate commands rather than one blob so each shows as
+	// its own line in the log.
+	RestoreAfter []string
 	// Warning is shown before restoring, in the words the person reads. It
 	// describes what they are about to overwrite.
 	Warning string
@@ -62,11 +74,29 @@ var redisBackup = &Backup{
 	Dump: inContainer("redis", "redis",
 		`redis-cli -a "$REDIS_PASSWORD" --no-auth-warning --rdb /tmp/ferrite.rdb >/dev/null 2>&1 && cat /tmp/ferrite.rdb && rm -f /tmp/ferrite.rdb`),
 	// Redis cannot be told to load a snapshot while it is running, so this
-	// stops it, replaces the file and starts it again. The appendonly log has
-	// to go too: Redis prefers it over the snapshot on boot, so leaving it in
-	// place would silently restore the old data and report success.
-	Restore: compose("redis", "stop", "redis") + " && " +
-		`docker run --rm -i -v ferrite-redis_data:/data alpine:3.21 sh -c 'rm -rf /data/appendonlydir /data/dump.rdb && cat > /data/dump.rdb'` +
-		" && " + compose("redis", "start", "redis"),
+	// stops it and replaces the file.
+	//
+	// The append-only log has to go with it, and removing it is not enough on
+	// its own: with appendonly on, Redis does not read dump.rdb at boot at all.
+	// Finding no log it writes a fresh empty one, comes up with nothing, and
+	// reports success — which is exactly what happened the first time this was
+	// tested. RestoreAfter below is what actually loads the snapshot.
+	RestoreBefore: []string{compose("redis", "stop", "redis")},
+	Restore: `docker run --rm -i -v ferrite-redis_data:/data alpine:3.21 ` +
+		`sh -c 'rm -rf /data/appendonlydir /data/dump.rdb && cat > /data/dump.rdb'`,
+	RestoreAfter: []string{
+		// A throwaway Redis with the log switched off, which therefore does
+		// read the snapshot. No password: this one is not published anywhere.
+		`docker rm -f ferrite-redis-restore >/dev/null 2>&1 || true`,
+		`docker run -d --name ferrite-redis-restore -v ferrite-redis_data:/data redis:8-trixie redis-server --appendonly no --dir /data`,
+		`for i in $(seq 30); do docker exec ferrite-redis-restore redis-cli ping >/dev/null 2>&1 && break; sleep 1; done`,
+		// Turning the log back on rebuilds it from what is now in memory,
+		// which is the restored data.
+		`docker exec ferrite-redis-restore redis-cli CONFIG SET appendonly yes`,
+		`for i in $(seq 60); do docker exec ferrite-redis-restore redis-cli INFO persistence 2>/dev/null | tr -d '\r' | grep -q 'aof_rewrite_in_progress:0' && break; sleep 1; done`,
+		`docker exec ferrite-redis-restore redis-cli SHUTDOWN NOSAVE >/dev/null 2>&1 || true`,
+		`docker rm -f ferrite-redis-restore >/dev/null 2>&1 || true`,
+		compose("redis", "start", "redis"),
+	},
 	Warning: "Redis is stopped for a moment while it is replaced, so anything using it will be briefly unable to connect. Everything currently stored is replaced.",
 }

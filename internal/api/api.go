@@ -122,6 +122,13 @@ func (a *API) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/servers/{id}/tools/{tool}/queries", a.handleSaveQuery)
 	mux.HandleFunc("DELETE /v1/servers/{id}/tools/{tool}/queries/{query}", a.handleDeleteSavedQuery)
 
+	mux.HandleFunc("GET /v1/backups/destination", a.handleGetBackupDestination)
+	mux.HandleFunc("PUT /v1/backups/destination", a.handleSaveBackupDestination)
+	mux.HandleFunc("DELETE /v1/backups/destination", a.handleDeleteBackupDestination)
+	mux.HandleFunc("GET /v1/servers/{id}/tools/{tool}/backups", a.handleListBackups)
+	mux.HandleFunc("POST /v1/servers/{id}/tools/{tool}/backups", a.handleStartBackup)
+	mux.HandleFunc("POST /v1/backups/{backup}/restore", a.handleStartRestore)
+
 	mux.HandleFunc("GET /v1/jobs/{id}", a.handleGetJob)
 	mux.HandleFunc("GET /v1/jobs/{id}/events", a.handleJobEvents)
 

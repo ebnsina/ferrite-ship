@@ -150,6 +150,38 @@ CREATE TABLE IF NOT EXISTS saved_queries (
 
 CREATE INDEX IF NOT EXISTS saved_queries_lookup_idx
 	ON saved_queries(user_id, server_id, tool_id);
+
+-- Where backups are sent.
+--
+-- One per account for now. It is deliberately somewhere else: a copy on the
+-- same disk as the database survives a clumsy DROP TABLE and nothing worse,
+-- and the failure people actually lose data to is the disk going away.
+CREATE TABLE IF NOT EXISTS backup_destinations (
+	user_id           TEXT PRIMARY KEY,
+	endpoint          TEXT NOT NULL,
+	region            TEXT NOT NULL DEFAULT '',
+	bucket            TEXT NOT NULL,
+	prefix            TEXT NOT NULL DEFAULT '',
+	sealed_access_key TEXT NOT NULL,
+	sealed_secret_key TEXT NOT NULL,
+	updated_at        TEXT NOT NULL
+);
+
+-- Every backup taken, so there is a list to restore from.
+CREATE TABLE IF NOT EXISTS backups (
+	id         TEXT PRIMARY KEY,
+	user_id    TEXT NOT NULL,
+	server_id  TEXT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+	tool_id    TEXT NOT NULL,
+	object_key TEXT NOT NULL,
+	size_bytes INTEGER NOT NULL DEFAULT 0,
+	status     TEXT NOT NULL,
+	job_id     TEXT NOT NULL DEFAULT '',
+	created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS backups_lookup_idx
+	ON backups(user_id, server_id, tool_id, created_at DESC);
 `
 
 func Open(path string) (*Store, error) {

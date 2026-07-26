@@ -80,6 +80,12 @@ type plan struct {
 	// onFinish records the outcome against whatever this job was about, such
 	// as marking an installation ready or failed.
 	onFinish func(ctx context.Context, server store.Server, status store.JobStatus)
+	// after runs on the still-open connection once the playbook has finished,
+	// for the rare case where the outcome includes something only the server
+	// knows — a backup's size, say. Steps report pass or fail and nothing else,
+	// and adding a return channel to every step to serve one job would be a
+	// poor trade.
+	after func(ctx context.Context, session *steps.Session, status store.JobStatus)
 }
 
 // StartBaseline queues the first-run playbook and returns as soon as the job
@@ -209,6 +215,14 @@ func (r *Runner) execute(
 	}
 
 	summary := r.runPlaybook(ctx, session, p.build(server), emitter, dryRun)
+
+	if p.after != nil {
+		outcome := store.JobSucceeded
+		if summary.Failed > 0 {
+			outcome = store.JobFailed
+		}
+		p.after(ctx, session, outcome)
+	}
 
 	// Refresh facts whatever the outcome — even a failed run tells us something
 	// about the machine.

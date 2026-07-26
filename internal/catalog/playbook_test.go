@@ -114,3 +114,68 @@ func TestEveryToolHasABrandColour(t *testing.T) {
 		}
 	}
 }
+
+// The restore pipeline feeds a stream into exactly one command, and which one
+// is decided by shell precedence rather than by intent: `stream | a && b`
+// binds the pipe to `a`. Chaining a "stop the container" onto Restore with &&
+// therefore fed the backup to the stop command and wrote an empty file — a
+// restore that reported success and destroyed the data. Anything that has to
+// happen first belongs in RestoreBefore.
+func TestRestoreCommandsDoNotChainAroundThePipe(t *testing.T) {
+	for _, tool := range All() {
+		spec, ok := tool.BackupSpec()
+		if !ok {
+			continue
+		}
+
+		// Only top-level chaining matters. An && inside a quoted `sh -c '...'`
+		// is that command's own business — the outer process still receives
+		// the pipe, and passes it down.
+		if strings.Contains(unquoted(spec.Restore), "&&") {
+			t.Errorf("%s: Restore chains commands at the top level (%q). The pipe "+
+				"binds to the first one, so only the first would receive the "+
+				"backup — use RestoreBefore.", tool.ID, spec.Restore)
+		}
+		if strings.Contains(unquoted(spec.Dump), "&&") {
+			t.Errorf("%s: Dump chains commands at the top level, so only the last "+
+				"one's output is piped onward and the backup would be truncated", tool.ID)
+		}
+	}
+}
+
+// A tool that can be backed up must be restorable, or the backup is a file
+// nobody can use.
+func TestEveryBackupCanBeRestored(t *testing.T) {
+	for _, tool := range All() {
+		spec, ok := tool.BackupSpec()
+		if !ok {
+			continue
+		}
+		if spec.Dump == "" || spec.Restore == "" {
+			t.Errorf("%s: has a backup spec with an empty half", tool.ID)
+		}
+		if spec.Extension == "" {
+			t.Errorf("%s: backups need a file extension to be named by", tool.ID)
+		}
+		if spec.Warning == "" {
+			t.Errorf("%s: restoring overwrites data, so it needs a warning to show first", tool.ID)
+		}
+	}
+}
+
+// unquoted drops single-quoted spans, leaving the shell operators that the
+// outer shell will actually act on.
+func unquoted(command string) string {
+	var out strings.Builder
+	inQuotes := false
+	for _, r := range command {
+		if r == '\'' {
+			inQuotes = !inQuotes
+			continue
+		}
+		if !inQuotes {
+			out.WriteRune(r)
+		}
+	}
+	return out.String()
+}

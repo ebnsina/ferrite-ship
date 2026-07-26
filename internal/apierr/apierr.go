@@ -185,6 +185,27 @@ var (
 		"There is nothing to query in this tool.",
 		"Only databases can be queried. Use the terminal for anything else.")
 
+	// Backups
+	NoBackupDestination = newError(CodeInvalid, 400,
+		"There is nowhere to put backups yet.",
+		"Add your storage details in Settings, then try again.")
+
+	BackupNotSupported = newError(CodeUnsupported, 400,
+		"We cannot back this one up yet.",
+		"PostgreSQL and Redis can be backed up today. ClickHouse is coming.")
+
+	StorageEndpointRequired = newError(CodeInvalid, 400,
+		"We need the address of your storage.",
+		"The endpoint URL your provider gave you, like https://s3.eu-central-1.amazonaws.com.")
+
+	StorageBucketRequired = newError(CodeInvalid, 400,
+		"We need to know which bucket to use.",
+		"Enter the name of a bucket you have already created.")
+
+	StorageKeysRequired = newError(CodeInvalid, 400,
+		"We need keys that can write to that bucket.",
+		"Both the access key and the secret key are required.")
+
 	QueryNameRequired = newError(CodeInvalid, 400,
 		"Give this query a name.",
 		"Something you will recognise later, like \"signups this week\".")
