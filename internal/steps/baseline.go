@@ -203,9 +203,11 @@ func allowPortCommands(ports []int) []string {
 	return cmds
 }
 
-// shellQuote wraps s in single quotes, escaping any it contains, so untrusted
-// values (a public key, a timezone from the API) cannot break out of the
-// command they are embedded in.
-func shellQuote(s string) string {
+// Quote wraps s in single quotes, escaping any it contains, so untrusted
+// values (a public key, a timezone from the API, a generated password) cannot
+// break out of the command they are embedded in.
+func Quote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
+
+func shellQuote(s string) string { return Quote(s) }

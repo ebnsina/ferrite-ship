@@ -149,7 +149,7 @@ func run(log *slog.Logger) error {
 	connections := dialer.New(st, sealer)
 
 	bus := runner.NewBus()
-	jobs := runner.New(st, connections, bus, log)
+	jobs := runner.New(st, connections, bus, sealer, log)
 	terminals := terminal.NewService(connections)
 	fileBrowser := files.NewService(connections)
 	units := services.NewService(connections)

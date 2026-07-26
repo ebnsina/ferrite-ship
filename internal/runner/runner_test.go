@@ -108,7 +108,7 @@ func newTestRunner(t *testing.T) (*Runner, *store.Store) {
 	}
 
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	runner := New(st, dialer.New(st, sealer), NewBus(), log)
+	runner := New(st, dialer.New(st, sealer), NewBus(), sealer, log)
 	runner.DemoLatency = 0 // no need to pace logs for a machine nobody watches
 
 	return runner, st

@@ -142,6 +142,117 @@ func TestUnownedServersAreClaimed(t *testing.T) {
 	}
 }
 
+// Installations hold a database password, so a scoping hole here hands one
+// account the credentials to another account's Postgres.
+func TestInstallationsAreScoped(t *testing.T) {
+	st := openTestStore(t)
+	ctx := context.Background()
+
+	seedServer(t, st, "usr_alice", "srv_alice", "alice-box")
+	bobServer := seedServer(t, st, "usr_bob", "srv_bob", "bob-box")
+
+	now := time.Now().UTC()
+	bobsPostgres := Installation{
+		ID: "ins_bob", UserID: "usr_bob", ServerID: bobServer, ToolID: "postgres",
+		Version: "18", Status: InstallReady, SealedPassword: "sealed-secret",
+		CreatedAt: now, UpdatedAt: now,
+	}
+	if err := st.SaveInstallation(ctx, bobsPostgres); err != nil {
+		t.Fatalf("save installation: %v", err)
+	}
+
+	t.Run("list is scoped", func(t *testing.T) {
+		found, err := st.ListInstallations(ctx, "usr_alice", bobServer)
+		if err != nil {
+			t.Fatalf("list: %v", err)
+		}
+		if len(found) != 0 {
+			t.Errorf("alice sees %d of bob's installations", len(found))
+		}
+	})
+
+	t.Run("get refuses another owner's installation", func(t *testing.T) {
+		if _, err := st.GetInstallation(ctx, "usr_alice", bobServer, "postgres"); !errors.Is(err, ErrNotFound) {
+			t.Errorf("alice read bob's database password; got err %v, want ErrNotFound", err)
+		}
+	})
+
+	t.Run("delete refuses another owner's installation", func(t *testing.T) {
+		if err := st.DeleteInstallation(ctx, "usr_alice", bobServer, "postgres"); !errors.Is(err, ErrNotFound) {
+			t.Errorf("alice deleted bob's installation; got err %v, want ErrNotFound", err)
+		}
+		if _, err := st.GetInstallation(ctx, "usr_bob", bobServer, "postgres"); err != nil {
+			t.Errorf("bob's installation went missing: %v", err)
+		}
+	})
+}
+
+// Re-running an install to repair it must not change the password the owner's
+// application is already connecting with.
+func TestRepairingAnInstallKeepsThePassword(t *testing.T) {
+	st := openTestStore(t)
+	ctx := context.Background()
+
+	server := seedServer(t, st, "usr_alice", "srv_alice", "alice-box")
+	now := time.Now().UTC()
+
+	first := Installation{
+		ID: "ins_1", UserID: "usr_alice", ServerID: server, ToolID: "postgres",
+		Status: InstallReady, SealedPassword: "the-original", CreatedAt: now, UpdatedAt: now,
+	}
+	if err := st.SaveInstallation(ctx, first); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	repair := first
+	repair.Status = InstallPending
+	repair.SealedPassword = "" // no new credential generated
+	if err := st.SaveInstallation(ctx, repair); err != nil {
+		t.Fatalf("repair: %v", err)
+	}
+
+	got, err := st.GetInstallation(ctx, "usr_alice", server, "postgres")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.SealedPassword != "the-original" {
+		t.Errorf("password became %q; repairing an install must keep the one in use", got.SealedPassword)
+	}
+	if got.Status != InstallPending {
+		t.Errorf("status is %q, want the repair's own status", got.Status)
+	}
+}
+
+// Removing a server must not leave its installations, and their passwords,
+// behind in the database.
+func TestInstallationsGoWithTheirServer(t *testing.T) {
+	st := openTestStore(t)
+	ctx := context.Background()
+
+	server := seedServer(t, st, "usr_alice", "srv_alice", "alice-box")
+	now := time.Now().UTC()
+
+	err := st.SaveInstallation(ctx, Installation{
+		ID: "ins_1", UserID: "usr_alice", ServerID: server, ToolID: "redis",
+		Status: InstallReady, SealedPassword: "sealed", CreatedAt: now, UpdatedAt: now,
+	})
+	if err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	if err := st.DeleteServer(ctx, "usr_alice", server); err != nil {
+		t.Fatalf("delete server: %v", err)
+	}
+
+	found, err := st.ListInstallations(ctx, "usr_alice", server)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(found) != 0 {
+		t.Errorf("%d installations outlived their server, still holding credentials", len(found))
+	}
+}
+
 func openTestStore(t *testing.T) *Store {
 	t.Helper()
 

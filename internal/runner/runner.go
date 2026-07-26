@@ -12,6 +12,7 @@ import (
 	"github.com/ebnsina/ferrite-ship/internal/executor"
 	"github.com/ebnsina/ferrite-ship/internal/executor/demoexec"
 	"github.com/ebnsina/ferrite-ship/internal/facts"
+	"github.com/ebnsina/ferrite-ship/internal/secret"
 	"github.com/ebnsina/ferrite-ship/internal/steps"
 	"github.com/ebnsina/ferrite-ship/internal/store"
 )
@@ -33,6 +34,7 @@ type Runner struct {
 	store  *store.Store
 	dialer *dialer.Dialer
 	bus    *Bus
+	sealer *secret.Sealer
 	log    *slog.Logger
 
 	// demoMachines keeps each demo server's simulated state across runs, so a
@@ -49,11 +51,12 @@ type Runner struct {
 	DemoLatency time.Duration
 }
 
-func New(st *store.Store, d *dialer.Dialer, bus *Bus, log *slog.Logger) *Runner {
+func New(st *store.Store, d *dialer.Dialer, bus *Bus, sealer *secret.Sealer, log *slog.Logger) *Runner {
 	return &Runner{
 		store:        st,
 		dialer:       d,
 		bus:          bus,
+		sealer:       sealer,
 		log:          log,
 		demoMachines: make(map[string]*demoexec.Machine),
 		running:      make(map[string]bool),
@@ -62,6 +65,22 @@ func New(st *store.Store, d *dialer.Dialer, bus *Bus, log *slog.Logger) *Runner 
 }
 
 var ErrAlreadyRunning = errors.New("a job is already running on this server")
+
+// plan is what a job is going to do. Everything that differs between setting a
+// server up, installing a tool and removing one lives here; the machinery that
+// connects, streams events, records history and refreshes facts is shared.
+type plan struct {
+	kind  string
+	title string
+	// build produces the playbook. It is called after connecting, because some
+	// playbooks depend on what the machine turned out to be.
+	build func(server store.Server) []steps.Step
+	// secrets are masked wherever they would otherwise appear in the log.
+	secrets []string
+	// onFinish records the outcome against whatever this job was about, such
+	// as marking an installation ready or failed.
+	onFinish func(ctx context.Context, server store.Server, status store.JobStatus)
+}
 
 // StartBaseline queues the first-run playbook and returns as soon as the job
 // row exists, so the caller can redirect to the log view immediately.
@@ -73,36 +92,58 @@ func (r *Runner) StartBaseline(
 		return store.Job{}, err
 	}
 
-	r.runningMu.Lock()
-	if r.running[serverID] {
-		r.runningMu.Unlock()
-		return store.Job{}, ErrAlreadyRunning
-	}
-	r.running[serverID] = true
-	r.runningMu.Unlock()
-
 	kind, title := "baseline", "Setting up "+server.Name
 	if dryRun {
 		kind, title = "baseline-check", "Checking "+server.Name+" (no changes)"
 	}
 
+	return r.start(ctx, server, actor, dryRun, plan{
+		kind:  kind,
+		title: title,
+		build: func(server store.Server) []steps.Step {
+			return steps.Baseline(steps.BaselineOptions{
+				PublicKey: server.PublicKey,
+				// sshexec prefers a key when one is stored, so a password is only
+				// in play when no key is.
+				LoginUsesPassword: server.Kind == store.ConnectionSSH &&
+					server.SealedPrivateKey == "" && server.SealedPassword != "",
+			})
+		},
+	})
+}
+
+// start creates the job row and hands the work to a goroutine.
+func (r *Runner) start(
+	ctx context.Context, server store.Server, actor string, dryRun bool, p plan,
+) (store.Job, error) {
+	// One job per server at a time. Two playbooks running apt or docker
+	// compose against the same machine would interleave into a mess that is
+	// very hard to explain from the log afterwards.
+	r.runningMu.Lock()
+	if r.running[server.ID] {
+		r.runningMu.Unlock()
+		return store.Job{}, ErrAlreadyRunning
+	}
+	r.running[server.ID] = true
+	r.runningMu.Unlock()
+
 	job := store.Job{
 		ID:        newID("job"),
-		ServerID:  serverID,
-		Kind:      kind,
-		Title:     title,
+		ServerID:  server.ID,
+		Kind:      p.kind,
+		Title:     p.title,
 		Actor:     actor,
 		Status:    store.JobRunning,
 		StartedAt: time.Now().UTC(),
 	}
 
 	if err := r.store.CreateJob(ctx, job); err != nil {
-		r.markDone(serverID)
+		r.markDone(server.ID)
 		return store.Job{}, err
 	}
 
 	// Detached context: the run must outlive the HTTP request that started it.
-	go r.execute(context.WithoutCancel(ctx), server, job, dryRun)
+	go r.execute(context.WithoutCancel(ctx), server, job, p, dryRun)
 
 	return job, nil
 }
@@ -114,7 +155,7 @@ func (r *Runner) markDone(serverID string) {
 }
 
 func (r *Runner) execute(
-	parent context.Context, server store.Server, job store.Job, dryRun bool,
+	parent context.Context, server store.Server, job store.Job, p plan, dryRun bool,
 ) {
 	defer r.markDone(server.ID)
 
@@ -124,6 +165,14 @@ func (r *Runner) execute(
 	emitter := newEmitter(r.store, r.bus, job.ID)
 
 	emitter.emit(ctx, store.Event{Type: EventJobStarted, Message: job.Title})
+
+	// The outcome is recorded against whatever the job was about however this
+	// function leaves, including the early returns below — an install that
+	// could not connect must not sit at "installing" for ever.
+	status := store.JobFailed
+	if p.onFinish != nil {
+		defer func() { p.onFinish(ctx, server, status) }()
+	}
 
 	exec, err := r.connect(ctx, server)
 	if err != nil {
@@ -154,19 +203,12 @@ func (r *Runner) execute(
 		r.finish(ctx, emitter, server, job, store.JobFailed, err, steps.Summary{DryRun: dryRun})
 		return
 	}
-	session = session.WithPrivilege(privilege)
+	session = session.WithPrivilege(privilege).WithSecrets(p.secrets...)
 	if privilege == steps.PrivilegeSudo {
 		session.Log(steps.LevelInfo, "Using sudo, since this account is not root.")
 	}
 
-	playbook := steps.Baseline(steps.BaselineOptions{
-		PublicKey: server.PublicKey,
-		// sshexec prefers a key when one is stored, so a password is only in
-		// play when no key is.
-		LoginUsesPassword: server.Kind == store.ConnectionSSH &&
-			server.SealedPrivateKey == "" && server.SealedPassword != "",
-	})
-	summary := r.runPlaybook(ctx, session, playbook, emitter, dryRun)
+	summary := r.runPlaybook(ctx, session, p.build(server), emitter, dryRun)
 
 	// Refresh facts whatever the outcome — even a failed run tells us something
 	// about the machine.
@@ -182,11 +224,15 @@ func (r *Runner) execute(
 		r.log.Warn("could not record fleet sample", "error", err)
 	}
 
-	status := store.JobSucceeded
+	status = store.JobSucceeded
 	var runErr error
 	if summary.Failed > 0 {
 		status = store.JobFailed
-		runErr = summary.FirstError
+		if summary.FirstError != nil {
+			// Redacted on the way out: this is written to the job row rather
+			// than through the log, so it misses the masking in Session.
+			runErr = errors.New(session.Redact(summary.FirstError.Error()))
+		}
 	}
 	r.finish(ctx, emitter, server, job, status, runErr, summary)
 }

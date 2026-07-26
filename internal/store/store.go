@@ -106,6 +106,29 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE INDEX IF NOT EXISTS sessions_expires_at_idx ON sessions(expires_at);
+
+-- Software installed on a server from the catalogue.
+--
+-- The generated password is sealed exactly like an SSH credential: it is what
+-- someone signs in to their database with, and we hold it only so the
+-- connection details can be shown again later.
+CREATE TABLE IF NOT EXISTS installations (
+	id              TEXT PRIMARY KEY,
+	user_id         TEXT NOT NULL,
+	server_id       TEXT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+	tool_id         TEXT NOT NULL,
+	version         TEXT NOT NULL DEFAULT '',
+	status          TEXT NOT NULL,
+	sealed_password TEXT NOT NULL DEFAULT '',
+	last_job_id     TEXT NOT NULL DEFAULT '',
+	created_at      TEXT NOT NULL,
+	updated_at      TEXT NOT NULL,
+	-- One installation of a tool per server: the compose project name is fixed,
+	-- so a second one would fight the first over the same containers.
+	UNIQUE(server_id, tool_id)
+);
+
+CREATE INDEX IF NOT EXISTS installations_server_idx ON installations(server_id);
 `
 
 func Open(path string) (*Store, error) {

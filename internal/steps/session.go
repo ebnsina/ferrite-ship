@@ -41,6 +41,7 @@ type Session struct {
 	exec      executor.Executor
 	log       LogFunc
 	privilege Privilege
+	redact    *strings.Replacer
 }
 
 func NewSession(exec executor.Executor, log LogFunc) *Session {
@@ -55,6 +56,42 @@ func (s *Session) WithPrivilege(privilege Privilege) *Session {
 	clone := *s
 	clone.privilege = privilege
 	return &clone
+}
+
+// Mask is what a redacted secret is replaced with in the job log.
+const Mask = "••••••••"
+
+// WithSecrets returns a session that masks these values wherever they appear
+// in a logged command or its output.
+//
+// Installing a database means writing a generated password to a file, and the
+// command that does it is echoed into the job log — which is persisted and
+// shown in the browser. Redacting at this boundary covers every step at once,
+// rather than asking each one to remember. Note that this only affects what is
+// *logged*: the command still runs with the real value.
+func (s *Session) WithSecrets(values ...string) *Session {
+	pairs := make([]string, 0, len(values)*2)
+	for _, value := range values {
+		// A short secret would mask half the log, and an empty one makes
+		// Replacer insert the mask between every character.
+		if len(value) < 8 {
+			continue
+		}
+		pairs = append(pairs, value, Mask)
+	}
+
+	clone := *s
+	if len(pairs) > 0 {
+		clone.redact = strings.NewReplacer(pairs...)
+	}
+	return &clone
+}
+
+func (s *Session) safe(text string) string {
+	if s.redact == nil {
+		return text
+	}
+	return s.redact.Replace(text)
 }
 
 // elevate wraps a command so it runs with the rights the playbook needs.
@@ -97,27 +134,36 @@ func DetectPrivilege(ctx context.Context, exec executor.Executor) (Privilege, er
 			"that can run sudo without being asked for a password")
 }
 
-func (s *Session) Log(level Level, message string) { s.log(level, message) }
+func (s *Session) Log(level Level, message string) { s.log(level, s.safe(message)) }
 
 func (s *Session) Logf(level Level, format string, args ...any) {
-	s.log(level, fmt.Sprintf(format, args...))
+	s.Log(level, fmt.Sprintf(format, args...))
 }
+
+// Redact masks any known secret in text.
+//
+// Exported because not every failure leaves through the log: a job's stored
+// error is written straight to the database, and it must get the same
+// treatment as the lines around it.
+func (s *Session) Redact(text string) string { return s.safe(text) }
 
 // Run executes cmd, streaming the command and its output into the job log.
 func (s *Session) Run(ctx context.Context, cmd string) (executor.Result, error) {
-	s.log(LevelCommand, cmd)
+	s.Log(LevelCommand, cmd)
 
 	result, err := s.exec.Run(ctx, s.elevate(cmd))
 	if err != nil {
-		s.log(LevelError, err.Error())
+		s.Log(LevelError, err.Error())
 		return result, err
 	}
 
+	// Output is redacted as well as the command: plenty of tools echo their own
+	// configuration back, and `docker compose config` prints it in full.
 	for _, line := range splitLines(result.Stdout) {
-		s.log(LevelOutput, line)
+		s.Log(LevelOutput, line)
 	}
 	for _, line := range splitLines(result.Stderr) {
-		s.log(LevelOutput, line)
+		s.Log(LevelOutput, line)
 	}
 
 	return result, nil

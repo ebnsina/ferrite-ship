@@ -108,6 +108,12 @@ func (a *API) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/servers/{id}/services/{unit}/actions", a.handleServiceAction)
 	mux.HandleFunc("GET /v1/servers/{id}/services/{unit}/logs", a.handleServiceLogs)
 
+	mux.HandleFunc("GET /v1/catalog", a.handleListCatalog)
+	mux.HandleFunc("GET /v1/servers/{id}/tools", a.handleListTools)
+	mux.HandleFunc("POST /v1/servers/{id}/tools", a.handleInstallTool)
+	mux.HandleFunc("DELETE /v1/servers/{id}/tools/{tool}", a.handleRemoveTool)
+	mux.HandleFunc("GET /v1/servers/{id}/tools/{tool}/connection", a.handleToolConnection)
+
 	mux.HandleFunc("GET /v1/jobs/{id}", a.handleGetJob)
 	mux.HandleFunc("GET /v1/jobs/{id}/events", a.handleJobEvents)
 
@@ -185,11 +191,18 @@ func (a *API) failServer(w http.ResponseWriter, err error) {
 }
 
 func (a *API) failAs(w http.ResponseWriter, err error, missing *apierr.Error) {
-	if errors.Is(err, store.ErrNotFound) {
-		err = missing.WithCause(err)
-	}
-	if errors.Is(err, sshexec.ErrHostKeyChanged) {
-		err = apierr.HostKeyChanged.WithCause(err)
+	// Only classify what has not already been classified. A handler that has
+	// picked an entry itself knows more about the request than this does, and
+	// re-deriving one from the cause would replace "that tool is not set up on
+	// this server" with a vague "we could not find that".
+	var chosen *apierr.Error
+	if !errors.As(err, &chosen) {
+		if errors.Is(err, store.ErrNotFound) {
+			err = missing.WithCause(err)
+		}
+		if errors.Is(err, sshexec.ErrHostKeyChanged) {
+			err = apierr.HostKeyChanged.WithCause(err)
+		}
 	}
 
 	problem := apierr.From(err)

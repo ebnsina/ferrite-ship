@@ -33,6 +33,36 @@ type Step interface {
 	Apply(ctx context.Context, s *Session) error
 }
 
+// ShellSpec describes a declarative step for packages outside this one — the
+// tool catalogue builds its playbooks from these, so installing software needs
+// no bespoke Go either.
+type ShellSpec struct {
+	ID    string
+	Title string
+
+	// SkipIf, when set and exiting zero, skips the step with SkipMessage.
+	SkipIf      string
+	SkipMessage string
+
+	// Check exits zero when the desired state already holds.
+	Check string
+
+	// Apply runs in order; the first non-zero exit fails the step.
+	Apply []string
+}
+
+// Shell builds a declarative step from a specification.
+func Shell(spec ShellSpec) Step {
+	return shellStep{
+		id:          spec.ID,
+		title:       spec.Title,
+		skipIf:      spec.SkipIf,
+		skipMessage: spec.SkipMessage,
+		check:       spec.Check,
+		apply:       spec.Apply,
+	}
+}
+
 // shellStep expresses a step as shell: one command that tests for the desired
 // state, and a list that establishes it. Almost every baseline step fits this,
 // which keeps the playbook declarative and easy to audit.

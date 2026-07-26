@@ -168,6 +168,23 @@ var (
 		"We do not know how to run that.",
 		`The only job available right now is the setup check.`)
 
+	// Tools
+	UnknownTool = newError(CodeInvalid, 400,
+		"That is not something we know how to install.",
+		"Pick one of the tools from the list.")
+
+	ToolNotInstalled = newError(CodeNotFound, 404,
+		"That tool is not set up on this server.",
+		"Install it first, then come back here.")
+
+	ToolNeedsAddress = newError(CodeUnsupported, 400,
+		"This tool needs a server people can reach from the internet.",
+		"Simulated servers have no public address, so connect a real one to try this.")
+
+	ToolNotReady = newError(CodeConflict, 409,
+		"This tool is not finished being set up.",
+		"Wait for the run to finish, then check its connection details.")
+
 	// Files
 	PathNotAbsolute = newError(CodeInvalid, 400,
 		"That path does not look right.",
