@@ -3,7 +3,7 @@
 	import SectionHeading from './SectionHeading.svelte';
 </script>
 
-<section id="services" class="bg-surface/40 border-border/70 scroll-mt-20 border-y">
+<section id="tools" class="bg-surface/40 border-border/70 scroll-mt-20 border-y">
 	<div class="mx-auto max-w-6xl px-5 py-20">
 		<SectionHeading
 			eyebrow="One-click tools"

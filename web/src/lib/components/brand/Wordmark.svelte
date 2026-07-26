@@ -4,15 +4,19 @@
 
 	interface Props {
 		href?: string;
+		size?: 'sm' | 'md';
 		class?: string;
 	}
 
-	let { href = '/', class: className }: Props = $props();
+	let { href = '/', size = 'md', class: className }: Props = $props();
+
+	const SIZES = {
+		sm: { mark: 26, text: 'text-[0.95rem]' },
+		md: { mark: 30, text: 'text-base' }
+	} as const;
 </script>
 
 <a {href} class={cn('inline-flex items-center gap-2.5', className)}>
-	<LogoMark size={26} />
-	<span class="text-content text-[0.95rem] font-semibold tracking-tight">
-		ferrite<span class="text-content-subtle">·</span>ship
-	</span>
+	<LogoMark size={SIZES[size].mark} />
+	<span class={cn('text-content font-semibold tracking-tight', SIZES[size].text)}>Ferrite Ship</span>
 </a>

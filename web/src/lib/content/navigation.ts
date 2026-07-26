@@ -1,12 +1,10 @@
 import type { LucideProps } from '@lucide/svelte';
 import Blocks from '@lucide/svelte/icons/blocks';
-import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
 import History from '@lucide/svelte/icons/history';
 import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
 import LifeBuoy from '@lucide/svelte/icons/life-buoy';
 import Server from '@lucide/svelte/icons/server';
 import Settings from '@lucide/svelte/icons/settings';
-import Sparkles from '@lucide/svelte/icons/sparkles';
 import type { Component } from 'svelte';
 
 export interface NavItem {
@@ -37,10 +35,4 @@ export const dashboardNavGroups: NavGroup[] = [
 			{ label: 'Help', href: '/dashboard/help', icon: LifeBuoy }
 		]
 	}
-];
-
-export const marketingNav: NavItem[] = [
-	{ label: 'What you get', href: '#features', icon: Sparkles },
-	{ label: 'Tools', href: '#services', icon: Blocks },
-	{ label: 'How it works', href: '#how-it-works', icon: CircleQuestionMark }
 ];

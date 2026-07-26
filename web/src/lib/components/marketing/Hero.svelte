@@ -31,7 +31,7 @@
 
 			<div class="mt-9 flex flex-wrap items-center justify-center gap-3">
 				<ButtonLink href="/dashboard" size="lg">
-					Open dashboard
+					Get started free
 					<ArrowRight size={17} aria-hidden="true" />
 				</ButtonLink>
 				<ButtonLink href="#how-it-works" variant="secondary" size="lg">
