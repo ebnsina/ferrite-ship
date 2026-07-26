@@ -185,6 +185,15 @@ var (
 		"There is nothing to query in this tool.",
 		"Only databases can be queried. Use the terminal for anything else.")
 
+	// Apps
+	RepositoryRequired = newError(CodeInvalid, 400,
+		"We need the address of your code.",
+		"A git URL, like https://github.com/you/your-project.")
+
+	RepositoryNotSupported = newError(CodeInvalid, 400,
+		"We do not recognise that as a git address.",
+		"It should start with https:// or git@.")
+
 	// Backups
 	NoBackupDestination = newError(CodeInvalid, 400,
 		"There is nowhere to put backups yet.",

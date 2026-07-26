@@ -55,7 +55,7 @@ func (r *Runner) StartBackup(
 	job, err := r.start(ctx, server, actor, false, plan{
 		kind:  "tool-backup",
 		title: "Backing up " + tool.Name + " from " + server.Name,
-		build: func(store.Server) []steps.Step {
+		build: func(context.Context, store.Server) []steps.Step {
 			return catalog.BackupSteps(tool, destination, key)
 		},
 		secrets: []string{destination.AccessKey, destination.SecretKey},
@@ -117,7 +117,7 @@ func (r *Runner) StartRestore(
 	return r.start(ctx, server, actor, false, plan{
 		kind:  "tool-restore",
 		title: "Restoring " + tool.Name + " on " + server.Name,
-		build: func(store.Server) []steps.Step {
+		build: func(context.Context, store.Server) []steps.Step {
 			return catalog.RestoreSteps(tool, destination, backup.ObjectKey)
 		},
 		secrets: []string{destination.AccessKey, destination.SecretKey},

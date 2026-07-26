@@ -182,6 +182,30 @@ CREATE TABLE IF NOT EXISTS backups (
 
 CREATE INDEX IF NOT EXISTS backups_lookup_idx
 	ON backups(user_id, server_id, tool_id, created_at DESC);
+
+-- Applications deployed from a git repository.
+--
+-- env_json holds the variables the application needs, sealed as one blob: it
+-- is nearly always where the database password ends up, and treating the whole
+-- thing as a secret is safer than deciding which keys look sensitive.
+CREATE TABLE IF NOT EXISTS apps (
+	id            TEXT PRIMARY KEY,
+	user_id       TEXT NOT NULL,
+	server_id     TEXT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+	name          TEXT NOT NULL,
+	repository    TEXT NOT NULL,
+	branch        TEXT NOT NULL DEFAULT 'main',
+	domain        TEXT NOT NULL DEFAULT '',
+	port          INTEGER NOT NULL DEFAULT 3000,
+	sealed_env    TEXT NOT NULL DEFAULT '',
+	status        TEXT NOT NULL,
+	last_job_id   TEXT NOT NULL DEFAULT '',
+	created_at    TEXT NOT NULL,
+	deployed_at   TEXT,
+	UNIQUE(server_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS apps_server_idx ON apps(user_id, server_id);
 `
 
 func Open(path string) (*Store, error) {

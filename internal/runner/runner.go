@@ -74,7 +74,13 @@ type plan struct {
 	title string
 	// build produces the playbook. It is called after connecting, because some
 	// playbooks depend on what the machine turned out to be.
-	build func(server store.Server) []steps.Step
+	//
+	// The context is passed in rather than captured from the caller, and that
+	// is not a style preference: a closure that captures the HTTP request's
+	// context is holding one that is cancelled the moment the handler returns.
+	// A build that queries the database then silently gets nothing — which is
+	// how a deploy produced a proxy config listing no applications at all.
+	build func(ctx context.Context, server store.Server) []steps.Step
 	// secrets are masked wherever they would otherwise appear in the log.
 	secrets []string
 	// onFinish records the outcome against whatever this job was about, such
@@ -106,7 +112,7 @@ func (r *Runner) StartBaseline(
 	return r.start(ctx, server, actor, dryRun, plan{
 		kind:  kind,
 		title: title,
-		build: func(server store.Server) []steps.Step {
+		build: func(_ context.Context, server store.Server) []steps.Step {
 			return steps.Baseline(steps.BaselineOptions{
 				PublicKey: server.PublicKey,
 				// sshexec prefers a key when one is stored, so a password is only
@@ -214,7 +220,7 @@ func (r *Runner) execute(
 		session.Log(steps.LevelInfo, "Using sudo, since this account is not root.")
 	}
 
-	summary := r.runPlaybook(ctx, session, p.build(server), emitter, dryRun)
+	summary := r.runPlaybook(ctx, session, p.build(ctx, server), emitter, dryRun)
 
 	if p.after != nil {
 		outcome := store.JobSucceeded

@@ -1,6 +1,9 @@
 package steps
 
-import "context"
+import (
+	"context"
+	"strings"
+)
 
 // Outcome is what happened to one step in a run.
 type Outcome string
@@ -125,10 +128,30 @@ type CommandError struct {
 }
 
 func (e *CommandError) Error() string {
-	if e.Stderr != "" {
-		return e.Stderr
+	if e.Stderr == "" {
+		return "command failed with exit code " + itoa(e.ExitCode)
 	}
-	return "command failed with exit code " + itoa(e.ExitCode)
+	return lastLines(e.Stderr, 4)
+}
+
+// lastLines returns the final n non-empty lines.
+//
+// The end of the output, not the beginning: anything that streams progress —
+// docker build above all — writes hundreds of lines to stderr and puts the
+// reason it failed at the bottom. Summarising by the first line reported
+// "#0 building with \"default\" instance using docker driver" for a build that
+// actually died on a snapshot error, which sent me looking in the wrong place.
+func lastLines(text string, n int) string {
+	var kept []string
+	for _, line := range strings.Split(strings.TrimRight(text, "\n"), "\n") {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			kept = append(kept, trimmed)
+		}
+	}
+	if len(kept) > n {
+		kept = kept[len(kept)-n:]
+	}
+	return strings.Join(kept, "\n")
 }
 
 func itoa(n int) string {

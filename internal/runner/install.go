@@ -78,7 +78,7 @@ func (r *Runner) StartInstall(
 	job, err := r.start(ctx, server, actor, dryRun, plan{
 		kind:  "tool-install",
 		title: verb + " " + tool.Name + " on " + server.Name,
-		build: func(store.Server) []steps.Step { return install.Steps() },
+		build: func(context.Context, store.Server) []steps.Step { return install.Steps() },
 		// The generated password is written to a file by a command that is
 		// echoed into the job log. Without this it would be sitting in the
 		// database and on screen in plain text.
@@ -153,7 +153,7 @@ func (r *Runner) StartRemove(
 	job, err := r.start(ctx, server, actor, false, plan{
 		kind:  "tool-remove",
 		title: title,
-		build: func(store.Server) []steps.Step { return tool.RemoveSteps(purge) },
+		build: func(context.Context, store.Server) []steps.Step { return tool.RemoveSteps(purge) },
 		onFinish: func(ctx context.Context, server store.Server, status store.JobStatus) {
 			if status != store.JobSucceeded {
 				// Leave the row behind on failure. Claiming the tool is gone
