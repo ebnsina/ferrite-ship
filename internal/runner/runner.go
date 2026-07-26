@@ -68,9 +68,9 @@ var ErrAlreadyRunning = errors.New("a job is already running on this server")
 // StartBaseline queues the first-run playbook and returns as soon as the job
 // row exists, so the caller can redirect to the log view immediately.
 func (r *Runner) StartBaseline(
-	ctx context.Context, serverID, actor string, dryRun bool,
+	ctx context.Context, userID, serverID, actor string, dryRun bool,
 ) (store.Job, error) {
-	server, err := r.store.GetServer(ctx, serverID)
+	server, err := r.store.GetServer(ctx, userID, serverID)
 	if err != nil {
 		return store.Job{}, err
 	}
@@ -180,7 +180,7 @@ func (r *Runner) execute(
 
 	// Record a fleet snapshot so the dashboard's trends come from measurements
 	// rather than from a made-up series.
-	if err := r.store.SampleFleet(ctx); err != nil {
+	if err := r.store.SampleFleet(ctx, server.UserID); err != nil {
 		r.log.Warn("could not record fleet sample", "error", err)
 	}
 

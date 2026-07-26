@@ -28,6 +28,11 @@ type serverView struct {
 	LastSeenAt      string    `json:"lastSeenAt"`
 	Services        []string  `json:"services"`
 	Connection      string    `json:"connectionKind"`
+	// SetUpAt is when the baseline last succeeded here, or empty if it never
+	// has. The difference decides whether the action reads "Set up" or
+	// "Re-run" — telling someone to set up a server they set up last week is
+	// meaningless.
+	SetUpAt string `json:"setUpAt"`
 }
 
 type usageView struct {
@@ -35,7 +40,7 @@ type usageView struct {
 	TotalBytes int64 `json:"totalBytes"`
 }
 
-func toServerView(s store.Server) serverView {
+func toServerView(s store.Server, setUpAt time.Time) serverView {
 	lastSeen := s.CreatedAt
 	if s.LastSeenAt != nil {
 		lastSeen = *s.LastSeenAt
@@ -77,11 +82,25 @@ func toServerView(s store.Server) serverView {
 		LastSeenAt: lastSeen.UTC().Format(time.RFC3339),
 		Services:   s.Services,
 		Connection: string(s.Kind),
+		SetUpAt:    formatOptionalTime(setUpAt),
 	}
 }
 
+func formatOptionalTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339)
+}
+
 func (a *API) handleListServers(w http.ResponseWriter, r *http.Request) {
-	servers, err := a.store.ListServers(r.Context())
+	servers, err := a.store.ListServers(r.Context(), currentUser(r).ID)
+	if err != nil {
+		a.writeStoreError(w, err)
+		return
+	}
+
+	setUp, err := a.store.LastSetupByServer(r.Context(), currentUser(r).ID)
 	if err != nil {
 		a.writeStoreError(w, err)
 		return
@@ -89,7 +108,7 @@ func (a *API) handleListServers(w http.ResponseWriter, r *http.Request) {
 
 	views := make([]serverView, 0, len(servers))
 	for _, s := range servers {
-		views = append(views, toServerView(s))
+		views = append(views, toServerView(s, setUp[s.ID]))
 	}
 	writeJSON(w, http.StatusOK, views)
 }
@@ -131,6 +150,7 @@ func (a *API) handleCreateServer(w http.ResponseWriter, r *http.Request) {
 
 	srv := store.Server{
 		ID:        ids.New("srv"),
+		UserID:    currentUser(r).ID,
 		Name:      req.Name,
 		Kind:      kind,
 		Region:    strings.TrimSpace(req.Region),
@@ -162,7 +182,7 @@ func (a *API) handleCreateServer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.log.Info("server connected", "id", srv.ID, "name", srv.Name, "kind", srv.Kind)
-	writeJSON(w, http.StatusCreated, toServerView(srv))
+	writeJSON(w, http.StatusCreated, toServerView(srv, time.Time{}))
 }
 
 func (a *API) applySSHDetails(srv *store.Server, req createServerRequest) error {
@@ -206,16 +226,21 @@ func (a *API) applySSHDetails(srv *store.Server, req createServerRequest) error 
 }
 
 func (a *API) handleGetServer(w http.ResponseWriter, r *http.Request) {
-	server, err := a.store.GetServer(r.Context(), r.PathValue("id"))
+	server, err := a.store.GetServer(r.Context(), currentUser(r).ID, r.PathValue("id"))
 	if err != nil {
 		a.writeStoreError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toServerView(server))
+	setUp, err := a.store.LastSetupByServer(r.Context(), currentUser(r).ID)
+	if err != nil {
+		a.writeStoreError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toServerView(server, setUp[server.ID]))
 }
 
 func (a *API) handleServerJobs(w http.ResponseWriter, r *http.Request) {
-	server, err := a.store.GetServer(r.Context(), r.PathValue("id"))
+	server, err := a.store.GetServer(r.Context(), currentUser(r).ID, r.PathValue("id"))
 	if err != nil {
 		a.writeStoreError(w, err)
 		return
@@ -243,7 +268,7 @@ func (a *API) handleServerJobs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) handleDeleteServer(w http.ResponseWriter, r *http.Request) {
-	if err := a.store.DeleteServer(r.Context(), r.PathValue("id")); err != nil {
+	if err := a.store.DeleteServer(r.Context(), currentUser(r).ID, r.PathValue("id")); err != nil {
 		a.writeStoreError(w, err)
 		return
 	}

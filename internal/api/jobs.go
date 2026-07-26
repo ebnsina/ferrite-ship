@@ -35,7 +35,7 @@ func (a *API) handleStartJob(w http.ResponseWriter, r *http.Request) {
 		req.Actor = "You"
 	}
 
-	job, err := a.runner.StartBaseline(r.Context(), r.PathValue("id"), req.Actor, req.DryRun)
+	job, err := a.runner.StartBaseline(r.Context(), currentUser(r).ID, r.PathValue("id"), req.Actor, req.DryRun)
 	switch {
 	case errors.Is(err, runner.ErrAlreadyRunning):
 		a.writeError(w, http.StatusConflict, "conflict",
@@ -50,7 +50,7 @@ func (a *API) handleStartJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) handleGetJob(w http.ResponseWriter, r *http.Request) {
-	job, err := a.store.GetJob(r.Context(), r.PathValue("id"))
+	job, err := a.store.GetJob(r.Context(), currentUser(r).ID, r.PathValue("id"))
 	if err != nil {
 		a.writeStoreError(w, err)
 		return
@@ -66,7 +66,7 @@ func (a *API) handleGetJob(w http.ResponseWriter, r *http.Request) {
 func (a *API) handleJobEvents(w http.ResponseWriter, r *http.Request) {
 	jobID := r.PathValue("id")
 
-	job, err := a.store.GetJob(r.Context(), jobID)
+	job, err := a.store.GetJob(r.Context(), currentUser(r).ID, jobID)
 	if err != nil {
 		a.writeStoreError(w, err)
 		return
@@ -182,13 +182,13 @@ type activityView struct {
 }
 
 func (a *API) handleActivity(w http.ResponseWriter, r *http.Request) {
-	jobs, err := a.store.ListRecentJobs(r.Context(), 25)
+	jobs, err := a.store.ListRecentJobs(r.Context(), currentUser(r).ID, 25)
 	if err != nil {
 		a.writeStoreError(w, err)
 		return
 	}
 
-	servers, err := a.store.ListServers(r.Context())
+	servers, err := a.store.ListServers(r.Context(), currentUser(r).ID)
 	if err != nil {
 		a.writeStoreError(w, err)
 		return

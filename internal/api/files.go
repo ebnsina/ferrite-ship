@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/ebnsina/ferrite-ship/internal/files"
+	"github.com/ebnsina/ferrite-ship/internal/store"
 )
 
 // writeFilesError maps filesystem failures onto messages a person can act on.
@@ -13,6 +14,8 @@ import (
 // translating rather than passing through raw.
 func (a *API) writeFilesError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, store.ErrNotFound):
+		a.writeError(w, http.StatusNotFound, "not_found", "We could not find that server.")
 	case errors.Is(err, files.ErrNotSupported):
 		a.writeError(w, http.StatusBadRequest, "parse",
 			"This is a simulated server, so there are no files to browse. Connect a real server to use this.")
@@ -29,9 +32,24 @@ func (a *API) writeFilesError(w http.ResponseWriter, err error) {
 	}
 }
 
+// friendlyFileError turns SSH and SFTP's terse output into something a person
+// can act on. Raw messages like "ssh: dial tcp ...: i/o timeout" say nothing
+// useful to someone who does not already know what they mean.
 func friendlyFileError(err error) string {
 	message := err.Error()
 	switch {
+	// Connection problems come first: they explain everything after them.
+	case containsAny(message, "i/o timeout", "connection timed out"):
+		return "That server did not answer in time. Check it is running and that its firewall allows you in."
+	case containsAny(message, "connection refused"):
+		return "That server refused the connection. Check the address and port are right."
+	case containsAny(message, "no such host", "lookup"):
+		return "We could not find that address. Check it is spelled correctly."
+	case containsAny(message, "unable to authenticate", "handshake"):
+		return "The sign-in details for that server were not accepted. Check the username and key or password."
+	case containsAny(message, "network is unreachable", "no route to host"):
+		return "That server cannot be reached from here."
+
 	case containsAny(message, "permission denied"):
 		return "You do not have permission to do that on this server."
 	case containsAny(message, "does not exist", "no such file"):
@@ -39,7 +57,7 @@ func friendlyFileError(err error) string {
 	case containsAny(message, "directory not empty"):
 		return "That folder still has things in it. Empty it first."
 	default:
-		return "Could not reach the server's files: " + message
+		return "Something went wrong talking to that server: " + message
 	}
 }
 
@@ -54,7 +72,7 @@ func containsAny(haystack string, needles ...string) bool {
 }
 
 func (a *API) handleListFiles(w http.ResponseWriter, r *http.Request) {
-	listing, err := a.files.List(r.Context(), r.PathValue("id"), r.URL.Query().Get("path"))
+	listing, err := a.files.List(r.Context(), currentUser(r).ID, r.PathValue("id"), r.URL.Query().Get("path"))
 	if err != nil {
 		a.writeFilesError(w, err)
 		return
@@ -63,7 +81,7 @@ func (a *API) handleListFiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) handleReadFile(w http.ResponseWriter, r *http.Request) {
-	content, err := a.files.Read(r.Context(), r.PathValue("id"), r.URL.Query().Get("path"))
+	content, err := a.files.Read(r.Context(), currentUser(r).ID, r.PathValue("id"), r.URL.Query().Get("path"))
 	if err != nil {
 		a.writeFilesError(w, err)
 		return
@@ -83,7 +101,7 @@ func (a *API) handleWriteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := a.files.Write(r.Context(), r.PathValue("id"), req.Path, req.Text); err != nil {
+	if err := a.files.Write(r.Context(), currentUser(r).ID, r.PathValue("id"), req.Path, req.Text); err != nil {
 		a.writeFilesError(w, err)
 		return
 	}
@@ -99,14 +117,14 @@ func (a *API) handleDownloadFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition",
 		fmt.Sprintf("attachment; filename=%q", baseName(path)))
 
-	if _, err := a.files.Download(r.Context(), r.PathValue("id"), path, w); err != nil {
+	if _, err := a.files.Download(r.Context(), currentUser(r).ID, r.PathValue("id"), path, w); err != nil {
 		// The status line may already be sent; log rather than pretend.
 		a.log.Warn("file download failed", "path", path, "error", err)
 	}
 }
 
 func (a *API) handleRemoveFile(w http.ResponseWriter, r *http.Request) {
-	if err := a.files.Remove(r.Context(), r.PathValue("id"), r.URL.Query().Get("path")); err != nil {
+	if err := a.files.Remove(r.Context(), currentUser(r).ID, r.PathValue("id"), r.URL.Query().Get("path")); err != nil {
 		a.writeFilesError(w, err)
 		return
 	}

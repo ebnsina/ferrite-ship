@@ -13,7 +13,7 @@ import (
 
 var ErrNotFound = errors.New("not found")
 
-const serverColumns = `id, name, connection_kind, host, port, username, region, status,
+const serverColumns = `id, user_id, name, connection_kind, host, port, username, region, status,
 	facts_json, services_json, sealed_password, sealed_private_key, public_key,
 	created_at, last_seen_at`
 
@@ -29,8 +29,8 @@ func (s *Store) CreateServer(ctx context.Context, srv Server) error {
 
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO servers (`+serverColumns+`)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		srv.ID, srv.Name, string(srv.Kind), srv.Host, srv.Port, srv.User, srv.Region,
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		srv.ID, srv.UserID, srv.Name, string(srv.Kind), srv.Host, srv.Port, srv.User, srv.Region,
 		string(srv.Status), string(factsJSON), string(servicesJSON),
 		srv.SealedPassword, srv.SealedPrivateKey, srv.PublicKey,
 		formatTime(srv.CreatedAt), formatTimePtr(srv.LastSeenAt))
@@ -40,9 +40,12 @@ func (s *Store) CreateServer(ctx context.Context, srv Server) error {
 	return nil
 }
 
-func (s *Store) ListServers(ctx context.Context) ([]Server, error) {
+// ListServers returns only the servers belonging to userID. Ownership is a
+// query parameter rather than a filter applied afterwards, so there is no
+// path that returns somebody else's rows.
+func (s *Store) ListServers(ctx context.Context, userID string) ([]Server, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT `+serverColumns+` FROM servers ORDER BY created_at ASC`)
+		`SELECT `+serverColumns+` FROM servers WHERE user_id = ? ORDER BY created_at ASC`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("store: list servers: %w", err)
 	}
@@ -59,9 +62,9 @@ func (s *Store) ListServers(ctx context.Context) ([]Server, error) {
 	return servers, rows.Err()
 }
 
-func (s *Store) GetServer(ctx context.Context, id string) (Server, error) {
+func (s *Store) GetServer(ctx context.Context, userID, id string) (Server, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT `+serverColumns+` FROM servers WHERE id = ?`, id)
+		`SELECT `+serverColumns+` FROM servers WHERE id = ? AND user_id = ?`, id, userID)
 
 	srv, err := scanServer(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -70,8 +73,9 @@ func (s *Store) GetServer(ctx context.Context, id string) (Server, error) {
 	return srv, err
 }
 
-func (s *Store) DeleteServer(ctx context.Context, id string) error {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM servers WHERE id = ?`, id)
+func (s *Store) DeleteServer(ctx context.Context, userID, id string) error {
+	result, err := s.db.ExecContext(ctx,
+		`DELETE FROM servers WHERE id = ? AND user_id = ?`, id, userID)
 	if err != nil {
 		return fmt.Errorf("store: delete server: %w", err)
 	}
@@ -127,7 +131,7 @@ func scanServer(row rowScanner) (Server, error) {
 		lastSeenAtRaw sql.NullString
 	)
 
-	err := row.Scan(&srv.ID, &srv.Name, &kind, &srv.Host, &srv.Port, &srv.User, &srv.Region,
+	err := row.Scan(&srv.ID, &srv.UserID, &srv.Name, &kind, &srv.Host, &srv.Port, &srv.User, &srv.Region,
 		&status, &factsJSON, &servicesJSON, &srv.SealedPassword, &srv.SealedPrivateKey,
 		&srv.PublicKey, &createdAt, &lastSeenAtRaw)
 	if err != nil {

@@ -21,8 +21,8 @@ type Sample struct {
 // SampleFleet computes and stores a snapshot from the current server rows.
 // Called after any run that refreshes facts, which is what gives the dashboard
 // real history instead of an invented trend line.
-func (s *Store) SampleFleet(ctx context.Context) error {
-	servers, err := s.ListServers(ctx)
+func (s *Store) SampleFleet(ctx context.Context, userID string) error {
+	servers, err := s.ListServers(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -49,9 +49,9 @@ func (s *Store) SampleFleet(ctx context.Context) error {
 
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO fleet_samples
-			(at, server_count, online_count, cpu_usage, memory_used, memory_total, disk_used, disk_total)
-		VALUES (?,?,?,?,?,?,?,?)`,
-		formatTime(sample.At), sample.ServerCount, sample.OnlineCount, sample.CPUUsage,
+			(user_id, at, server_count, online_count, cpu_usage, memory_used, memory_total, disk_used, disk_total)
+		VALUES (?,?,?,?,?,?,?,?,?)`,
+		userID, formatTime(sample.At), sample.ServerCount, sample.OnlineCount, sample.CPUUsage,
 		sample.MemoryUsed, sample.MemoryTotal, sample.DiskUsed, sample.DiskTotal)
 	if err != nil {
 		return fmt.Errorf("store: insert fleet sample: %w", err)
@@ -60,7 +60,7 @@ func (s *Store) SampleFleet(ctx context.Context) error {
 }
 
 // RecentSamples returns up to limit snapshots, oldest first, ready to plot.
-func (s *Store) RecentSamples(ctx context.Context, limit int) ([]Sample, error) {
+func (s *Store) RecentSamples(ctx context.Context, userID string, limit int) ([]Sample, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -68,8 +68,8 @@ func (s *Store) RecentSamples(ctx context.Context, limit int) ([]Sample, error) 
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT at, server_count, online_count, cpu_usage, memory_used, memory_total, disk_used, disk_total
 		FROM (
-			SELECT * FROM fleet_samples ORDER BY at DESC LIMIT ?
-		) ORDER BY at ASC`, limit)
+			SELECT * FROM fleet_samples WHERE user_id = ? ORDER BY at DESC LIMIT ?
+		) ORDER BY at ASC`, userID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("store: list fleet samples: %w", err)
 	}

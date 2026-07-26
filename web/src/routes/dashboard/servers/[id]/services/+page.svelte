@@ -3,8 +3,9 @@
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
 	import ServiceLogs from '$components/dashboard/ServiceLogs.svelte';
 	import ServiceTable from '$components/dashboard/ServiceTable.svelte';
+	import ServiceTableSkeleton from '$components/dashboard/ServiceTableSkeleton.svelte';
 	import Seo from '$components/Seo.svelte';
-	import { ButtonLink, Card, ErrorState, SearchInput, Skeleton } from '$components/ui';
+	import { ButtonLink, Card, ErrorState, SearchInput } from '$components/ui';
 	import { dashboardRepository } from '$lib/data';
 	import { servicesClient, type ServiceAction, type ServiceUnit } from '$lib/data/services';
 	import { toAppError, type AppError } from '$lib/errors';
@@ -133,7 +134,7 @@
 				<ErrorState {error} onRetry={load} />
 			</Card>
 		{:else if loading}
-			<Skeleton shape="card" class="h-96" />
+			<ServiceTableSkeleton />
 		{:else}
 			<ServiceTable
 				units={visible}

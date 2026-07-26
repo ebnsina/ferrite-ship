@@ -25,6 +25,8 @@ export interface ManagedServer {
 	disk: ResourceUsage;
 	uptimeMs: number;
 	lastSeenAt: string;
+	/** When the baseline last succeeded here. Empty means it never has. */
+	setUpAt: string;
 	services: string[];
 }
 

@@ -38,6 +38,14 @@ func main() {
 		return
 	}
 
+	if len(os.Args) > 2 && os.Args[1] == "adduser" {
+		if err := addUser(os.Args[2]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	if len(os.Args) > 1 && os.Args[1] == "reset-account" {
 		if err := resetAccount(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -51,6 +59,54 @@ func main() {
 		log.Error("startup failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+// addUser creates an account with a generated password, printed once.
+//
+// The password is generated rather than accepted as an argument: an argument
+// would sit in shell history and in the process list for anyone on the box to
+// read.
+func addUser(email string) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+
+	st, err := store.Open(cfg.DatabasePath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = st.Close() }()
+
+	password, err := auth.GeneratePassword()
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	accounts := auth.NewService(st)
+
+	user, err := accounts.Create(ctx, email, password)
+	if errors.Is(err, store.ErrEmailTaken) {
+		return fmt.Errorf("%s already has an account. Use `reset-account` to start over", email)
+	}
+	if err != nil {
+		return err
+	}
+
+	// Servers created before ownership existed belong to nobody. Hand them to
+	// the first account, so an existing install does not appear to lose them.
+	claimed, err := st.ClaimUnownedServers(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Account created.\n\n  email:    %s\n  password: %s\n\n", user.Email, password)
+	if claimed > 0 {
+		fmt.Printf("Also gave this account the %d server(s) that had no owner.\n", claimed)
+	}
+	fmt.Println("Write the password down — it is not stored anywhere readable and is not shown again.")
+	return nil
 }
 
 // resetAccount is the way back in after a forgotten password. It needs the

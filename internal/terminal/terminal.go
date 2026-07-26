@@ -76,8 +76,8 @@ func NewService(st *store.Store, sealer *secret.Sealer) *Service {
 //
 // Each terminal gets its own SSH connection rather than sharing one: a shell
 // that hangs or is killed must not disturb a job running at the same time.
-func (s *Service) Open(ctx context.Context, serverID string, size Size) (*Session, error) {
-	server, err := s.store.GetServer(ctx, serverID)
+func (s *Service) Open(ctx context.Context, userID, serverID string, size Size) (*Session, error) {
+	server, err := s.store.GetServer(ctx, userID, serverID)
 	if err != nil {
 		return nil, err
 	}

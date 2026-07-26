@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 )
 
 const jobColumns = `id, server_id, kind, title, actor, status, started_at, finished_at,
@@ -43,8 +45,13 @@ func (s *Store) SetJobStatus(ctx context.Context, id string, status JobStatus) e
 	return nil
 }
 
-func (s *Store) GetJob(ctx context.Context, id string) (Job, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT `+jobColumns+` FROM jobs WHERE id = ?`, id)
+// GetJob joins through servers so a job is only visible to the owner of the
+// server it ran against.
+func (s *Store) GetJob(ctx context.Context, userID, id string) (Job, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT `+prefixed(jobColumns, "jobs")+`
+		FROM jobs JOIN servers ON servers.id = jobs.server_id
+		WHERE jobs.id = ? AND servers.user_id = ?`, id, userID)
 	job, err := scanJob(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Job{}, ErrNotFound
@@ -53,13 +60,16 @@ func (s *Store) GetJob(ctx context.Context, id string) (Job, error) {
 }
 
 // ListRecentJobs powers the activity feed, newest first.
-func (s *Store) ListRecentJobs(ctx context.Context, limit int) ([]Job, error) {
+func (s *Store) ListRecentJobs(ctx context.Context, userID string, limit int) ([]Job, error) {
 	if limit <= 0 {
 		limit = 20
 	}
 
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT `+jobColumns+` FROM jobs ORDER BY started_at DESC LIMIT ?`, limit)
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT `+prefixed(jobColumns, "jobs")+`
+		FROM jobs JOIN servers ON servers.id = jobs.server_id
+		WHERE servers.user_id = ?
+		ORDER BY jobs.started_at DESC LIMIT ?`, userID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("store: list jobs: %w", err)
 	}
@@ -162,6 +172,45 @@ func (s *Store) ListJobsForServer(ctx context.Context, serverID string, limit in
 		jobs = append(jobs, job)
 	}
 	return jobs, rows.Err()
+}
+
+// LastSetupByServer returns, per server, when a baseline last completed
+// successfully. A server that has never been set up is absent from the map.
+//
+// Derived from the job history rather than stored on the server, so it cannot
+// drift from what actually happened.
+func (s *Store) LastSetupByServer(ctx context.Context, userID string) (map[string]time.Time, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT jobs.server_id, MAX(jobs.finished_at)
+		FROM jobs JOIN servers ON servers.id = jobs.server_id
+		WHERE servers.user_id = ?
+		  AND jobs.kind = 'baseline'
+		  AND jobs.status = 'succeeded'
+		  AND jobs.finished_at IS NOT NULL
+		GROUP BY jobs.server_id`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("store: last setup: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	result := map[string]time.Time{}
+	for rows.Next() {
+		var serverID, finishedAt string
+		if err := rows.Scan(&serverID, &finishedAt); err != nil {
+			return nil, err
+		}
+		result[serverID] = parseTime(finishedAt)
+	}
+	return result, rows.Err()
+}
+
+// prefixed qualifies a column list with its table, needed once a query joins.
+func prefixed(columns, table string) string {
+	parts := strings.Split(columns, ",")
+	for i, part := range parts {
+		parts[i] = table + "." + strings.TrimSpace(part)
+	}
+	return strings.Join(parts, ", ")
 }
 
 // CountJobsForServer is used to decide whether a server has ever been set up.

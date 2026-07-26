@@ -1,12 +1,14 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/ebnsina/ferrite-ship/internal/auth"
+	"github.com/ebnsina/ferrite-ship/internal/store"
 )
 
 const sessionCookie = "ferrite_session"
@@ -50,16 +52,35 @@ func sessionID(r *http.Request) string {
 	return cookie.Value
 }
 
+type contextKey int
+
+const userContextKey contextKey = iota
+
 // requireSession wraps the routes that touch a server. Everything behind it
 // can assume there is an account, so no handler has to remember to check.
+//
+// The user is attached to the request context, and every store query that
+// reaches a server takes an owner id — so scoping is enforced by the type
+// signature rather than by each handler remembering to filter.
 func (a *API) requireSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, err := a.auth.UserForSession(r.Context(), sessionID(r)); err != nil {
+		user, err := a.auth.UserForSession(r.Context(), sessionID(r))
+		if err != nil {
 			a.writeError(w, http.StatusUnauthorized, "unauthorized", "Sign in to continue.")
 			return
 		}
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userContextKey, user)))
 	})
+}
+
+// currentUser returns the signed-in account. Safe behind requireSession; it
+// panics elsewhere, which is a loud bug rather than a silent scoping hole.
+func currentUser(r *http.Request) store.User {
+	user, ok := r.Context().Value(userContextKey).(store.User)
+	if !ok {
+		panic("api: currentUser called outside an authenticated route")
+	}
+	return user
 }
 
 type authStatusResponse struct {

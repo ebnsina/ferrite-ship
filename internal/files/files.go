@@ -83,8 +83,8 @@ func (s *session) Close() {
 	_ = s.client.Close()
 }
 
-func (s *Service) connect(ctx context.Context, serverID string) (*session, error) {
-	server, err := s.store.GetServer(ctx, serverID)
+func (s *Service) connect(ctx context.Context, userID, serverID string) (*session, error) {
+	server, err := s.store.GetServer(ctx, userID, serverID)
 	if err != nil {
 		return nil, err
 	}
@@ -133,13 +133,13 @@ func cleanPath(raw string) (string, error) {
 	return path.Clean(raw), nil
 }
 
-func (s *Service) List(ctx context.Context, serverID, dir string) (*Listing, error) {
+func (s *Service) List(ctx context.Context, userID, serverID, dir string) (*Listing, error) {
 	target, err := cleanPath(dir)
 	if err != nil {
 		return nil, err
 	}
 
-	sess, err := s.connect(ctx, serverID)
+	sess, err := s.connect(ctx, userID, serverID)
 	if err != nil {
 		return nil, err
 	}
@@ -175,13 +175,13 @@ func (s *Service) List(ctx context.Context, serverID, dir string) (*Listing, err
 	return &Listing{Path: target, Parent: path.Dir(target), Entries: entries}, nil
 }
 
-func (s *Service) Read(ctx context.Context, serverID, file string) (*Content, error) {
+func (s *Service) Read(ctx context.Context, userID, serverID, file string) (*Content, error) {
 	target, err := cleanPath(file)
 	if err != nil {
 		return nil, err
 	}
 
-	sess, err := s.connect(ctx, serverID)
+	sess, err := s.connect(ctx, userID, serverID)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func (s *Service) Read(ctx context.Context, serverID, file string) (*Content, er
 }
 
 // Write replaces a file's contents, preserving its permissions.
-func (s *Service) Write(ctx context.Context, serverID, file, text string) error {
+func (s *Service) Write(ctx context.Context, userID, serverID, file, text string) error {
 	target, err := cleanPath(file)
 	if err != nil {
 		return err
@@ -233,7 +233,7 @@ func (s *Service) Write(ctx context.Context, serverID, file, text string) error 
 		return ErrTooLarge
 	}
 
-	sess, err := s.connect(ctx, serverID)
+	sess, err := s.connect(ctx, userID, serverID)
 	if err != nil {
 		return err
 	}
@@ -266,13 +266,13 @@ func (s *Service) Write(ctx context.Context, serverID, file, text string) error 
 }
 
 // Download streams a file to the caller without holding it in memory.
-func (s *Service) Download(ctx context.Context, serverID, file string, w io.Writer) (string, error) {
+func (s *Service) Download(ctx context.Context, userID, serverID, file string, w io.Writer) (string, error) {
 	target, err := cleanPath(file)
 	if err != nil {
 		return "", err
 	}
 
-	sess, err := s.connect(ctx, serverID)
+	sess, err := s.connect(ctx, userID, serverID)
 	if err != nil {
 		return "", err
 	}
@@ -290,7 +290,7 @@ func (s *Service) Download(ctx context.Context, serverID, file string, w io.Writ
 	return path.Base(target), nil
 }
 
-func (s *Service) Remove(ctx context.Context, serverID, target string) error {
+func (s *Service) Remove(ctx context.Context, userID, serverID, target string) error {
 	cleaned, err := cleanPath(target)
 	if err != nil {
 		return err
@@ -299,7 +299,7 @@ func (s *Service) Remove(ctx context.Context, serverID, target string) error {
 		return errors.New("refusing to remove the root directory")
 	}
 
-	sess, err := s.connect(ctx, serverID)
+	sess, err := s.connect(ctx, userID, serverID)
 	if err != nil {
 		return err
 	}

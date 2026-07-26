@@ -92,6 +92,20 @@ AES-256-GCM before storage. Never log them, never put them in a response type �
 **Storage (`internal/store`).** Plain SQL behind narrow methods. SQLite today;
 the move to PostgreSQL when multi-tenancy lands should touch this package alone.
 
+**Ownership is a query parameter, never a filter applied afterwards.** Every
+store method that reaches a server, job or fleet sample takes a `userID` and
+puts it in the `WHERE` clause. That is deliberate: the compiler then refuses
+any call site that has not established who is asking, so a scoping hole cannot
+be introduced by forgetting a check. `internal/store/scoping_test.go` exists to
+fail loudly if a query ever stops carrying it.
+
+**Row-level security is the plan, not the present.** SQLite has none — RLS is a
+PostgreSQL feature. When multi-tenancy arrives, add RLS policies as a second
+layer *underneath* the application scoping rather than instead of it: the
+scoping tests then keep passing and the database enforces the same rule
+independently. Until then those tests are the only guarantee, so do not weaken
+them.
+
 ## Web conventions
 
 **Design tokens are three-tier** (`web/src/lib/styles/tokens.css`): primitives →
@@ -146,6 +160,9 @@ implementation.
   old build.
 - **zsh does not word-split unquoted variables.** `for f in $files` iterates
   once with the whole string. Use arrays or explicit lists in Bash calls.
+- **Never use `path` as a shell variable in zsh.** It is tied to `PATH`, so
+  `for path in ...` wipes the shell's PATH and every later command fails with
+  "command not found". Cost time once already.
 - **`cd` persists between Bash tool calls.** Prefer absolute paths.
 - SQLite runs with `MaxOpenConns(1)`; it tolerates one writer, and more
   connections buy contention rather than speed.

@@ -10,6 +10,7 @@ import (
 
 	"github.com/coder/websocket"
 
+	"github.com/ebnsina/ferrite-ship/internal/store"
 	"github.com/ebnsina/ferrite-ship/internal/terminal"
 )
 
@@ -40,15 +41,17 @@ func (a *API) handleTerminal(w http.ResponseWriter, r *http.Request) {
 
 	// Open the shell before upgrading, so a failure is a normal HTTP error the
 	// client can actually read rather than an immediate socket close.
-	session, err := a.terminals.Open(r.Context(), r.PathValue("id"), size)
+	session, err := a.terminals.Open(r.Context(), currentUser(r).ID, r.PathValue("id"), size)
 	switch {
+	case errors.Is(err, store.ErrNotFound):
+		a.writeError(w, http.StatusNotFound, "not_found", "We could not find that server.")
+		return
 	case errors.Is(err, terminal.ErrNotSupported):
 		a.writeError(w, http.StatusBadRequest, "parse",
 			"This is a simulated server, so there is no shell to open. Connect a real server to use the terminal.")
 		return
 	case err != nil:
-		a.writeError(w, http.StatusBadGateway, "network",
-			"Could not open a shell on that server: "+err.Error())
+		a.writeError(w, http.StatusBadGateway, "network", friendlyFileError(err))
 		return
 	}
 	defer func() { _ = session.Close() }()

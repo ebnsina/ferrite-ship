@@ -20,6 +20,7 @@ type Store struct {
 const schema = `
 CREATE TABLE IF NOT EXISTS servers (
 	id                 TEXT PRIMARY KEY,
+	user_id            TEXT NOT NULL DEFAULT '',
 	name               TEXT NOT NULL,
 	connection_kind    TEXT NOT NULL,
 	host               TEXT NOT NULL DEFAULT '',
@@ -74,6 +75,7 @@ CREATE INDEX IF NOT EXISTS job_events_job_seq_idx ON job_events(job_id, seq);
 -- than inventing a trend.
 CREATE TABLE IF NOT EXISTS fleet_samples (
 	id               INTEGER PRIMARY KEY AUTOINCREMENT,
+	user_id          TEXT NOT NULL DEFAULT '',
 	at               TEXT NOT NULL,
 	server_count     INTEGER NOT NULL,
 	online_count     INTEGER NOT NULL,
@@ -135,6 +137,11 @@ func Open(path string) (*Store, error) {
 // is attempted and a "duplicate column" reply is treated as success.
 var migrations = []string{
 	`ALTER TABLE servers ADD COLUMN public_key TEXT NOT NULL DEFAULT ''`,
+	// Ownership arrived after servers did. Existing rows are left unowned and
+	// are claimed by the first account created — see ClaimUnownedServers.
+	`ALTER TABLE servers ADD COLUMN user_id TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE fleet_samples ADD COLUMN user_id TEXT NOT NULL DEFAULT ''`,
+	`CREATE INDEX IF NOT EXISTS servers_user_idx ON servers(user_id)`,
 }
 
 func migrate(db *sql.DB) error {

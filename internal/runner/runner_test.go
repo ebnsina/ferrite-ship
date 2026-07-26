@@ -72,17 +72,21 @@ func TestRefusesConcurrentJobsOnOneServer(t *testing.T) {
 	runner.DemoLatency = 20 * time.Millisecond // keep the first job in flight
 	serverID := seedDemoServer(t, st, "busy")
 
-	if _, err := runner.StartBaseline(context.Background(), serverID, "test", false); err != nil {
+	if _, err := runner.StartBaseline(context.Background(), testUserID, serverID, "test", false); err != nil {
 		t.Fatalf("first start: %v", err)
 	}
 
-	_, err := runner.StartBaseline(context.Background(), serverID, "test", false)
+	_, err := runner.StartBaseline(context.Background(), testUserID, serverID, "test", false)
 	if err != ErrAlreadyRunning {
 		t.Errorf("second concurrent start returned %v, want ErrAlreadyRunning", err)
 	}
 }
 
 // --- helpers ---------------------------------------------------------------
+
+// Every test server belongs to the same owner; scoping itself is covered in
+// the store's own tests.
+const testUserID = "usr_test"
 
 func newTestRunner(t *testing.T) (*Runner, *store.Store) {
 	t.Helper()
@@ -114,6 +118,7 @@ func seedDemoServer(t *testing.T, st *store.Store, name string) string {
 
 	server := store.Server{
 		ID:        "srv_" + name,
+		UserID:    testUserID,
 		Name:      name,
 		Kind:      store.ConnectionDemo,
 		Status:    store.StatusUnknown,
@@ -139,7 +144,7 @@ func runDryToCompletion(t *testing.T, r *Runner, st *store.Store, serverID strin
 func start(t *testing.T, r *Runner, st *store.Store, serverID string, dryRun bool) store.Job {
 	t.Helper()
 
-	job, err := r.StartBaseline(context.Background(), serverID, "test", dryRun)
+	job, err := r.StartBaseline(context.Background(), testUserID, serverID, "test", dryRun)
 	if err != nil {
 		t.Fatalf("start job: %v", err)
 	}
@@ -148,7 +153,7 @@ func start(t *testing.T, r *Runner, st *store.Store, serverID string, dryRun boo
 	// reaching into the runner's internals.
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
-		current, err := st.GetJob(context.Background(), job.ID)
+		current, err := st.GetJob(context.Background(), testUserID, job.ID)
 		if err != nil {
 			t.Fatalf("get job: %v", err)
 		}

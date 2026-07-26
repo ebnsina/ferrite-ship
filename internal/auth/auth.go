@@ -140,7 +140,49 @@ func (s *Service) Setup(ctx context.Context, email, password string) (store.User
 	if err := s.store.CreateUser(ctx, user); err != nil {
 		return store.User{}, err
 	}
+
+	// The first account adopts anything created before ownership existed.
+	if _, err := s.store.ClaimUnownedServers(ctx, user.ID); err != nil {
+		return store.User{}, err
+	}
+
 	return user, nil
+}
+
+// Create makes an account regardless of how many already exist. Setup uses
+// the guarded path; this is for the command line, where the caller has already
+// proved control of the machine.
+func (s *Service) Create(ctx context.Context, email, password string) (store.User, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if !strings.Contains(email, "@") {
+		return store.User{}, errors.New("that does not look like an email address")
+	}
+
+	hash, err := HashPassword(password)
+	if err != nil {
+		return store.User{}, err
+	}
+
+	user := store.User{
+		ID:           ids.New("usr"),
+		Email:        email,
+		PasswordHash: hash,
+		CreatedAt:    time.Now().UTC(),
+	}
+	if err := s.store.CreateUser(ctx, user); err != nil {
+		return store.User{}, err
+	}
+	return user, nil
+}
+
+// GeneratePassword returns a long random password. Length rather than symbol
+// soup: it is meant to be copied into a password manager, not memorised.
+func GeneratePassword() (string, error) {
+	buf := make([]byte, 18)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("auth: generate password: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
 // Authenticate checks credentials and opens a session.

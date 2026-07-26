@@ -29,6 +29,7 @@
 	import HardDrive from '@lucide/svelte/icons/hard-drive';
 	import MemoryStick from '@lucide/svelte/icons/memory-stick';
 	import Play from '@lucide/svelte/icons/play';
+	import RotateCw from '@lucide/svelte/icons/rotate-cw';
 	import Search from '@lucide/svelte/icons/search';
 	import Server from '@lucide/svelte/icons/server';
 	import SquareTerminal from '@lucide/svelte/icons/square-terminal';
@@ -87,7 +88,20 @@
 <div class="space-y-8 px-6 py-8">
 	<ResourceView resource={server}>
 		{#snippet pending()}
-			<Skeleton shape="card" class="h-44" />
+			<div class="space-y-8">
+				<div class="flex items-start gap-4">
+					<Skeleton class="size-10 shrink-0" />
+					<div class="space-y-2">
+						<Skeleton class="h-6 w-40" />
+						<Skeleton class="h-3 w-56" />
+						<Skeleton class="h-3 w-28" />
+					</div>
+				</div>
+				<div class="grid gap-4 lg:grid-cols-3">
+					<Skeleton shape="card" class="h-56 lg:col-span-2" />
+					<Skeleton shape="card" class="h-56" />
+				</div>
+			</div>
 		{/snippet}
 
 		{#snippet children(s)}
@@ -126,9 +140,22 @@
 						<Search size={15} aria-hidden="true" />
 						Check
 					</Button>
-					<Button variant="secondary" size="sm" onclick={() => start(false)} disabled={starting}>
-						<Play size={15} aria-hidden="true" />
-						{starting ? 'Starting…' : 'Set up'}
+					<Button
+						variant={s.setUpAt ? 'ghost' : 'secondary'}
+						size="sm"
+						onclick={() => start(false)}
+						disabled={starting}
+						title={s.setUpAt
+							? 'Runs every check again and repairs anything that has drifted.'
+							: 'Updates, a login account, firewall and automatic security updates.'}
+					>
+						{#if s.setUpAt}
+							<RotateCw size={15} aria-hidden="true" />
+							{starting ? 'Starting…' : 'Re-run setup'}
+						{:else}
+							<Play size={15} aria-hidden="true" />
+							{starting ? 'Starting…' : 'Set up'}
+						{/if}
 					</Button>
 					<Button variant="ghost" size="sm" onclick={() => (confirmOpen = true)}>
 						<Trash2 size={15} aria-hidden="true" />
@@ -178,6 +205,12 @@
 								{isOffline
 									? formatRelativeTime(s.lastSeenAt, { style: 'short' })
 									: formatDuration(s.uptimeMs)}
+							</dd>
+						</div>
+						<div class="flex justify-between gap-3">
+							<dt class="text-content-muted">Set up</dt>
+							<dd class="text-content truncate">
+								{s.setUpAt ? formatRelativeTime(s.setUpAt, { style: 'short' }) : 'Not yet'}
 							</dd>
 						</div>
 						<div class="flex justify-between gap-3">

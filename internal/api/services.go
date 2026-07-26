@@ -6,10 +6,13 @@ import (
 	"strconv"
 
 	"github.com/ebnsina/ferrite-ship/internal/services"
+	"github.com/ebnsina/ferrite-ship/internal/store"
 )
 
 func (a *API) writeServicesError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, store.ErrNotFound):
+		a.writeError(w, http.StatusNotFound, "not_found", "We could not find that server.")
 	case errors.Is(err, services.ErrNotSupported):
 		a.writeError(w, http.StatusBadRequest, "parse",
 			"This is a simulated server, so there are no services to manage. Connect a real server to use this.")
@@ -26,7 +29,7 @@ func (a *API) writeServicesError(w http.ResponseWriter, err error) {
 }
 
 func (a *API) handleListServices(w http.ResponseWriter, r *http.Request) {
-	units, err := a.services.List(r.Context(), r.PathValue("id"))
+	units, err := a.services.List(r.Context(), currentUser(r).ID, r.PathValue("id"))
 	if err != nil {
 		a.writeServicesError(w, err)
 		return
@@ -46,7 +49,7 @@ func (a *API) handleServiceAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := a.services.Perform(
-		r.Context(), r.PathValue("id"), r.PathValue("unit"), services.Action(req.Action))
+		r.Context(), currentUser(r).ID, r.PathValue("id"), r.PathValue("unit"), services.Action(req.Action))
 	if err != nil {
 		a.writeServicesError(w, err)
 		return
@@ -57,7 +60,7 @@ func (a *API) handleServiceAction(w http.ResponseWriter, r *http.Request) {
 func (a *API) handleServiceLogs(w http.ResponseWriter, r *http.Request) {
 	lines, _ := strconv.Atoi(r.URL.Query().Get("lines"))
 
-	text, err := a.services.Logs(r.Context(), r.PathValue("id"), r.PathValue("unit"), lines)
+	text, err := a.services.Logs(r.Context(), currentUser(r).ID, r.PathValue("id"), r.PathValue("unit"), lines)
 	if err != nil {
 		a.writeServicesError(w, err)
 		return

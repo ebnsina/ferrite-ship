@@ -90,8 +90,8 @@ type session struct {
 
 func (s *session) Close() { _ = s.client.Close() }
 
-func (s *Service) connect(ctx context.Context, serverID string) (*session, error) {
-	server, err := s.store.GetServer(ctx, serverID)
+func (s *Service) connect(ctx context.Context, userID, serverID string) (*session, error) {
+	server, err := s.store.GetServer(ctx, userID, serverID)
 	if err != nil {
 		return nil, err
 	}
@@ -144,8 +144,8 @@ type unitFileRow struct {
 	State    string `json:"state"`
 }
 
-func (s *Service) List(ctx context.Context, serverID string) ([]Unit, error) {
-	sess, err := s.connect(ctx, serverID)
+func (s *Service) List(ctx context.Context, userID, serverID string) ([]Unit, error) {
+	sess, err := s.connect(ctx, userID, serverID)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +189,7 @@ func (s *Service) List(ctx context.Context, serverID string) ([]Unit, error) {
 }
 
 // Perform runs an action, refusing the ones that would cut the server off.
-func (s *Service) Perform(ctx context.Context, serverID, unit string, action Action) error {
+func (s *Service) Perform(ctx context.Context, userID, serverID, unit string, action Action) error {
 	if !unitPattern.MatchString(unit) {
 		return ErrBadUnit
 	}
@@ -205,7 +205,7 @@ func (s *Service) Perform(ctx context.Context, serverID, unit string, action Act
 			ErrProtected, verb, unit)
 	}
 
-	sess, err := s.connect(ctx, serverID)
+	sess, err := s.connect(ctx, userID, serverID)
 	if err != nil {
 		return err
 	}
@@ -230,7 +230,7 @@ func (s *Service) Perform(ctx context.Context, serverID, unit string, action Act
 }
 
 // Logs returns the most recent journal lines for a unit, oldest first.
-func (s *Service) Logs(ctx context.Context, serverID, unit string, lines int) (string, error) {
+func (s *Service) Logs(ctx context.Context, userID, serverID, unit string, lines int) (string, error) {
 	if !unitPattern.MatchString(unit) {
 		return "", ErrBadUnit
 	}
@@ -238,7 +238,7 @@ func (s *Service) Logs(ctx context.Context, serverID, unit string, lines int) (s
 		lines = 300
 	}
 
-	sess, err := s.connect(ctx, serverID)
+	sess, err := s.connect(ctx, userID, serverID)
 	if err != nil {
 		return "", err
 	}

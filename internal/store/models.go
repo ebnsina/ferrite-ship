@@ -27,7 +27,9 @@ const (
 )
 
 type Server struct {
-	ID       string         `json:"id"`
+	ID string `json:"id"`
+	// UserID is the owner. Empty means the row predates ownership.
+	UserID   string         `json:"-"`
 	Name     string         `json:"name"`
 	Kind     ConnectionKind `json:"connectionKind"`
 	Host     string         `json:"host"`

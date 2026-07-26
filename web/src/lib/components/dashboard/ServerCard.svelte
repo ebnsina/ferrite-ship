@@ -8,6 +8,7 @@
 	import { toAppError } from '$lib/errors';
 	import { formatBytes, formatDuration, formatRelativeTime } from '$utils/format';
 	import Play from '@lucide/svelte/icons/play';
+	import RotateCw from '@lucide/svelte/icons/rotate-cw';
 	import Search from '@lucide/svelte/icons/search';
 	import Server from '@lucide/svelte/icons/server';
 	import SquareTerminal from '@lucide/svelte/icons/square-terminal';
@@ -22,6 +23,10 @@
 	const diskRatio = $derived(usageRatio(server.disk));
 	const diskTone = $derived(toneForUsage(diskRatio));
 	const isOffline = $derived(server.status === 'offline');
+
+	// A second baseline run is a re-check that repairs drift, not a setup.
+	// Calling it "Set up" on a server set up last week means nothing.
+	const setUp = $derived(server.setUpAt !== '');
 
 	let starting = $state(false);
 	let startError = $state<string | null>(null);
@@ -92,7 +97,11 @@
 
 	<div class="border-border/70 mt-4 flex items-center justify-between gap-3 border-t pt-3">
 		<p class="text-content-subtle truncate text-xs">
-			Checked {formatRelativeTime(server.lastSeenAt, { style: 'short' })}
+			{#if setUp}
+				Set up {formatRelativeTime(server.setUpAt, { style: 'short' })}
+			{:else}
+				Not set up yet
+			{/if}
 		</p>
 		<div class="flex shrink-0 items-center gap-2">
 			{#if server.connectionKind === 'ssh'}
@@ -109,9 +118,22 @@
 				<Search size={13} aria-hidden="true" />
 				Check
 			</Button>
-			<Button size="sm" variant="secondary" onclick={() => start(false)} disabled={starting}>
-				<Play size={13} aria-hidden="true" />
-				{starting ? 'Starting…' : 'Set up'}
+			<Button
+				size="sm"
+				variant={setUp ? 'ghost' : 'secondary'}
+				onclick={() => start(false)}
+				disabled={starting}
+				title={setUp
+					? 'Runs every check again and repairs anything that has drifted. Nothing changes if all is well.'
+					: 'Updates, a login account, firewall and automatic security updates.'}
+			>
+				{#if setUp}
+					<RotateCw size={13} aria-hidden="true" />
+					{starting ? 'Starting…' : 'Re-run'}
+				{:else}
+					<Play size={13} aria-hidden="true" />
+					{starting ? 'Starting…' : 'Set up'}
+				{/if}
 			</Button>
 		</div>
 	</div>

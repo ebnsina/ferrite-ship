@@ -18,14 +18,14 @@ type metricView struct {
 }
 
 func (a *API) handleMetrics(w http.ResponseWriter, r *http.Request) {
-	servers, err := a.store.ListServers(r.Context())
+	servers, err := a.store.ListServers(r.Context(), currentUser(r).ID)
 	if err != nil {
 		a.writeStoreError(w, err)
 		return
 	}
 
 	// Up to a fortnight of snapshots, oldest first.
-	samples, err := a.store.RecentSamples(r.Context(), 14)
+	samples, err := a.store.RecentSamples(r.Context(), currentUser(r).ID, 14)
 	if err != nil {
 		a.writeStoreError(w, err)
 		return

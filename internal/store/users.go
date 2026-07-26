@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+// ErrEmailTaken is returned instead of the driver's constraint message, which
+// is not something to show a person.
+var ErrEmailTaken = errors.New("that email is already in use")
+
 type User struct {
 	ID           string    `json:"id"`
 	Email        string    `json:"email"`
@@ -37,6 +41,9 @@ func (s *Store) CreateUser(ctx context.Context, user User) error {
 		INSERT INTO users (id, email, password_hash, created_at) VALUES (?,?,?,?)`,
 		user.ID, strings.ToLower(user.Email), user.PasswordHash, formatTime(user.CreatedAt))
 	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed: users.email") {
+			return ErrEmailTaken
+		}
 		return fmt.Errorf("store: insert user: %w", err)
 	}
 	return nil
@@ -114,6 +121,18 @@ func (s *Store) DeleteSession(ctx context.Context, id string) error {
 		return fmt.Errorf("store: delete session: %w", err)
 	}
 	return nil
+}
+
+// ClaimUnownedServers hands rows created before ownership existed to userID.
+// Called when the first account is made, so an existing single-user install
+// keeps its servers instead of finding them gone.
+func (s *Store) ClaimUnownedServers(ctx context.Context, userID string) (int64, error) {
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE servers SET user_id = ? WHERE user_id = ''`, userID)
+	if err != nil {
+		return 0, fmt.Errorf("store: claim servers: %w", err)
+	}
+	return result.RowsAffected()
 }
 
 // DeleteAllUsers removes every account and, by cascade, every session.

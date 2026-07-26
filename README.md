@@ -108,6 +108,13 @@ set -a && . ./.env && set +a
 go run ./cmd/ferrite-ship reset-account   # then create a new one in the browser
 ```
 
+To create an account from the command line instead — useful for the first one
+on a headless box — `adduser` generates a password and prints it once:
+
+```bash
+go run ./cmd/ferrite-ship adduser you@example.com
+```
+
 ---
 
 ## Try it without a server
@@ -306,7 +313,9 @@ FERRITE_WEB_DIR=./web/build FERRITE_ALLOWED_ORIGIN=none go run ./cmd/ferrite-shi
 
 These are the reasons this is not production software yet:
 
-- **Single account, no roles.** One person, no teams, no permissions.
+- **Single account, no roles.** One person, no teams, no permissions. Servers
+  are scoped to their owner and enforced in SQL, but row-level security waits
+  for PostgreSQL — SQLite has none.
 - **No rate limiting on sign-in.** Argon2id makes guessing expensive, but
   nothing stops an attacker trying repeatedly.
 - **SSH host keys are trusted on first use** and never verified again, which
