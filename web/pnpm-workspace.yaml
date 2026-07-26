@@ -1,5 +1,2 @@
-packages:
-  - web
-
 minimumReleaseAgeExclude:
   - svelte@5.56.8

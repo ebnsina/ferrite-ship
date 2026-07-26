@@ -10,7 +10,7 @@
 	import StatStripSkeleton from '$components/dashboard/StatStripSkeleton.svelte';
 	import { Button, Skeleton } from '$components/ui';
 	import { dashboardRepository } from '$lib/data';
-	import { formatPercent } from '$utils/format';
+	import { formatNumber } from '$utils/format';
 	import { createResource } from '$utils/resource.svelte';
 	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import CirclePlus from '@lucide/svelte/icons/circle-plus';
@@ -20,7 +20,23 @@
 	const activity = createResource((signal) => dashboardRepository.listActivity(signal));
 	const metrics = createResource((signal) => dashboardRepository.listMetrics(signal));
 
-	const uptime = $derived(metrics.data?.find((metric) => metric.id === 'uptime') ?? null);
+	// The headline reports something we actually measure. An uptime percentage
+	// would need history we do not collect yet, and a made-up figure on the
+	// first screen would undermine everything under it.
+	const total = $derived(metrics.data?.find((m) => m.id === 'servers')?.value ?? null);
+	const online = $derived(metrics.data?.find((m) => m.id === 'online')?.value ?? null);
+
+	const headline = $derived(
+		total === null || online === null ? '—' : `${formatNumber(online)} of ${formatNumber(total)}`
+	);
+
+	const heading = $derived(
+		total === 0
+			? 'No servers yet'
+			: total !== null && online === total
+				? 'Everything is looking good'
+				: 'Some servers need a look'
+	);
 </script>
 
 <svelte:head>
@@ -31,9 +47,9 @@
 
 <div class="space-y-8 px-6 py-8">
 	<PageHeading
-		title="Everything is looking good"
-		metric={uptime ? formatPercent(uptime.value, { fractionDigits: 1 }) : '—'}
-		caption="of the time your servers were up and running this week"
+		title={heading}
+		metric={headline}
+		caption="of your servers are running fine right now"
 	>
 		{#snippet actions()}
 			<Button variant="secondary" size="sm">
