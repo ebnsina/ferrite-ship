@@ -45,9 +45,13 @@ func toServerView(s store.Server) serverView {
 	if hostname == "" {
 		hostname = s.Host
 	}
-	ip := s.Facts.IPAddress
+	// Prefer the address the control plane connects on. `hostname -I` reports
+	// the first interface, which on most providers is a private address the
+	// owner would not recognise — the real server showed 10.65.x.x rather than
+	// its public IP.
+	ip := s.Host
 	if ip == "" {
-		ip = s.Host
+		ip = s.Facts.IPAddress
 	}
 
 	return serverView{

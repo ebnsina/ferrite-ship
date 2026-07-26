@@ -10,13 +10,10 @@
 
 	let { href = '/', size = 'md', class: className }: Props = $props();
 
-	const SIZES = {
-		sm: { mark: 26, text: 'text-[0.95rem]' },
-		md: { mark: 30, text: 'text-base' }
-	} as const;
+	const MARK_SIZE = { sm: 28, md: 32 } as const;
 </script>
 
-<a {href} class={cn('inline-flex items-center gap-2.5', className)}>
-	<LogoMark size={SIZES[size].mark} />
-	<span class={cn('text-content font-semibold tracking-tight', SIZES[size].text)}>Ferrite Ship</span>
+<!-- Mark only: the name is carried by the accessible label, not by set type. -->
+<a {href} class={cn('inline-flex items-center', className)} aria-label="Ferrite Ship home">
+	<LogoMark size={MARK_SIZE[size]} />
 </a>

@@ -21,13 +21,8 @@
 >
 	<div class="sticky top-0 flex h-dvh flex-col">
 		<div class="flex h-16 items-center gap-2 px-4">
-			<a href="/" class="flex items-center gap-2.5 overflow-hidden" aria-label="ferrite-ship home">
+			<a href="/" class="flex items-center" aria-label="Ferrite Ship home">
 				<LogoMark size={30} />
-				{#if !collapsed}
-					<span class="text-content truncate text-[0.95rem] font-semibold tracking-tight">
-						ferrite<span class="text-content-subtle">·</span>ship
-					</span>
-				{/if}
 			</a>
 
 			{#if !collapsed}
