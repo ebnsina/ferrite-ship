@@ -3,7 +3,7 @@
 	import { toolsClient, type Preset, type SavedQuery, type Tool } from '$lib/data/tools';
 	import { toAppError } from '$lib/errors';
 	import BookmarkPlus from '@lucide/svelte/icons/bookmark-plus';
-	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import Astroid from '@lucide/svelte/icons/astroid';
 	import X from '@lucide/svelte/icons/x';
 
 	/**
@@ -12,6 +12,9 @@
 	 * Presets exist because the useful questions — what is in here, how big is
 	 * it, what is it doing — are answered by each database's own system tables,
 	 * which is exactly the knowledge someone new to that database lacks.
+	 *
+	 * They carry the astroid mark, which is this product's icon for anything
+	 * that suggests something to you rather than doing what you asked.
 	 */
 	interface Props {
 		serverId: string;
@@ -78,7 +81,7 @@
 	{#if presets.length > 0}
 		<div class="flex flex-wrap items-center gap-2">
 			<span class="text-content-muted flex items-center gap-1.5 text-xs font-medium">
-				<Sparkles size={13} aria-hidden="true" />
+				<Astroid size={13} aria-hidden="true" />
 				Start with
 			</span>
 

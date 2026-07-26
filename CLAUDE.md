@@ -57,9 +57,9 @@ These were set by the repository owner. Follow them without being asked.
 6. **UI copy is plain language, no technical jargon.** "Not responding", not
    "unreachable". Every dashboard section says what it shows and how to read it.
 7. **Use icons generously** (`@lucide/svelte`, per-icon imports). Anything
-   AI-related uses **`astroid`** — the four-pointed star, which lucide itself
-   tags for artificial intelligence. Not `Sparkles` (already used for the
-   console's query presets, where it does not mean AI), not `Bot`, not `Brain`.
+   AI-flavoured or suggestion-flavoured uses **`astroid`** — the four-pointed
+   star, which lucide itself tags for artificial intelligence. That includes
+   the query console's presets. Never `Sparkles`, `Bot`, `Brain` or `Wand`.
    Note the spelling: "astroid", not "asteroid".
 8. **Never invent data.** No fabricated metrics, adoption numbers, testimonials
    or trends. Where history is missing, return an empty series and let the UI
