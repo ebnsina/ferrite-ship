@@ -13,6 +13,8 @@ import (
 type startJobRequest struct {
 	Kind  string `json:"kind"`
 	Actor string `json:"actor"`
+	// DryRun runs every check and reports what would change, altering nothing.
+	DryRun bool `json:"dryRun"`
 }
 
 func (a *API) handleStartJob(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +35,7 @@ func (a *API) handleStartJob(w http.ResponseWriter, r *http.Request) {
 		req.Actor = "You"
 	}
 
-	job, err := a.runner.StartBaseline(r.Context(), r.PathValue("id"), req.Actor)
+	job, err := a.runner.StartBaseline(r.Context(), r.PathValue("id"), req.Actor, req.DryRun)
 	switch {
 	case errors.Is(err, runner.ErrAlreadyRunning):
 		a.writeError(w, http.StatusConflict, "conflict",

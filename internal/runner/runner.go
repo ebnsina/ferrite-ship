@@ -62,7 +62,9 @@ var ErrAlreadyRunning = errors.New("a job is already running on this server")
 
 // StartBaseline queues the first-run playbook and returns as soon as the job
 // row exists, so the caller can redirect to the log view immediately.
-func (r *Runner) StartBaseline(ctx context.Context, serverID, actor string) (store.Job, error) {
+func (r *Runner) StartBaseline(
+	ctx context.Context, serverID, actor string, dryRun bool,
+) (store.Job, error) {
 	server, err := r.store.GetServer(ctx, serverID)
 	if err != nil {
 		return store.Job{}, err
@@ -76,11 +78,16 @@ func (r *Runner) StartBaseline(ctx context.Context, serverID, actor string) (sto
 	r.running[serverID] = true
 	r.runningMu.Unlock()
 
+	kind, title := "baseline", "Setting up "+server.Name
+	if dryRun {
+		kind, title = "baseline-check", "Checking "+server.Name+" (no changes)"
+	}
+
 	job := store.Job{
 		ID:        newID("job"),
 		ServerID:  serverID,
-		Kind:      "baseline",
-		Title:     "Setting up " + server.Name,
+		Kind:      kind,
+		Title:     title,
 		Actor:     actor,
 		Status:    store.JobRunning,
 		StartedAt: time.Now().UTC(),
@@ -92,7 +99,7 @@ func (r *Runner) StartBaseline(ctx context.Context, serverID, actor string) (sto
 	}
 
 	// Detached context: the run must outlive the HTTP request that started it.
-	go r.execute(context.WithoutCancel(ctx), server, job)
+	go r.execute(context.WithoutCancel(ctx), server, job, dryRun)
 
 	return job, nil
 }
@@ -103,7 +110,9 @@ func (r *Runner) markDone(serverID string) {
 	r.runningMu.Unlock()
 }
 
-func (r *Runner) execute(parent context.Context, server store.Server, job store.Job) {
+func (r *Runner) execute(
+	parent context.Context, server store.Server, job store.Job, dryRun bool,
+) {
 	defer r.markDone(server.ID)
 
 	ctx, cancel := context.WithTimeout(parent, runTimeout)
@@ -132,8 +141,23 @@ func (r *Runner) execute(parent context.Context, server store.Server, job store.
 		})
 	})
 
-	playbook := steps.Baseline(steps.BaselineOptions{})
-	summary := r.runPlaybook(ctx, session, playbook, emitter)
+	// Work out up front whether this account can make changes at all. Failing
+	// here reads far better than every step failing with "permission denied".
+	privilege, err := steps.DetectPrivilege(ctx, exec)
+	if err != nil {
+		emitter.emit(ctx, store.Event{
+			Type: EventLog, Level: string(steps.LevelError), Message: err.Error(),
+		})
+		r.finish(ctx, emitter, server, job, store.JobFailed, err, steps.Summary{DryRun: dryRun})
+		return
+	}
+	session = session.WithPrivilege(privilege)
+	if privilege == steps.PrivilegeSudo {
+		session.Log(steps.LevelInfo, "Using sudo, since this account is not root.")
+	}
+
+	playbook := steps.Baseline(steps.BaselineOptions{PublicKey: server.PublicKey})
+	summary := r.runPlaybook(ctx, session, playbook, emitter, dryRun)
 
 	// Refresh facts whatever the outcome — even a failed run tells us something
 	// about the machine.
@@ -160,8 +184,9 @@ func (r *Runner) execute(parent context.Context, server store.Server, job store.
 
 func (r *Runner) runPlaybook(
 	ctx context.Context, session *steps.Session, playbook []steps.Step, emitter *emitter,
+	dryRun bool,
 ) steps.Summary {
-	var summary steps.Summary
+	summary := steps.Summary{DryRun: dryRun}
 
 	for _, step := range playbook {
 		if ctx.Err() != nil {
@@ -172,7 +197,7 @@ func (r *Runner) runPlaybook(
 			Type: EventStepStarted, StepID: step.ID(), StepTitle: step.Title(),
 		})
 
-		outcome, err := runStep(ctx, session, step)
+		outcome, err := runStep(ctx, session, step, dryRun)
 		switch outcome {
 		case steps.OutcomeChanged:
 			summary.Changed++
@@ -180,6 +205,8 @@ func (r *Runner) runPlaybook(
 			summary.Unchanged++
 		case steps.OutcomeSkipped:
 			summary.Skipped++
+		case steps.OutcomeWouldChange:
+			summary.WouldChange++
 		case steps.OutcomeFailed:
 			summary.Failed++
 			if summary.FirstError == nil {
@@ -205,7 +232,9 @@ func (r *Runner) runPlaybook(
 	return summary
 }
 
-func runStep(ctx context.Context, session *steps.Session, step steps.Step) (steps.Outcome, error) {
+func runStep(
+	ctx context.Context, session *steps.Session, step steps.Step, dryRun bool,
+) (steps.Outcome, error) {
 	reason, err := step.SkipReason(ctx, session)
 	if err != nil {
 		return steps.OutcomeFailed, err
@@ -222,6 +251,11 @@ func runStep(ctx context.Context, session *steps.Session, step steps.Step) (step
 	if done {
 		session.Log(steps.LevelInfo, "Already done — nothing to change.")
 		return steps.OutcomeUnchanged, nil
+	}
+
+	if dryRun {
+		session.Log(steps.LevelInfo, "This would be changed. Nothing was altered.")
+		return steps.OutcomeWouldChange, nil
 	}
 
 	if err := step.Apply(ctx, session); err != nil {
@@ -243,7 +277,7 @@ func (r *Runner) finish(
 	job.FinishedAt = &finishedAt
 	job.Changed = summary.Changed
 	job.Unchanged = summary.Unchanged
-	job.Skipped = summary.Skipped
+	job.Skipped = summary.Skipped + summary.WouldChange
 	job.Failed = summary.Failed
 	if runErr != nil {
 		job.Error = runErr.Error()

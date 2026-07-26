@@ -10,6 +10,7 @@ import CircleX from '@lucide/svelte/icons/circle-x';
 import Hourglass from '@lucide/svelte/icons/hourglass';
 import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 import Minus from '@lucide/svelte/icons/minus';
+import PencilLine from '@lucide/svelte/icons/pencil-line';
 import PlugZap from '@lucide/svelte/icons/plug-zap';
 import type { Component } from 'svelte';
 
@@ -42,5 +43,6 @@ export const STEP_OUTCOME: Record<StepOutcome, StatusPresentation> = {
 	changed: { label: 'Changed', tone: 'ok', icon: CircleCheck },
 	unchanged: { label: 'Already fine', tone: 'pending', icon: Minus },
 	skipped: { label: 'Not needed', tone: 'info', icon: CircleDashed },
+	'would-change': { label: 'Would change', tone: 'warn', icon: PencilLine },
 	failed: { label: 'Failed', tone: 'error', icon: CircleX }
 };

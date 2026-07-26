@@ -26,7 +26,7 @@ export type JobEventType =
 
 export type LogLevel = 'command' | 'output' | 'info' | 'changed' | 'skipped' | 'error';
 
-export type StepOutcome = 'changed' | 'unchanged' | 'skipped' | 'failed';
+export type StepOutcome = 'changed' | 'unchanged' | 'skipped' | 'would-change' | 'failed';
 
 export interface JobEvent {
 	id: number;

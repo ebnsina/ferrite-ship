@@ -100,6 +100,10 @@ type createServerRequest struct {
 	Region     string `json:"region"`
 	Password   string `json:"password"`
 	PrivateKey string `json:"privateKey"`
+	// PublicKey is installed for the admin account the baseline creates.
+	// Without one that account cannot be logged into, and password logins are
+	// left on rather than locking the owner out.
+	PublicKey string `json:"publicKey"`
 }
 
 func (a *API) handleCreateServer(w http.ResponseWriter, r *http.Request) {
@@ -128,6 +132,7 @@ func (a *API) handleCreateServer(w http.ResponseWriter, r *http.Request) {
 		Region:    strings.TrimSpace(req.Region),
 		Status:    store.StatusUnknown,
 		Services:  []string{},
+		PublicKey: strings.TrimSpace(req.PublicKey),
 		CreatedAt: time.Now().UTC(),
 	}
 

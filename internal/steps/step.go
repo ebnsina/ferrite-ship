@@ -14,7 +14,10 @@ const (
 	OutcomeUnchanged Outcome = "unchanged"
 	// OutcomeSkipped means a precondition said this step does not apply here.
 	OutcomeSkipped Outcome = "skipped"
-	OutcomeFailed  Outcome = "failed"
+	// OutcomeWouldChange is only produced by a dry run: Check said the work is
+	// outstanding, and Apply was deliberately not called.
+	OutcomeWouldChange Outcome = "would-change"
+	OutcomeFailed      Outcome = "failed"
 )
 
 // Step is one unit of convergence. Check asks "is this already true?"; Apply

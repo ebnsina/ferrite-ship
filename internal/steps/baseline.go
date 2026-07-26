@@ -113,7 +113,14 @@ func Baseline(opts BaselineOptions) []Step {
 				[]string{
 					`ufw --force default deny incoming`,
 					`ufw --force default allow outgoing`,
-					`ufw allow OpenSSH`,
+					// The OpenSSH profile only covers port 22. Ask sshd which
+					// port it is actually on and allow that too — enabling the
+					// firewall without this cuts off a server running SSH
+					// anywhere else, including the connection doing the work.
+					`SSH_PORT="$(sshd -T 2>/dev/null | awk '/^port /{print $2}' | head -n1)"; ufw allow "${SSH_PORT:-22}"/tcp`,
+					// Tolerated: the profile is absent on some minimal images,
+					// and the explicit port rule above already covers us.
+					`ufw allow OpenSSH || true`,
 				},
 				append(allowPortCommands(o.OpenPorts), `ufw --force enable`)...,
 			),
@@ -140,11 +147,11 @@ func Baseline(opts BaselineOptions) []Step {
 			apply: []string{`timedatectl set-timezone ` + shellQuote(o.Timezone)},
 		},
 		shellStep{
-			id:          "swap",
-			title:       "Add breathing room when memory runs short",
-			skipIf:      `swapon --show --noheadings 2>/dev/null | grep -q .`,
-			skipMessage: "This server already has swap space, so we left it alone.",
-			check:       `swapon --show --noheadings 2>/dev/null | grep -q .`,
+			id:    "swap",
+			title: "Add breathing room when memory runs short",
+			// No skipIf: swap already existing is "already fine", not "not
+			// needed here", and the check below says so with the right word.
+			check: `swapon --show --noheadings 2>/dev/null | grep -q .`,
 			apply: []string{
 				`fallocate -l ` + itoa(o.SwapSizeGB) + `G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=` + itoa(o.SwapSizeGB*1024),
 				`chmod 600 /swapfile`,

@@ -41,6 +41,10 @@ type Server struct {
 	CreatedAt  time.Time  `json:"createdAt"`
 	LastSeenAt *time.Time `json:"lastSeenAt"`
 
+	// PublicKey is installed for the admin account. Public by nature, so it is
+	// stored as-is rather than sealed.
+	PublicKey string `json:"publicKey"`
+
 	// Sealed credentials. Never serialised to the API.
 	SealedPassword   string `json:"-"`
 	SealedPrivateKey string `json:"-"`

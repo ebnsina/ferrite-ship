@@ -26,13 +26,14 @@
 	let authMethod = $state<'privateKey' | 'password'>('privateKey');
 	let privateKey = $state('');
 	let password = $state('');
+	let publicKey = $state('');
 
 	let submitting = $state(false);
 	let error = $state<AppError | null>(null);
 
 	const isSSH = $derived(kind === 'ssh');
 
-	async function connect(runSetup: boolean) {
+	async function connect(action: 'setup' | 'check' | 'none') {
 		if (submitting) return;
 
 		error = null;
@@ -43,6 +44,7 @@
 				name: name.trim(),
 				connectionKind: kind,
 				region: region.trim() || undefined,
+				publicKey: publicKey.trim() || undefined,
 				...(isSSH
 					? {
 							host: host.trim(),
@@ -55,12 +57,14 @@
 					: {})
 			});
 
-			if (!runSetup) {
+			if (action === 'none') {
 				await goto('/dashboard/servers');
 				return;
 			}
 
-			const job = await dashboardCommands.startBaseline(server.id);
+			const job = await dashboardCommands.startBaseline(server.id, {
+				dryRun: action === 'check'
+			});
 			await goto(`/dashboard/jobs/${job.id}`);
 		} catch (cause) {
 			error = toAppError(cause);
@@ -97,7 +101,7 @@
 		class="space-y-6"
 		onsubmit={(event) => {
 			event.preventDefault();
-			void connect(true);
+			void connect('setup');
 		}}
 	>
 		<fieldset class="space-y-3">
@@ -136,6 +140,16 @@
 				bind:value={region}
 				placeholder="Frankfurt"
 				hint="Optional. Where the machine lives."
+			/>
+
+			<TextArea
+				label="Your public key"
+				bind:value={publicKey}
+				rows={3}
+				autocomplete="off"
+				spellcheck={false}
+				placeholder="ssh-ed25519 AAAA... you@laptop"
+				hint="Optional, but without it the account we create cannot be logged into — and we will leave password logins on rather than lock you out."
 			/>
 
 			{#if isSSH}
@@ -208,7 +222,15 @@
 				type="button"
 				variant="secondary"
 				disabled={submitting}
-				onclick={() => void connect(false)}
+				onclick={() => void connect('check')}
+			>
+				Check only, change nothing
+			</Button>
+			<Button
+				type="button"
+				variant="ghost"
+				disabled={submitting}
+				onclick={() => void connect('none')}
 			>
 				Just connect
 			</Button>

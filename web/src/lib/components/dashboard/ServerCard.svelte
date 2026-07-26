@@ -8,6 +8,7 @@
 	import { toAppError } from '$lib/errors';
 	import { formatBytes, formatDuration, formatRelativeTime } from '$utils/format';
 	import Play from '@lucide/svelte/icons/play';
+	import Search from '@lucide/svelte/icons/search';
 	import Server from '@lucide/svelte/icons/server';
 
 	interface Props {
@@ -24,13 +25,13 @@
 	let starting = $state(false);
 	let startError = $state<string | null>(null);
 
-	async function runSetup() {
+	async function start(dryRun: boolean) {
 		if (starting) return;
 		starting = true;
 		startError = null;
 
 		try {
-			const job = await dashboardCommands.startBaseline(server.id);
+			const job = await dashboardCommands.startBaseline(server.id, { dryRun });
 			await goto(`/dashboard/jobs/${job.id}`);
 		} catch (cause) {
 			startError = toAppError(cause).message;
@@ -85,10 +86,16 @@
 		<p class="text-content-subtle truncate text-xs">
 			Checked {formatRelativeTime(server.lastSeenAt, { style: 'short' })}
 		</p>
-		<Button size="sm" variant="secondary" onclick={runSetup} disabled={starting}>
-			<Play size={13} aria-hidden="true" />
-			{starting ? 'Starting…' : 'Set up'}
-		</Button>
+		<div class="flex shrink-0 items-center gap-2">
+			<Button size="sm" variant="ghost" onclick={() => start(true)} disabled={starting}>
+				<Search size={13} aria-hidden="true" />
+				Check
+			</Button>
+			<Button size="sm" variant="secondary" onclick={() => start(false)} disabled={starting}>
+				<Play size={13} aria-hidden="true" />
+				{starting ? 'Starting…' : 'Set up'}
+			</Button>
+		</div>
 	</div>
 
 	{#if startError}

@@ -8,6 +8,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "modernc.org/sqlite" // pure-Go driver: no cgo, no system SQLite
 )
@@ -30,6 +31,7 @@ CREATE TABLE IF NOT EXISTS servers (
 	services_json      TEXT NOT NULL DEFAULT '[]',
 	sealed_password    TEXT NOT NULL DEFAULT '',
 	sealed_private_key TEXT NOT NULL DEFAULT '',
+	public_key         TEXT NOT NULL DEFAULT '',
 	created_at         TEXT NOT NULL,
 	last_seen_at       TEXT
 );
@@ -102,7 +104,31 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("store: apply schema: %w", err)
 	}
 
+	if err := migrate(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+
 	return &Store{db: db}, nil
+}
+
+// migrations are additive statements applied to databases created before the
+// column existed. CREATE TABLE IF NOT EXISTS cannot add columns, so each one
+// is attempted and a "duplicate column" reply is treated as success.
+var migrations = []string{
+	`ALTER TABLE servers ADD COLUMN public_key TEXT NOT NULL DEFAULT ''`,
+}
+
+func migrate(db *sql.DB) error {
+	for _, statement := range migrations {
+		if _, err := db.Exec(statement); err != nil {
+			if strings.Contains(err.Error(), "duplicate column") {
+				continue
+			}
+			return fmt.Errorf("store: migrate %q: %w", statement, err)
+		}
+	}
+	return nil
 }
 
 func (s *Store) Close() error { return s.db.Close() }

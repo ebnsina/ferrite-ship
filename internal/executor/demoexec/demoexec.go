@@ -122,6 +122,7 @@ var factOutputs = map[string]string{
 	"uptime":      "184320.42",
 	"ip":          "203.0.113.10",
 	"loadaverage": "0.42",
+	"whoami":      "root",
 }
 
 func (m *Machine) Run(ctx context.Context, cmd string) (executor.Result, error) {
@@ -167,6 +168,9 @@ func (m *Machine) Run(ctx context.Context, cmd string) (executor.Result, error) 
 // distinctive fragments rather than the whole command.
 func (m *Machine) factCommand(cmd string) (string, bool) {
 	switch {
+	case strings.Contains(cmd, "whoami"):
+		// The imaginary machine is entered as root, so no sudo wrapping.
+		return factOutputs["whoami"], true
 	case strings.Contains(cmd, "PRETTY_NAME"):
 		return factOutputs["os"], true
 	case strings.Contains(cmd, "uname -r"):

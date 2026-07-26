@@ -7,12 +7,17 @@ import type { ManagedServer } from '$types/server';
 /** What the user can ask the control plane to do, as opposed to read. */
 export interface DashboardCommands {
 	connectServer(input: ConnectServerInput, signal?: AbortSignal): Promise<ManagedServer>;
-	startBaseline(serverId: string, signal?: AbortSignal): Promise<Job>;
+	startBaseline(serverId: string, options?: StartJobOptions, signal?: AbortSignal): Promise<Job>;
 	getJob(jobId: string, signal?: AbortSignal): Promise<Job>;
 	removeServer(serverId: string, signal?: AbortSignal): Promise<void>;
 }
 
 export type ConnectionKind = 'demo' | 'ssh';
+
+export interface StartJobOptions {
+	/** Run every check and report what would change, altering nothing. */
+	dryRun?: boolean;
+}
 
 export interface ConnectServerInput {
 	name: string;
@@ -23,16 +28,18 @@ export interface ConnectServerInput {
 	region?: string;
 	password?: string;
 	privateKey?: string;
+	/** Installed for the account the setup creates, so you can log in as it. */
+	publicKey?: string;
 }
 
 const apiCommands: DashboardCommands = {
 	connectServer: (input, signal) =>
 		apiRequest<ManagedServer>('/v1/servers', { method: 'POST', body: input, signal }),
 
-	startBaseline: (serverId, signal) =>
+	startBaseline: (serverId, options, signal) =>
 		apiRequest<Job>(`/v1/servers/${encodeURIComponent(serverId)}/jobs`, {
 			method: 'POST',
-			body: { kind: 'baseline' },
+			body: { kind: 'baseline', dryRun: options?.dryRun ?? false },
 			signal
 		}),
 
