@@ -56,7 +56,11 @@ These were set by the repository owner. Follow them without being asked.
    async views loading/error/retry.
 6. **UI copy is plain language, no technical jargon.** "Not responding", not
    "unreachable". Every dashboard section says what it shows and how to read it.
-7. **Use icons generously** (`@lucide/svelte`, per-icon imports).
+7. **Use icons generously** (`@lucide/svelte`, per-icon imports). Anything
+   AI-related uses **`astroid`** — the four-pointed star, which lucide itself
+   tags for artificial intelligence. Not `Sparkles` (already used for the
+   console's query presets, where it does not mean AI), not `Bot`, not `Brain`.
+   Note the spelling: "astroid", not "asteroid".
 8. **Never invent data.** No fabricated metrics, adoption numbers, testimonials
    or trends. Where history is missing, return an empty series and let the UI
    omit the chart. Placeholder content must be marked as such in its module.
