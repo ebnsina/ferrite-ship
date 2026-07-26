@@ -64,7 +64,13 @@
 	// down. Reset after the DOM has settled rather than before it.
 	$effect(() => {
 		if (!open) return;
-		requestAnimationFrame(() => body?.scrollTo({ top: 0 }));
+		requestAnimationFrame(() => {
+			body?.scrollTo({ top: 0 });
+			// Belt and braces: overflow-hidden should stop the dialog scrolling
+			// at all, but a stray scroll here hides the panel completely rather
+			// than merely misplacing it, so it is worth undoing explicitly.
+			if (dialog) dialog.scrollTop = 0;
+		});
 	});
 
 	function requestClose(event?: Event) {
@@ -83,7 +89,20 @@
 	oncancel={requestClose}
 	onclose={() => open && requestClose()}
 	class={cn(
-		'text-content m-0 ml-auto h-dvh max-h-dvh w-full bg-transparent p-0',
+		// Anchored to the top and bottom edges rather than given a height.
+		//
+		// `h-dvh` looks equivalent and is not: anything that reduces the space
+		// a dialog actually gets — a browser notification bar, an extension
+		// banner, a translate prompt — leaves the panel taller than the room
+		// it has, and the first thing to fall off the bottom is the footer with
+		// the submit button in it. Pinning both edges cannot overflow.
+		// overflow-hidden matters as much as the positioning: a <dialog> is
+		// itself a scroll container, so the browser scrolling a checked radio
+		// into view scrolls the dialog rather than the body region inside it.
+		// The panel then sits hundreds of pixels above the viewport and the
+		// sheet renders as an empty backdrop. Exactly one thing here scrolls,
+		// and it is the middle region.
+		'text-content fixed inset-y-0 right-0 left-auto m-0 h-auto max-h-none w-full overflow-hidden bg-transparent p-0',
 		'backdrop:bg-black/50 backdrop:backdrop-blur-sm',
 		WIDTHS[size]
 	)}
@@ -92,7 +111,7 @@
 		<!-- grid-rows so the middle region is the only thing that scrolls: the
 		     header and the actions stay put however long the form gets. -->
 		<div
-			class="border-border bg-surface grid h-dvh grid-rows-[auto_1fr_auto] border-l sm:rounded-l-panel"
+			class="border-border bg-surface grid h-full grid-rows-[auto_1fr_auto] overflow-hidden border-l sm:rounded-l-panel"
 		>
 			<header class="border-border flex items-start gap-4 border-b px-6 py-5">
 				<div class="min-w-0 flex-1">
@@ -113,7 +132,13 @@
 				</Button>
 			</header>
 
-			<div bind:this={body} class="overflow-y-auto px-6 py-6">
+			<!--
+				min-h-0 is load-bearing. A 1fr grid track is min-height:auto, so
+				without it the track grows to fit the form instead of clamping,
+				overflow-y-auto never has anything to scroll, and the whole panel
+				stretches past the bottom of the screen taking the footer with it.
+			-->
+			<div bind:this={body} class="min-h-0 overflow-y-auto px-6 py-6">
 				{@render children()}
 			</div>
 
