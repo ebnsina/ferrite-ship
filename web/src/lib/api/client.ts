@@ -1,3 +1,4 @@
+import { goto } from '$app/navigation';
 import { env } from '$config/env';
 import { AppError, codeForStatus, describe, toAppError } from '$lib/errors';
 
@@ -74,7 +75,15 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 	}
 
 	if (!response.ok) {
-		throw await toResponseError(response);
+		const error = await toResponseError(response);
+
+		// A lost session is not something a person can retry their way out of.
+		// Send them to sign in, unless they are already there.
+		if (error.code === 'unauthorized' && !location.pathname.startsWith('/login')) {
+			void goto('/login');
+		}
+
+		throw error;
 	}
 
 	if (response.status === 204) {

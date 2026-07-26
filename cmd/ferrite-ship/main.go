@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ebnsina/ferrite-ship/internal/api"
+	"github.com/ebnsina/ferrite-ship/internal/auth"
 	"github.com/ebnsina/ferrite-ship/internal/config"
 	"github.com/ebnsina/ferrite-ship/internal/files"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
@@ -37,10 +38,36 @@ func main() {
 		return
 	}
 
+	if len(os.Args) > 1 && os.Args[1] == "reset-account" {
+		if err := resetAccount(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		fmt.Println("Account removed. Open the dashboard to create a new one.")
+		return
+	}
+
 	if err := run(log); err != nil {
 		log.Error("startup failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+// resetAccount is the way back in after a forgotten password. It needs the
+// database file, so it proves control of the machine rather than of an inbox.
+func resetAccount() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+
+	st, err := store.Open(cfg.DatabasePath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = st.Close() }()
+
+	return st.DeleteAllUsers(context.Background())
 }
 
 func run(log *slog.Logger) error {
@@ -65,6 +92,7 @@ func run(log *slog.Logger) error {
 	terminals := terminal.NewService(st, sealer)
 	fileBrowser := files.NewService(st, sealer)
 	units := services.NewService(st, sealer)
+	accounts := auth.NewService(st)
 
 	restAPI := api.New(api.Options{
 		Store:         st,
@@ -74,6 +102,7 @@ func run(log *slog.Logger) error {
 		Terminals:     terminals,
 		Files:         fileBrowser,
 		Services:      units,
+		Auth:          accounts,
 		Logger:        log,
 		AllowedOrigin: cfg.AllowedOrigin,
 	})

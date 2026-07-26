@@ -85,6 +85,24 @@ CREATE TABLE IF NOT EXISTS fleet_samples (
 );
 
 CREATE INDEX IF NOT EXISTS fleet_samples_at_idx ON fleet_samples(at DESC);
+
+-- Single-user for now, but a table rather than a config value: multi-tenancy
+-- is on the roadmap and moving from one row to many should not be a rewrite.
+CREATE TABLE IF NOT EXISTS users (
+	id            TEXT PRIMARY KEY,
+	email         TEXT NOT NULL UNIQUE,
+	password_hash TEXT NOT NULL,
+	created_at    TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+	id         TEXT PRIMARY KEY,
+	user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	created_at TEXT NOT NULL,
+	expires_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS sessions_expires_at_idx ON sessions(expires_at);
 `
 
 func Open(path string) (*Store, error) {

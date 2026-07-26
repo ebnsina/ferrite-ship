@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/ebnsina/ferrite-ship/internal/auth"
 	"github.com/ebnsina/ferrite-ship/internal/files"
 	"github.com/ebnsina/ferrite-ship/internal/ids"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
@@ -25,6 +26,7 @@ type API struct {
 	terminals *terminal.Service
 	files     *files.Service
 	services  *services.Service
+	auth      *auth.Service
 	log       *slog.Logger
 
 	allowedOrigin string
@@ -41,6 +43,7 @@ type Options struct {
 	Terminals     *terminal.Service
 	Files         *files.Service
 	Services      *services.Service
+	Auth          *auth.Service
 	Logger        *slog.Logger
 	AllowedOrigin string
 }
@@ -54,6 +57,7 @@ func New(opts Options) *API {
 		terminals:     opts.Terminals,
 		files:         opts.Files,
 		services:      opts.Services,
+		auth:          opts.Auth,
 		log:           opts.Logger,
 		allowedOrigin: opts.AllowedOrigin,
 	}
@@ -67,9 +71,17 @@ func New(opts Options) *API {
 
 // Routes returns the API handler. Static assets are mounted separately.
 func (a *API) Routes() http.Handler {
-	mux := http.NewServeMux()
+	// Open: liveness, and the endpoints you need before you have a session.
+	open := http.NewServeMux()
+	open.HandleFunc("GET /v1/health", a.handleHealth)
+	open.HandleFunc("GET /v1/auth/status", a.handleAuthStatus)
+	open.HandleFunc("POST /v1/auth/setup", a.handleSetup)
+	open.HandleFunc("POST /v1/auth/login", a.handleLogin)
+	open.HandleFunc("POST /v1/auth/logout", a.handleLogout)
 
-	mux.HandleFunc("GET /v1/health", a.handleHealth)
+	// Everything that touches a server sits behind a session, so no individual
+	// handler has to remember to check.
+	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /v1/servers", a.handleListServers)
 	mux.HandleFunc("GET /v1/servers/{id}", a.handleGetServer)
@@ -95,7 +107,9 @@ func (a *API) Routes() http.Handler {
 	mux.HandleFunc("GET /v1/activity", a.handleActivity)
 	mux.HandleFunc("GET /v1/metrics", a.handleMetrics)
 
-	return a.withCORS(mux)
+	open.Handle("/v1/", a.requireSession(mux))
+
+	return a.withCORS(open)
 }
 
 // withCORS allows the dev frontend on its own origin to call the API.

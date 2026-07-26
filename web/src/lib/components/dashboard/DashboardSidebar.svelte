@@ -1,12 +1,36 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import LogoMark from '$components/brand/LogoMark.svelte';
 	import { dashboardNavGroups } from '$lib/content/navigation';
 	import { cn } from '$utils/cn';
+	import { authClient } from '$lib/data/auth';
 	import CirclePlus from '@lucide/svelte/icons/circle-plus';
+	import LogOut from '@lucide/svelte/icons/log-out';
 	import PanelLeft from '@lucide/svelte/icons/panel-left';
 
 	let collapsed = $state(false);
+	let email = $state<string | null>(null);
+	let signingOut = $state(false);
+
+	async function signOut() {
+		if (signingOut) return;
+		signingOut = true;
+		try {
+			await authClient.logout();
+		} finally {
+			// Leave regardless: if the call failed the cookie may still be gone,
+			// and stranding someone on a dashboard they cannot use is worse.
+			await goto('/login');
+		}
+	}
+
+	$effect(() => {
+		void authClient
+			.status()
+			.then((status) => (email = status.email ?? null))
+			.catch(() => (email = null));
+	});
 
 	function isActive(href: string, pathname: string): boolean {
 		return href === '/dashboard' ? pathname === href : pathname.startsWith(href);
@@ -84,7 +108,27 @@
 			{/each}
 		</nav>
 
-		<div class="border-border/70 border-t p-3">
+		<div class="border-border/70 space-y-0.5 border-t p-3">
+			{#if email && !collapsed}
+				<p class="text-content-subtle truncate px-3 pb-1 text-xs" title={email}>{email}</p>
+			{/if}
+
+			<button
+				type="button"
+				onclick={signOut}
+				disabled={signingOut}
+				title={collapsed ? 'Sign out' : undefined}
+				class={cn(
+					'text-content-muted hover:bg-surface-sunken hover:text-content flex w-full items-center gap-3 rounded-tile px-3 py-2 text-sm transition-colors duration-150',
+					collapsed && 'justify-center px-0'
+				)}
+			>
+				<LogOut size={17} aria-hidden="true" class="shrink-0" />
+				{#if !collapsed}
+					<span class="truncate">{signingOut ? 'Signing out…' : 'Sign out'}</span>
+				{/if}
+			</button>
+
 			<a
 				href="/dashboard/servers/new"
 				title={collapsed ? 'Connect a server' : undefined}

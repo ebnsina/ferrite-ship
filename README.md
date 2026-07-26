@@ -4,10 +4,9 @@ Connect a fresh Ubuntu server, get it set up safely in minutes, then manage it
 from a browser — files, services, updates, storage — without memorising another
 `apt` incantation.
 
-> **Status: early. Not ready for a server you care about.**
-> There is no authentication yet, SSH host keys are trusted on first use, and
-> the product is single-tenant. See [Known limits](#known-limits) before
-> pointing this at anything real.
+> **Status: early.** SSH host keys are trusted on first use and the product is
+> single-tenant. See [Known limits](#known-limits) before pointing this at
+> anything you care about.
 
 ---
 
@@ -98,7 +97,16 @@ pnpm install
 pnpm dev
 ```
 
-Open <http://localhost:5173>.
+Open <http://localhost:5173>. The first visit asks you to create an account;
+after that it is a sign-in page, and only one account can be created this way.
+
+Forgotten the password? There is no reset over the network — that would be a
+second way in. Instead, prove you control the machine:
+
+```bash
+set -a && . ./.env && set +a
+go run ./cmd/ferrite-ship reset-account   # then create a new one in the browser
+```
 
 ---
 
@@ -222,6 +230,7 @@ rather than drawing a trend that was never measured.
 ├── cmd/ferrite-ship/   Entry point
 ├── internal/
 │   ├── api/            HTTP handlers, SSE, static hosting
+│   ├── auth/           Passwords and sessions
 │   ├── config/         Environment loading and validation
 │   ├── executor/       Command transport (ssh, demo)
 │   ├── facts/          Reading what a server is and how busy it is
@@ -244,6 +253,10 @@ multi-tenancy arrives is a change to `internal/store` alone.
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/v1/health` | Liveness |
+| `GET` | `/v1/auth/status` | Whether setup is needed and who is signed in |
+| `POST` | `/v1/auth/setup` | Create the first and only account |
+| `POST` | `/v1/auth/login` | Sign in |
+| `POST` | `/v1/auth/logout` | Sign out |
 | `GET` | `/v1/servers` | List servers |
 | `POST` | `/v1/servers` | Connect a server |
 | `DELETE` | `/v1/servers/{id}` | Remove a server |
@@ -261,6 +274,8 @@ multi-tenancy arrives is a change to `internal/store` alone.
 | `POST` | `/v1/servers/{id}/services/{unit}/actions` | Start, stop or restart a service |
 | `GET` | `/v1/servers/{id}/services/{unit}/logs` | Read a service's journal |
 | `GET` | `/v1/metrics` | Fleet metrics |
+
+Everything except `/v1/health` and `/v1/auth/*` requires a session cookie.
 
 Errors share one envelope: `{ "code", "message", "request_id" }`.
 
@@ -291,9 +306,9 @@ FERRITE_WEB_DIR=./web/build FERRITE_ALLOWED_ORIGIN=none go run ./cmd/ferrite-shi
 
 These are the reasons this is not production software yet:
 
-- **No authentication.** Anyone who can reach the API can control every
-  connected server, including opening a root shell on it. Bind to loopback and
-  do not expose it.
+- **Single account, no roles.** One person, no teams, no permissions.
+- **No rate limiting on sign-in.** Argon2id makes guessing expensive, but
+  nothing stops an attacker trying repeatedly.
 - **SSH host keys are trusted on first use** and never verified again, which
   leaves the first connection open to interception. Pinning is required before
   this is used across an untrusted network.
