@@ -162,6 +162,17 @@ implementation.
 
 ## Gotchas
 
+- **Check where an image keeps its data before pinning a volume.** PostgreSQL
+  18 moved `PGDATA` to `/var/lib/postgresql/18/docker` and the image's `VOLUME`
+  with it. Mounting the familiar `/var/lib/postgresql/data` leaves the database
+  writing inside the container, and every row disappears the next time it is
+  recreated — with no error at any point.
+- **`ufw --force` belongs only on `enable`, `reset` and `delete`.** On `allow`
+  it is rejected as `ERROR: Invalid syntax`. On `delete` it is required, or ufw
+  waits at a `Proceed with operation (y|n)?` prompt nobody can answer.
+- **Docker's published ports bypass ufw entirely**, so the firewall is not what
+  keeps a database private — binding it to `127.0.0.1` in the compose file is.
+  Treat the ufw rules as intent, and the bind address as the control.
 - **Do not delete-and-recreate a source file to rewrite it.** Vite keeps
   serving the old transform, so the browser shows stale code while the file on
   disk is correct — and you end up debugging code that is already right. Edit

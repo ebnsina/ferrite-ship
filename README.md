@@ -20,6 +20,13 @@ from a browser — files, services, updates, storage — without memorising anot
   dashboard as it runs.
 - **Run it again safely.** A second run of the same playbook changes nothing
   and says so.
+- **Install what you actually need** — PostgreSQL, Redis, ClickHouse or
+  MediaMTX, each with a generated password and a connection string you can
+  copy. Databases listen on loopback only and are reached over an SSH tunnel
+  the dashboard writes out for you; a media server is public, because a stream
+  nobody can watch is not a stream.
+- **Take them away again.** Removing keeps your data unless you ask for it to
+  go, and says which it is doing before you agree.
 - **Open a real shell in the browser** — a PTY over SSH, with resize, colour
   and full-screen programs.
 - **Browse and edit files** over SFTP: navigate, open a config, save it back
@@ -250,6 +257,23 @@ type Executor interface {
 Two implementations exist today — real SSH, and the simulated machine. A
 long-lived agent is planned, and the step engine will not change when it lands.
 
+### The catalogue
+
+Each installable tool is a Docker Compose project under `/opt/ferrite/<id>`, so
+one mechanism installs, inspects, restarts and removes all of them, and you can
+read the file on your own server to see exactly what is running. Adding a tool
+is a data change in `internal/catalog` rather than new code anywhere else.
+
+The compose file holds no secret: generated passwords go in an `.env` file
+beside it, written `0600`, so the part describing what runs can be read without
+exposing the part that gets you in. Those passwords are also masked in the job
+log, which is persisted and shown in a browser — `Session` redacts at that
+boundary rather than asking each step to remember.
+
+Databases publish on `127.0.0.1` only. Note that Docker's published ports skip
+ufw entirely, so the bind address is the control here and the firewall rules
+are a statement of intent.
+
 ### Jobs and logs
 
 A job runs in the background and emits events. Each event is written to the
@@ -273,6 +297,7 @@ rather than drawing a trend that was never measured.
 │   ├── api/            HTTP handlers, SSE, static hosting
 │   ├── apierr/         Every user-facing error, in one catalogue
 │   ├── auth/           Passwords and sessions
+│   ├── catalog/        The installable tools, and their playbooks
 │   ├── config/         Environment loading and validation
 │   ├── dialer/         The one way an SSH connection is opened
 │   ├── executor/       Command transport (ssh, demo)
@@ -313,6 +338,11 @@ multi-tenancy arrives is a change to `internal/store` alone.
 | `GET` | `/v1/servers/{id}/files/content` | Read a text file |
 | `PUT` | `/v1/servers/{id}/files/content` | Save a text file |
 | `GET` | `/v1/servers/{id}/files/download` | Download a file |
+| `GET` | `/v1/catalog` | Everything installable |
+| `GET` | `/v1/servers/{id}/tools` | The catalogue, with what is installed here |
+| `POST` | `/v1/servers/{id}/tools` | Install a tool, or repair one |
+| `DELETE` | `/v1/servers/{id}/tools/{tool}` | Remove one (`?purge=true` deletes its data) |
+| `GET` | `/v1/servers/{id}/tools/{tool}/connection` | How to connect, credentials included |
 | `GET` | `/v1/servers/{id}/services` | List services |
 | `POST` | `/v1/servers/{id}/services/{unit}/actions` | Start, stop or restart a service |
 | `GET` | `/v1/servers/{id}/services/{unit}/logs` | Read a service's journal |
@@ -362,8 +392,13 @@ These are the reasons this is not production software yet:
 - **Single tenant.** No organisations, users or roles.
 - **SSH, not an agent.** Servers behind NAT are unreachable, and the control
   plane holds credentials it would rather not have.
-- **One playbook.** Baseline setup only — no application deploys, no services,
-  no backups yet.
+- **No backups.** Nothing here copies your data anywhere. Deleting a tool's
+  data is final, which is why it has to be asked for explicitly.
+- **No ingress yet.** A tool is reached over an SSH tunnel or, where it is
+  meant to be public, on its own port. There is no reverse proxy and no
+  automatic TLS, so nothing gets a domain name of its own.
+- **No application deploys.** The catalogue installs software; it does not
+  build or run your code.
 
 ## Roadmap
 
@@ -371,4 +406,4 @@ These are the reasons this is not production software yet:
 2. A long-lived agent, so credentials are not stored and NAT stops mattering
 3. Authentication, organisations and roles
 4. Day-2 operations: terminal, files, services, packages, disks
-5. One-click services, ingress with automatic TLS, backups
+5. Ingress with automatic TLS, and backups for the tools that hold data
