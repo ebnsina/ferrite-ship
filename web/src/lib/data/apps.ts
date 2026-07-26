@@ -12,6 +12,8 @@ export interface App {
 	/** Empty for an app that runs but is not published to a domain. */
 	domain: string;
 	port: number;
+	/** Whether a deploy key is stored. The key itself is never returned. */
+	hasDeployKey: boolean;
 	status: AppStatus;
 	lastJobId?: string;
 	createdAt: string;
@@ -26,6 +28,9 @@ export interface AppInput {
 	port: number;
 	/** Written to the container's environment. Sealed before it is stored. */
 	env: Record<string, string>;
+	/** A read-only SSH key for a private repository. Write-only: leaving it
+	 *  empty on an update keeps whatever is already stored. */
+	deployKey: string;
 }
 
 interface StartedJob {

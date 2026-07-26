@@ -194,6 +194,10 @@ var (
 		"We do not recognise that as a git address.",
 		"It should start with https:// or git@.")
 
+	DeployKeyRequired = newError(CodeInvalid, 400,
+		"That repository needs a key we can read it with.",
+		"Add a read-only deploy key, or use the https:// address if the repository is public.")
+
 	// Backups
 	NoBackupDestination = newError(CodeInvalid, 400,
 		"There is nowhere to put backups yet.",

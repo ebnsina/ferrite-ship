@@ -35,6 +35,11 @@ type App struct {
 
 	// SealedEnv is the whole environment as one sealed blob. Never serialised.
 	SealedEnv string `json:"-"`
+	// SealedDeployKey is a private SSH key with read access to the repository,
+	// for repositories that are not public. Never serialised.
+	SealedDeployKey string `json:"-"`
+	// HasDeployKey lets the UI say whether one is set without revealing it.
+	HasDeployKey bool `json:"hasDeployKey"`
 
 	Status    AppStatus `json:"status"`
 	LastJobID string    `json:"lastJobId,omitempty"`
@@ -44,13 +49,13 @@ type App struct {
 }
 
 const appColumns = `id, user_id, server_id, name, repository, branch, domain, port,
-	sealed_env, status, last_job_id, created_at, deployed_at`
+	sealed_env, sealed_deploy_key, status, last_job_id, created_at, deployed_at`
 
 func (s *Store) CreateApp(ctx context.Context, a App) error {
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO apps (`+appColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		INSERT INTO apps (`+appColumns+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		a.ID, a.UserID, a.ServerID, a.Name, a.Repository, a.Branch, a.Domain, a.Port,
-		a.SealedEnv, string(a.Status), a.LastJobID,
+		a.SealedEnv, a.SealedDeployKey, string(a.Status), a.LastJobID,
 		formatTime(a.CreatedAt), formatTimePtr(a.DeployedAt))
 	if err != nil {
 		return fmt.Errorf("store: create app: %w", err)
@@ -61,9 +66,13 @@ func (s *Store) CreateApp(ctx context.Context, a App) error {
 func (s *Store) UpdateApp(ctx context.Context, a App) error {
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE apps SET name = ?, repository = ?, branch = ?, domain = ?, port = ?,
-		                sealed_env = ?
+		                sealed_env = ?,
+		                -- Keep the existing key when none is supplied, the same
+		                -- as a repair keeps a generated password.
+		                sealed_deploy_key = CASE WHEN ? = '' THEN sealed_deploy_key ELSE ? END
 		WHERE id = ? AND user_id = ?`,
-		a.Name, a.Repository, a.Branch, a.Domain, a.Port, a.SealedEnv, a.ID, a.UserID)
+		a.Name, a.Repository, a.Branch, a.Domain, a.Port, a.SealedEnv,
+		a.SealedDeployKey, a.SealedDeployKey, a.ID, a.UserID)
 	if err != nil {
 		return fmt.Errorf("store: update app: %w", err)
 	}
@@ -172,10 +181,13 @@ func scanApp(row rowScanner) (App, error) {
 		deployedAt sql.NullString
 	)
 	err := row.Scan(&a.ID, &a.UserID, &a.ServerID, &a.Name, &a.Repository, &a.Branch,
-		&a.Domain, &a.Port, &a.SealedEnv, &status, &a.LastJobID, &createdAt, &deployedAt)
+		&a.Domain, &a.Port, &a.SealedEnv, &a.SealedDeployKey, &status, &a.LastJobID,
+		&createdAt, &deployedAt)
 	if err != nil {
 		return App{}, err
 	}
+
+	a.HasDeployKey = a.SealedDeployKey != ""
 
 	a.Status = AppStatus(status)
 	a.CreatedAt = parseTime(createdAt)

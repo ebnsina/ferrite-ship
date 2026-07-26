@@ -88,7 +88,27 @@ func AppSteps(a App) []steps.Step {
 		branch = "main"
 	}
 
-	return []steps.Step{
+	playbook := []steps.Step{}
+
+	if a.DeployKey != "" {
+		key := strings.TrimRight(a.DeployKey, "\n") + "\n"
+		keyFile := dir + "/deploy_key"
+
+		playbook = append(playbook, steps.Shell(steps.ShellSpec{
+			ID:    "app-key",
+			Title: "Install the key that reads " + a.Name + "'s repository",
+			Check: matches(keyFile, key),
+			Apply: append(
+				[]string{"install -d -m 700 " + steps.Quote(dir)},
+				// 600 and nothing looser: ssh refuses to use a key file that
+				// others can read, and the error it gives points at permissions
+				// rather than at the key, which sends people the wrong way.
+				write(keyFile, key, "600")...,
+			),
+		}))
+	}
+
+	return append(playbook,
 		steps.Shell(steps.ShellSpec{
 			ID:    "app-source",
 			Title: "Fetch the latest of " + a.Name,
@@ -99,7 +119,8 @@ func AppSteps(a App) []steps.Step {
 				// Clone once, then fetch. --depth 1 because deploying does not
 				// need the history, and a large repository's history is most of
 				// its size.
-				"if [ -d " + steps.Quote(src+"/.git") + " ]; then " +
+				gitEnv(a, dir) +
+					"if [ -d " + steps.Quote(src+"/.git") + " ]; then " +
 					"git -C " + steps.Quote(src) + " fetch --depth 1 origin " + steps.Quote(branch) +
 					" && git -C " + steps.Quote(src) + " reset --hard FETCH_HEAD" +
 					"; else " +
@@ -152,7 +173,22 @@ func AppSteps(a App) []steps.Step {
 				compose(dir, "up", "-d", "--force-recreate", "--wait"),
 			},
 		}),
+	)
+}
+
+// gitEnv prefixes a git command with the key to use, when there is one.
+//
+// StrictHostKeyChecking=accept-new rather than off: the host's identity is
+// recorded on first contact and checked afterwards, which is the same bargain
+// Ferrite Ship makes with the servers it manages. Turning it off entirely
+// would accept any impostor for the life of the deployment.
+func gitEnv(a App, dir string) string {
+	if a.DeployKey == "" {
+		return ""
 	}
+	return "export GIT_SSH_COMMAND=" + steps.Quote(
+		"ssh -i "+dir+"/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new",
+	) + "; "
 }
 
 // RemoveSteps stops an application and takes its files away.

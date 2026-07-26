@@ -47,6 +47,9 @@ type App struct {
 	// Env are the variables it needs, most often a database URL from a tool
 	// installed on the same machine.
 	Env map[string]string
+	// DeployKey is a private SSH key with read access to the repository. Empty
+	// for a public one.
+	DeployKey string
 }
 
 // Site is one route the proxy serves.

@@ -20,6 +20,7 @@
 	let domain = $state('');
 	let port = $state('3000');
 	let envText = $state('');
+	let deployKey = $state('');
 
 	let saving = $state(false);
 	let error = $state<string | null>(null);
@@ -34,6 +35,7 @@
 		// Existing variables are not shown: they are sealed and never returned,
 		// for the same reason storage keys are not.
 		envText = '';
+		deployKey = '';
 		error = null;
 	});
 
@@ -77,7 +79,8 @@
 			branch: branch.trim() || 'main',
 			domain: domain.trim(),
 			port: Number(port) || 3000,
-			env: parseEnv(envText)
+			env: parseEnv(envText),
+			deployKey
 		};
 
 		try {
@@ -136,7 +139,19 @@
 			bind:value={repository}
 			required
 			placeholder="https://github.com/you/your-project"
-			hint="Public repositories only for now. If it has a Dockerfile we use it; if not we work out how to build it."
+			hint="If it has a Dockerfile we use it; if not we work out how to build it. Private repositories need a key below."
+		/>
+
+		<TextArea
+			label="Deploy key"
+			bind:value={deployKey}
+			rows={4}
+			autocomplete="off"
+			spellcheck={false}
+			placeholder={'-----BEGIN OPENSSH PRIVATE KEY-----'}
+			hint={app?.hasDeployKey
+				? 'A key is already stored. Leave this empty to keep it, or paste a new one to replace it.'
+				: 'Only for a private repository. Add a read-only deploy key on the repository and paste its private half here — it is encrypted before it is stored.'}
 		/>
 
 		<div class="grid gap-5 sm:grid-cols-[1fr_8rem]">

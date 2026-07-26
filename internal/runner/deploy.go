@@ -30,9 +30,18 @@ func (r *Runner) StartDeploy(
 		return store.Job{}, err
 	}
 
+	deployKey := ""
+	if app.SealedDeployKey != "" {
+		deployKey, err = r.sealer.Open(app.SealedDeployKey)
+		if err != nil {
+			return store.Job{}, err
+		}
+	}
+
 	spec := deploy.App{
 		ID: app.ID, Name: app.Name, Repository: app.Repository,
-		Branch: app.Branch, Domain: app.Domain, Port: app.Port, Env: env,
+		Branch: app.Branch, Domain: app.Domain, Port: app.Port,
+		Env: env, DeployKey: deployKey,
 	}
 
 	job, err := r.start(ctx, server, actor, false, plan{
@@ -49,7 +58,7 @@ func (r *Runner) StartDeploy(
 			playbook = append(playbook, deploy.IngressSteps(r.sites(ctx, app.ServerID, app))...)
 			return playbook
 		},
-		secrets: secretsOf(env),
+		secrets: append(secretsOf(env), deployKey),
 		onFinish: func(ctx context.Context, _ store.Server, status store.JobStatus) {
 			state := store.AppRunning
 			var deployed *time.Time

@@ -18,6 +18,9 @@ type appRequest struct {
 	Domain     string            `json:"domain"`
 	Port       int               `json:"port"`
 	Env        map[string]string `json:"env"`
+	// DeployKey is a private SSH key for a repository that is not public.
+	// Write-only: it is sealed on arrival and never sent back.
+	DeployKey string `json:"deployKey"`
 }
 
 func (a *API) handleListApps(w http.ResponseWriter, r *http.Request) {
@@ -140,6 +143,28 @@ func (a *API) appFrom(req appRequest, base store.App) (store.App, error) {
 		return store.App{}, apierr.CredentialNotStored.WithCause(err)
 	}
 	base.SealedEnv = sealed
+
+	// Only set when supplied. base already carries the stored key on an update
+	// and nothing on a create, so leaving it alone gives both the behaviour
+	// they want: changing a port does not mean pasting the key again.
+	if key := strings.TrimSpace(req.DeployKey); key != "" {
+		sealedKey, err := a.sealer.Seal(key)
+		if err != nil {
+			return store.App{}, apierr.CredentialNotStored.WithCause(err)
+		}
+		base.SealedDeployKey = sealedKey
+	}
+
+	// An ssh:// repository cannot be read without one, and finding that out as
+	// a git failure three steps into a deploy is a poor way to learn it.
+	if strings.HasPrefix(base.Repository, "git@") && base.SealedDeployKey == "" {
+		return store.App{}, apierr.DeployKeyRequired
+	}
+
+	// Derived on read by the store, but this value is about to be written
+	// straight back as the response — without it, saving a key and being told
+	// none is stored is the first thing anyone would see.
+	base.HasDeployKey = base.SealedDeployKey != ""
 
 	return base, nil
 }

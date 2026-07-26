@@ -246,6 +246,9 @@ var migrations = []string{
 	// every one after.
 	`ALTER TABLE servers ADD COLUMN host_key TEXT NOT NULL DEFAULT ''`,
 	`CREATE INDEX IF NOT EXISTS servers_user_idx ON servers(user_id)`,
+	// A private repository needs a key the server can read it with. Sealed,
+	// like every other credential here.
+	`ALTER TABLE apps ADD COLUMN sealed_deploy_key TEXT NOT NULL DEFAULT ''`,
 }
 
 func migrate(db *sql.DB) error {
