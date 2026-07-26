@@ -4,11 +4,9 @@
 	import FeatureGrid from '$components/marketing/FeatureGrid.svelte';
 	import Hero from '$components/marketing/Hero.svelte';
 	import HowItWorks from '$components/marketing/HowItWorks.svelte';
-	import Pricing from '$components/marketing/Pricing.svelte';
 	import Security from '$components/marketing/Security.svelte';
 	import ServiceGrid from '$components/marketing/ServiceGrid.svelte';
 	import StatsBar from '$components/marketing/StatsBar.svelte';
-	import Testimonials from '$components/marketing/Testimonials.svelte';
 	import UseCases from '$components/marketing/UseCases.svelte';
 	import Seo from '$components/Seo.svelte';
 </script>
@@ -27,7 +25,5 @@
 <UseCases />
 <ServiceGrid />
 <Security />
-<Pricing />
-<Testimonials />
 <Faq />
 <CtaBand />

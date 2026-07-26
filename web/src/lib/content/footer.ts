@@ -15,7 +15,6 @@ export const footerColumns: FooterColumn[] = [
 			{ label: 'Features', href: '#features' },
 			{ label: 'How it works', href: '#how-it-works' },
 			{ label: 'Tools', href: '#tools' },
-			{ label: 'Pricing', href: '#pricing' },
 			{ label: 'Security', href: '#security' }
 		]
 	},
@@ -35,15 +34,6 @@ export const footerColumns: FooterColumn[] = [
 			{ label: 'Questions', href: '#faq' },
 			{ label: 'Dashboard', href: '/dashboard' },
 			{ label: 'Help', href: '/dashboard/help' }
-		]
-	},
-	{
-		heading: 'Company',
-		links: [
-			{ label: 'About', href: '#' },
-			{ label: 'Contact', href: '#' },
-			{ label: 'Privacy', href: '#' },
-			{ label: 'Terms', href: '#' }
 		]
 	}
 ];

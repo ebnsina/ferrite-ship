@@ -30,7 +30,7 @@
 					Get started
 					<ArrowRight size={17} aria-hidden="true" />
 				</ButtonLink>
-				<ButtonLink href="#pricing" variant="secondary" size="lg">See pricing</ButtonLink>
+				<ButtonLink href="#how-it-works" variant="secondary" size="lg">See how it works</ButtonLink>
 			</div>
 
 			<ul class="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
