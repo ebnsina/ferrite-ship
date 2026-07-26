@@ -206,6 +206,29 @@ CREATE TABLE IF NOT EXISTS apps (
 );
 
 CREATE INDEX IF NOT EXISTS apps_server_idx ON apps(user_id, server_id);
+
+-- When backups should happen on their own.
+--
+-- next_run_at is stored rather than derived on the fly. A scheduler that works
+-- out what is due by comparing "now" against a cadence has to reason about the
+-- runs it missed while the process was stopped; one that reads a due time and
+-- writes the next one simply picks up where it left off.
+CREATE TABLE IF NOT EXISTS backup_schedules (
+	id          TEXT PRIMARY KEY,
+	user_id     TEXT NOT NULL,
+	server_id   TEXT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+	tool_id     TEXT NOT NULL,
+	cadence     TEXT NOT NULL,
+	hour        INTEGER NOT NULL DEFAULT 3,
+	weekday     INTEGER NOT NULL DEFAULT 0,
+	-- How many to keep. Older ones are deleted from storage after each run.
+	keep        INTEGER NOT NULL DEFAULT 7,
+	last_run_at TEXT,
+	next_run_at TEXT NOT NULL,
+	UNIQUE(server_id, tool_id)
+);
+
+CREATE INDEX IF NOT EXISTS backup_schedules_due_idx ON backup_schedules(next_run_at);
 `
 
 func Open(path string) (*Store, error) {
