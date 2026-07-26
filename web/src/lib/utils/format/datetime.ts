@@ -53,10 +53,10 @@ const DIVISIONS: readonly { limit: number; unit: Intl.RelativeTimeFormatUnit }[]
 /** "3 minutes ago", "in 2 days". Picks the largest sensible unit. */
 export function formatRelativeTime(
 	value: Date | string | number,
-	{ now = Date.now() }: { now?: number } = {},
+	{ now = Date.now(), style = 'long' }: { now?: number; style?: Intl.RelativeTimeFormatStyle } = {},
 	locale?: LocaleOption
 ): string {
-	const options: Intl.RelativeTimeFormatOptions = { numeric: 'auto', style: 'long' };
+	const options: Intl.RelativeTimeFormatOptions = { numeric: 'auto', style };
 	const formatter = cachedFormatter(
 		'relativetime',
 		locale,

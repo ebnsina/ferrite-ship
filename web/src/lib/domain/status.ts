@@ -1,5 +1,6 @@
 import type { Tone } from '$components/ui/tone';
 import type { ActivityStatus } from '$types/activity';
+import type { StepOutcome } from '$types/job';
 import type { ServerStatus } from '$types/server';
 import type { LucideProps } from '@lucide/svelte';
 import CircleAlert from '@lucide/svelte/icons/circle-alert';
@@ -8,6 +9,7 @@ import CircleDashed from '@lucide/svelte/icons/circle-dashed';
 import CircleX from '@lucide/svelte/icons/circle-x';
 import Hourglass from '@lucide/svelte/icons/hourglass';
 import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+import Minus from '@lucide/svelte/icons/minus';
 import PlugZap from '@lucide/svelte/icons/plug-zap';
 import type { Component } from 'svelte';
 
@@ -33,4 +35,12 @@ export const ACTIVITY_STATUS: Record<ActivityStatus, StatusPresentation> = {
 	failed: { label: 'Did not work', tone: 'error', icon: CircleX },
 	running: { label: 'In progress', tone: 'info', icon: LoaderCircle, animated: true },
 	queued: { label: 'Waiting', tone: 'pending', icon: Hourglass }
+};
+
+/** How each step outcome is shown in a job's timeline. */
+export const STEP_OUTCOME: Record<StepOutcome, StatusPresentation> = {
+	changed: { label: 'Changed', tone: 'ok', icon: CircleCheck },
+	unchanged: { label: 'Already fine', tone: 'pending', icon: Minus },
+	skipped: { label: 'Not needed', tone: 'info', icon: CircleDashed },
+	failed: { label: 'Failed', tone: 'error', icon: CircleX }
 };

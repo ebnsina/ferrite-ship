@@ -91,7 +91,7 @@
 
 		<div class="border-border/70 border-t p-3">
 			<a
-				href="/dashboard/servers"
+				href="/dashboard/servers/new"
 				title={collapsed ? 'Connect a server' : undefined}
 				class={cn(
 					'text-content-muted hover:bg-surface-sunken hover:text-content flex items-center gap-3 rounded-tile px-3 py-2 text-sm transition-colors duration-150',

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { SearchInput, ThemeToggle } from '$components/ui';
+	import { ButtonLink, SearchInput, ThemeToggle } from '$components/ui';
 	import { dashboardTheme } from '$lib/theme/theme.svelte';
 	import type { Crumb } from '$types/breadcrumb';
 	import Bell from '@lucide/svelte/icons/bell';

@@ -4,7 +4,7 @@
 	import ResourceView from '$components/dashboard/ResourceView.svelte';
 	import SectionHeader from '$components/dashboard/SectionHeader.svelte';
 	import ServerBoard from '$components/dashboard/ServerBoard.svelte';
-	import { Button } from '$components/ui';
+	import { ButtonLink } from '$components/ui';
 	import { dashboardRepository } from '$lib/data';
 	import { createResource } from '$utils/resource.svelte';
 	import CirclePlus from '@lucide/svelte/icons/circle-plus';
@@ -24,10 +24,10 @@
 			title="Servers"
 			description="Every machine you have connected, grouped by how it is doing."
 		/>
-		<Button size="sm">
+		<ButtonLink href="/dashboard/servers/new" size="sm">
 			<CirclePlus size={15} aria-hidden="true" />
 			Connect a server
-		</Button>
+		</ButtonLink>
 	</div>
 
 	<ResourceView resource={servers}>

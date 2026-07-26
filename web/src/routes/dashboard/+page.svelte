@@ -90,13 +90,13 @@
 			{/snippet}
 		</ResourceView>
 
-		<button
-			type="button"
+		<a
+			href="/dashboard/servers/new"
 			class="text-content-muted hover:text-content flex items-center gap-2 text-sm transition-colors duration-150"
 		>
 			<CirclePlus size={16} aria-hidden="true" />
 			Connect a server
-		</button>
+		</a>
 	</section>
 
 	<section class="space-y-5">

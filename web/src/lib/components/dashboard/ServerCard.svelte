@@ -1,9 +1,13 @@
 <script lang="ts">
-	import { IconTile, StatusPill } from '$components/ui';
+	import { goto } from '$app/navigation';
+	import { Button, IconTile, StatusPill } from '$components/ui';
 	import { TONE_CLASSES, toneForUsage } from '$components/ui/tone';
 	import { SERVER_STATUS } from '$lib/domain/status';
 	import { usageRatio, type ManagedServer } from '$types/server';
+	import { dashboardCommands } from '$lib/data/commands';
+	import { toAppError } from '$lib/errors';
 	import { formatBytes, formatDuration, formatRelativeTime } from '$utils/format';
+	import Play from '@lucide/svelte/icons/play';
 	import Server from '@lucide/svelte/icons/server';
 
 	interface Props {
@@ -16,6 +20,23 @@
 	const diskRatio = $derived(usageRatio(server.disk));
 	const diskTone = $derived(toneForUsage(diskRatio));
 	const isOffline = $derived(server.status === 'offline');
+
+	let starting = $state(false);
+	let startError = $state<string | null>(null);
+
+	async function runSetup() {
+		if (starting) return;
+		starting = true;
+		startError = null;
+
+		try {
+			const job = await dashboardCommands.startBaseline(server.id);
+			await goto(`/dashboard/jobs/${job.id}`);
+		} catch (cause) {
+			startError = toAppError(cause).message;
+			starting = false;
+		}
+	}
 </script>
 
 <article class="border-border bg-surface rounded-card border p-5">
@@ -33,7 +54,9 @@
 		<div class="flex justify-between gap-2">
 			<dt class="text-content-subtle">{isOffline ? 'Last seen' : 'Running for'}</dt>
 			<dd class="text-content-muted truncate">
-				{isOffline ? formatRelativeTime(server.lastSeenAt) : formatDuration(server.uptimeMs)}
+				{isOffline
+				? formatRelativeTime(server.lastSeenAt, { style: 'short' })
+				: formatDuration(server.uptimeMs)}
 			</dd>
 		</div>
 		<div class="flex justify-between gap-2">
@@ -58,7 +81,17 @@
 		></div>
 	</div>
 
-	<p class="border-border/70 text-content-subtle mt-4 border-t pt-3 text-xs">
-		Checked {formatRelativeTime(server.lastSeenAt)}
-	</p>
+	<div class="border-border/70 mt-4 flex items-center justify-between gap-3 border-t pt-3">
+		<p class="text-content-subtle truncate text-xs">
+			Checked {formatRelativeTime(server.lastSeenAt, { style: 'short' })}
+		</p>
+		<Button size="sm" variant="secondary" onclick={runSetup} disabled={starting}>
+			<Play size={13} aria-hidden="true" />
+			{starting ? 'Starting…' : 'Set up'}
+		</Button>
+	</div>
+
+	{#if startError}
+		<p class="text-error mt-2 text-xs">{startError}</p>
+	{/if}
 </article>

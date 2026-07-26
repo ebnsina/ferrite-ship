@@ -22,7 +22,7 @@
 		description="Run the setup line on a new server and it will show up here within a few seconds."
 	>
 		{#snippet action()}
-			<ButtonLink href="/dashboard/servers" size="sm">Connect your first server</ButtonLink>
+			<ButtonLink href="/dashboard/servers/new" size="sm">Connect your first server</ButtonLink>
 		{/snippet}
 	</EmptyState>
 {:else}
