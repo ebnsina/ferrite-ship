@@ -3,6 +3,13 @@
 	import { page } from '$app/state';
 	import LogoMark from '$components/brand/LogoMark.svelte';
 	import { dashboardNavGroups } from '$lib/content/navigation';
+	import { dashboardRepository } from '$lib/data';
+	import {
+		activeSection,
+		serverIdFromPath,
+		serverSectionHref,
+		serverSections
+	} from '$lib/domain/server-nav';
 	import { cn } from '$utils/cn';
 	import { authClient } from '$lib/data/auth';
 	import CirclePlus from '@lucide/svelte/icons/circle-plus';
@@ -35,6 +42,36 @@
 	function isActive(href: string, pathname: string): boolean {
 		return href === '/dashboard' ? pathname === href : pathname.startsWith(href);
 	}
+
+	/*
+	 * The server you are looking at gets its own section.
+	 *
+	 * Without it the sidebar showed six links regardless of where you were,
+	 * while the six pages belonging to a server were reachable only from that
+	 * server's header — so moving from its files to its terminal meant going
+	 * back first. It also left the sidebar mostly empty, which is the visible
+	 * symptom of the same thing: the navigation was not describing where you
+	 * actually were.
+	 */
+	const currentServerId = $derived(serverIdFromPath(page.url.pathname));
+	const current = $derived(currentServerId ? activeSection(page.url.pathname, currentServerId) : null);
+
+	let serverName = $state<string | null>(null);
+
+	$effect(() => {
+		const id = currentServerId;
+		if (!id) {
+			serverName = null;
+			return;
+		}
+
+		// The name is nice to have, not load-bearing: the id is enough to
+		// navigate, so a failure here leaves the links working.
+		void dashboardRepository
+			.getServer(id)
+			.then((server) => (serverName = server.name))
+			.catch(() => (serverName = null));
+	});
 </script>
 
 <aside
@@ -73,6 +110,43 @@
 		{/if}
 
 		<nav aria-label="Dashboard" class="flex-1 space-y-6 overflow-y-auto px-3 py-4">
+			{#if currentServerId}
+				<div>
+					{#if !collapsed}
+						<h2 class="text-content-subtle truncate px-3 pb-2 text-xs font-medium">
+							{serverName ?? 'This server'}
+						</h2>
+					{/if}
+
+					<ul class="space-y-0.5">
+						{#each serverSections as section (section.path)}
+							{@const href = serverSectionHref(currentServerId, section)}
+							{@const active = current?.path === section.path}
+							{@const Icon = section.icon}
+							<li>
+								<a
+									{href}
+									aria-current={active ? 'page' : undefined}
+									title={collapsed ? section.label : section.description}
+									class={cn(
+										'flex items-center gap-3 rounded-tile px-3 py-2 text-sm transition-colors duration-150',
+										collapsed && 'justify-center px-0',
+										active
+											? 'bg-surface-sunken text-content font-medium'
+											: 'text-content-muted hover:bg-surface-sunken hover:text-content'
+									)}
+								>
+									<Icon size={17} aria-hidden="true" class="shrink-0" />
+									{#if !collapsed}
+										<span class="truncate">{section.label}</span>
+									{/if}
+								</a>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+
 			{#each dashboardNavGroups as group (group.label)}
 				<div>
 					{#if !collapsed}
