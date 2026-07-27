@@ -16,6 +16,10 @@ import (
 // one. Installing anyway would produce a media server nobody could watch.
 var ErrNoAddress = errors.New("this tool needs the server's public address")
 
+// ErrNoDomain is returned for a tool that only makes sense once the server has
+// a domain — there is nothing for it to answer on until then.
+var ErrNoDomain = errors.New("this tool needs the server to have a domain")
+
 // StartInstall puts a tool from the catalogue on a server.
 //
 // Running it again for a tool that is already there is a repair rather than a
@@ -34,9 +38,20 @@ func (r *Runner) StartInstall(
 		return store.Job{}, err
 	}
 
-	install := catalog.Install{Tool: tool, Address: server.Host}
+	install := catalog.Install{
+		Tool:    tool,
+		Address: server.Host,
+		Domain:  server.Domain,
+		Email:   server.ACMEEmail,
+	}
 	if tool.NeedsAddress && install.Address == "" {
 		return store.Job{}, ErrNoAddress
+	}
+	// Refused here rather than letting compose fail on an unset variable: the
+	// job would run, pull an image, and stop with "TRAEFIK_EMAIL: unset",
+	// which says nothing about the domain field on the previous page.
+	if tool.NeedsDomain && (install.Domain == "" || install.Email == "") {
+		return store.Job{}, ErrNoDomain
 	}
 
 	// Reuse the existing credential where there is one. Generating a fresh

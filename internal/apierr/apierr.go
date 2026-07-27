@@ -181,6 +181,11 @@ var (
 		"This tool needs a server people can reach from the internet.",
 		"Simulated servers have no public address, so connect a real one to try this.")
 
+	ToolNeedsDomain = newError(CodeInvalid, 400,
+		"This server does not have a domain yet.",
+		"Everything this tool does is answer on one. Add a domain on the "+
+			"server's page, then install it.")
+
 	ToolHasNoConsole = newError(CodeUnsupported, 400,
 		"There is nothing to query in this tool.",
 		"Only databases can be queried. Use the terminal for anything else.")

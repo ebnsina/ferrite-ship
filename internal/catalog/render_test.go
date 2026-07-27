@@ -29,6 +29,8 @@ func TestComposeFilesAreValid(t *testing.T) {
 				Tool:     tool,
 				Password: "0123456789abcdef0123",
 				Address:  "203.0.113.10",
+				Domain:   "example.com",
+				Email:    "ops@example.com",
 			}
 
 			dir := t.TempDir()

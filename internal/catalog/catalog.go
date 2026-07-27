@@ -53,6 +53,12 @@ type Tool struct {
 	// NeedsAddress marks a tool that must be told the server's public address
 	// at install time — see Install.Address.
 	NeedsAddress bool `json:"-"`
+	// NeedsDomain marks a tool that cannot be installed until the server has a
+	// domain, because everything it does is answer on one. Declared rather
+	// than inferred so the install is refused with a sentence explaining what
+	// to do, instead of rendering a compose file that fails on a missing
+	// variable.
+	NeedsDomain bool `json:"needsDomain"`
 	// Volumes are the compose volume names holding this tool's data. Named
 	// explicitly rather than derived, because they are what "also delete the
 	// data" deletes and a wrong guess there is unrecoverable.
@@ -103,11 +109,19 @@ type Install struct {
 	// NeedsAddress use it: WebRTC hands clients an address to connect back on,
 	// and a container only ever knows its own private one.
 	Address string
+	// Domain is the name whose wildcard record points at this server, and
+	// Email is where Let's Encrypt writes about the certificates issued under
+	// it. Both are empty on a server nobody has given a domain, which is why
+	// every compose file that reads them belongs to a tool with NeedsDomain.
+	Domain string
+	Email  string
 }
 
 // All returns the catalogue in display order.
 func All() []Tool {
-	tools := []Tool{postgres, redis, clickhouse, mediamtx}
+	// Traefik first: it is the one thing here that other tools are reached
+	// through, so it reads as infrastructure rather than as another database.
+	tools := []Tool{traefik, postgres, redis, clickhouse, mediamtx}
 	for i := range tools {
 		tools[i].KeepsData = len(tools[i].Volumes) > 0
 		if spec, ok := tools[i].ConsoleSpec(); ok {

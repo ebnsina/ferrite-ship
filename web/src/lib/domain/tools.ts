@@ -8,6 +8,7 @@ import CircleX from '@lucide/svelte/icons/circle-x';
 import Database from '@lucide/svelte/icons/database';
 import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 import Package from '@lucide/svelte/icons/package';
+import Route from '@lucide/svelte/icons/route';
 import Video from '@lucide/svelte/icons/video';
 import Zap from '@lucide/svelte/icons/zap';
 import type { Component } from 'svelte';
@@ -23,7 +24,8 @@ const ICONS: Record<string, Component<LucideProps>> = {
 	Database,
 	Zap,
 	ChartColumn,
-	Video
+	Video,
+	Route
 };
 
 export function toolIcon(name: string): Component<LucideProps> {

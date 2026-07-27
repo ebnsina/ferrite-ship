@@ -11,6 +11,104 @@ package catalog
 // its own sake: an open Postgres port is found by scanners within minutes of
 // appearing, and the default account here would be the one we just created.
 
+// traefik is the way in. Every other tool publishes to 127.0.0.1 and is
+// reached through it, so this is the only thing here holding 80 and 443.
+//
+// The Docker socket is mounted read-only. Traefik's whole model is watching
+// for containers and configuring itself, and there is no way to do that
+// without it — but read-only means it can be told what exists and cannot
+// start anything. It is worth being clear-eyed that access to the socket is
+// effectively root on the host, which is why nothing else here gets it.
+var traefik = Tool{
+	ID:       "traefik",
+	Name:     "Traefik",
+	Summary:  "Gives everything you install a web address of its own, with certificates kept up to date for you.",
+	Category: "Networking",
+	Icon:     "Route",
+	// Traefik's own blue-green, from their mark.
+	Accent:      "#24A1C1",
+	Image:       "traefik:v3",
+	Version:     "3",
+	NeedsDomain: true,
+	Ports: []Port{
+		{Number: 80, Protocol: "tcp", Purpose: "Web traffic, and proving you own the domain", Public: true},
+		{Number: 443, Protocol: "tcp", Purpose: "Secure web traffic", Public: true},
+	},
+	// No Access: there is no connection string, and nothing signs in to it.
+	// That also means no password is generated for it — see NeedsPassword.
+	Volumes:  []string{"certificates"},
+	DataNote: "Removing Traefik stops it and deletes its settings, but keeps the certificates it collected unless you ask for those too. Web addresses stop working until something else answers on them.",
+	compose: `# Managed by Ferrite Ship. Edits are replaced the next time this tool is set up.
+name: ferrite-traefik
+
+services:
+  traefik:
+    image: traefik:v3
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      # Nothing is routed unless it says so. Without this every container on
+      # the network would be published the moment it started, which is how a
+      # database ends up on the internet by accident.
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=ferrite
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      # Anything arriving in the clear is sent straight back as https. The
+      # redirect lives here rather than on each tool so a tool cannot forget it.
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --certificatesresolvers.le.acme.email=${TRAEFIK_EMAIL:?}
+      - --certificatesresolvers.le.acme.storage=/certificates/acme.json
+      # The HTTP challenge, which needs nothing but port 80 already being
+      # open. DNS challenges would allow wildcard certificates, but they need
+      # an API key for whoever hosts the domain — a credential we would have
+      # to ask for and store to save one certificate per tool.
+      - --certificatesresolvers.le.acme.httpchallenge=true
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      # Answers the healthcheck below. On the container's own interface only —
+      # it is not an entrypoint and nothing outside can reach it.
+      - --ping=true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Read-only: Traefik has to see containers appear, and nothing more.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Certificates outlive the container. Without this every restart asks
+      # Let's Encrypt for new ones and walks into a rate limit — five per
+      # domain per week, which you discover by being locked out for a week.
+      - certificates:/certificates
+    networks: [ferrite]
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Traefik does not route to Traefik. Explicit rather than relying on
+    # exposedbydefault, so the intent survives a change to that flag.
+    labels:
+      - traefik.enable=false
+
+volumes:
+  certificates:
+
+networks:
+  ferrite:
+    external: true
+`,
+	env: func(in Install) []string {
+		return []string{
+			"TRAEFIK_EMAIL=" + in.Email,
+			// Not read by the compose file above — every route is a label on
+			// the tool being routed. It is written so that changing the domain
+			// changes this file's fingerprint, which is what makes the start
+			// step notice and restart rather than reporting nothing to do.
+			"FERRITE_DOMAIN=" + in.Domain,
+		}
+	},
+}
+
 var postgres = Tool{
 	ID:       "postgres",
 	Name:     "PostgreSQL",

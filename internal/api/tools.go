@@ -251,6 +251,8 @@ func (a *API) failTool(w http.ResponseWriter, err error) {
 		a.fail(w, apierr.UnknownTool.WithCause(err))
 	case errors.Is(err, runner.ErrNoAddress):
 		a.fail(w, apierr.ToolNeedsAddress.WithCause(err))
+	case errors.Is(err, runner.ErrNoDomain):
+		a.fail(w, apierr.ToolNeedsDomain.WithCause(err))
 	case errors.Is(err, runner.ErrAlreadyRunning):
 		a.fail(w, apierr.ServerBusy.WithCause(err))
 	case errors.Is(err, store.ErrNotFound):
