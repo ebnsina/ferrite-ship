@@ -3,6 +3,8 @@ package catalog
 import (
 	"strings"
 	"testing"
+
+	"github.com/ebnsina/ferrite-ship/internal/steps"
 )
 
 // ufw takes --force on enable, reset and delete, and rejects it anywhere else
@@ -258,4 +260,57 @@ func TestClickHouseRestoreReplacesRatherThanAppends(t *testing.T) {
 // against the command as the server's shell will finally see it.
 func unescaped(command string) string {
 	return strings.ReplaceAll(command, `'\''`, "'")
+}
+
+// Every tool has to join the shared network, and has to expect to find it
+// rather than declare one of its own.
+//
+// A tool that quietly stays on its own project network installs cleanly, runs
+// correctly, and is simply invisible to the reverse proxy — so the failure
+// does not appear until someone points a domain at it and gets a 404 from
+// Traefik, which reads like a DNS problem rather than a missing line of YAML.
+//
+// `external: true` is half the assertion. Without it compose creates a second
+// network with the same name prefixed by the project, joins that instead, and
+// everything above happens anyway with nothing to see in the file.
+func TestEveryToolJoinsTheSharedNetwork(t *testing.T) {
+	for _, tool := range All() {
+		if !strings.Contains(tool.compose, "networks: ["+steps.Network+"]") {
+			t.Errorf("%s has no service on the %s network, so nothing can route to it",
+				tool.ID, steps.Network)
+		}
+
+		declared := "networks:\n  " + steps.Network + ":\n    external: true"
+		if !strings.Contains(tool.compose, declared) {
+			t.Errorf("%s does not declare %s as external, so compose would make its own",
+				tool.ID, steps.Network)
+		}
+	}
+}
+
+// The network has to exist before any compose file that expects to find it is
+// started, or the first tool on a fresh server fails with "network ferrite
+// declared as external, but could not be found".
+func TestTheSharedNetworkIsCreatedBeforeAnythingUsesIt(t *testing.T) {
+	in := Install{Tool: postgres, Password: "x", Address: "1.2.3.4"}
+
+	created, started := -1, -1
+	for i, step := range in.Steps() {
+		switch step.ID() {
+		case "docker-network":
+			created = i
+		case postgres.ID + "-start":
+			started = i
+		}
+	}
+
+	if created < 0 {
+		t.Fatal("nothing creates the shared network")
+	}
+	if started < 0 {
+		t.Fatal("nothing starts the tool")
+	}
+	if created > started {
+		t.Errorf("the network is created at step %d but needed at step %d", created, started)
+	}
 }

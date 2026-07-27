@@ -53,5 +53,25 @@ func Docker() []Step {
 			check: `systemctl is-active --quiet docker && systemctl is-enabled --quiet docker`,
 			apply: []string{`systemctl enable --now docker`},
 		},
+		shellStep{
+			id:    "docker-network",
+			title: "Make one network the tools share",
+			// Every tool is its own compose project, and compose gives each
+			// project a private network. That is the right default and the
+			// reason a reverse proxy cannot see any of them: it is in its own
+			// project too. One network declared outside all of them is what
+			// lets traffic be routed to a container that still publishes
+			// nothing but 127.0.0.1 — the bind address stays the control, and
+			// nothing new is exposed by joining.
+			check: `docker network inspect ` + Network + ` >/dev/null 2>&1`,
+			apply: []string{`docker network create ` + Network},
+		},
 	}
 }
+
+// Network is the shared Docker network every tool joins.
+//
+// Declared `external: true` in each compose file, so compose expects to find
+// it rather than making its own — which is why the step above has to create it
+// before any tool starts, and why removing a tool never removes it.
+const Network = "ferrite"

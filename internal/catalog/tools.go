@@ -50,6 +50,7 @@ services:
       # would disappear the next time it was recreated.
       - data:/var/lib/postgresql
     shm_size: 256mb
+    networks: [ferrite]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ferrite -d app"]
       interval: 10s
@@ -58,6 +59,12 @@ services:
 
 volumes:
   data:
+
+# Shared with every other tool, and created before any of them starts. Joining
+# it exposes nothing further: the published port above is still loopback only.
+networks:
+  ferrite:
+    external: true
 `,
 	env: func(in Install) []string {
 		return []string{"POSTGRES_PASSWORD=" + in.Password}
@@ -100,6 +107,7 @@ services:
       - "127.0.0.1:6379:6379"
     volumes:
       - data:/data
+    networks: [ferrite]
     healthcheck:
       # $$ escapes the dollar so compose leaves it for the container's shell.
       test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
@@ -109,6 +117,10 @@ services:
 
 volumes:
   data:
+
+networks:
+  ferrite:
+    external: true
 `,
 	env: func(in Install) []string {
 		return []string{"REDIS_PASSWORD=" + in.Password}
@@ -162,6 +174,7 @@ services:
     configs:
       - source: backups
         target: /etc/clickhouse-server/config.d/backups.xml
+    networks: [ferrite]
     ulimits:
       # ClickHouse opens a file per column part and hits the default limit of
       # 1024 quickly; it logs "too many open files" and stops answering.
@@ -201,6 +214,10 @@ volumes:
   data:
   logs:
   backups:
+
+networks:
+  ferrite:
+    external: true
 `,
 	env: func(in Install) []string {
 		return []string{"CLICKHOUSE_PASSWORD=" + in.Password}
@@ -272,6 +289,11 @@ services:
       - "8889:8889"
       - "8890:8890/udp"
       - "8189:8189/udp"
+    networks: [ferrite]
+
+networks:
+  ferrite:
+    external: true
 `,
 	env: func(in Install) []string {
 		return []string{

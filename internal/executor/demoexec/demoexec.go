@@ -31,6 +31,7 @@ const (
 	factTimezone    = "timezone"
 	factSwap        = "swap"
 	factSysctl      = "sysctl"
+	factNetwork     = "docker-network"
 )
 
 type Machine struct {
@@ -92,6 +93,7 @@ var rules = []rule{
 	{all: []string{"timedatectl show"}, checks: factTimezone},
 	{all: []string{"swapon --show"}, checks: factSwap},
 	{all: []string{"sysctl -n"}, checks: factSysctl},
+	{all: []string{"docker network inspect"}, checks: factNetwork},
 
 	// --- applies ----------------------------------------------------------
 	{all: []string{"apt-get update"}, sets: factAptUpdated,
@@ -106,6 +108,8 @@ var rules = []rule{
 	{all: []string{"systemctl enable --now fail2ban"}, sets: factFail2ban},
 	{all: []string{"20auto-upgrades"}, sets: factAutoUpdates},
 	{all: []string{"timedatectl set-timezone"}, sets: factTimezone},
+	{all: []string{"docker network create"}, sets: factNetwork,
+		stdout: "b1946ac92492d2347c6235b4d2611184"},
 	{all: []string{"mkswap"}, sets: factSwap,
 		stdout: "Setting up swapspace version 1, size = 2 GiB"},
 	{all: []string{"60-ferrite.conf"}, sets: factSysctl},
