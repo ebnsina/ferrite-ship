@@ -82,24 +82,62 @@ export function byCategory(tools: Tool[]): { category: string; tools: Tool[] }[]
 }
 
 /**
- * How a tool's ports are described in one line.
+ * How a tool's reach is described in one line.
  *
- * Whether something is reachable from the internet is the single most
+ * Whether something can be reached from the internet is the single most
  * important thing to say about a newly installed database, so it is said
  * plainly rather than left for someone to work out from a port number.
+ *
+ * Ports alone are no longer enough to answer it. A routed tool deliberately
+ * has no public port — Traefik reaches it over the shared network — so
+ * reading the ports would call Grafana private while it is published under a
+ * domain with a certificate. Keycloak is the worst case: it cannot be
+ * installed without a domain, so it is never private, and saying so would be
+ * wrong every single time.
+ *
+ * `fromOutside` is returned rather than recomputed by each caller, because
+ * both of them were deciding the padlock icon from the ports themselves — so
+ * a routed tool got a padlock beside a label saying it had a web address.
+ *
+ * `domain` is the server's, and is absent on the catalogue page, which asks
+ * "what can I have?" before any server is chosen. The honest answer there is
+ * what it depends on, not a guess.
  */
-export function reachability(tool: Tool): { label: string; detail: string } {
-	const isPublic = tool.ports.some((port) => port.public);
+export function reachability(
+	tool: Tool,
+	domain?: string
+): { label: string; detail: string; fromOutside: boolean } {
+	if (tool.ports.some((port) => port.public)) {
+		return {
+			label: 'Open to the internet',
+			detail: 'Anyone who knows the address can reach it. That is deliberate: it cannot do its job otherwise.',
+			fromOutside: true
+		};
+	}
 
-	return isPublic
-		? {
-				label: 'Open to the internet',
-				detail: 'Anyone who knows the address can reach it, which is the point of a media server.'
-			}
-		: {
-				label: 'Private to this server',
-				detail: 'Nothing outside the server can reach it. Use the tunnel command to connect.'
-			};
+	if (tool.web && domain) {
+		return {
+			label: 'Has its own web address',
+			detail: `Reachable at ${tool.id}.${domain} over a secure connection, so anyone can open the sign-in page. Keep the password to yourself.`,
+			fromOutside: true
+		};
+	}
+
+	if (tool.web) {
+		return {
+			label: 'Private to this server',
+			detail:
+				'Nothing outside the server can reach it. Give the server a domain and it gets ' +
+				'a web address of its own; until then, use the tunnel command to connect.',
+			fromOutside: false
+		};
+	}
+
+	return {
+		label: 'Private to this server',
+		detail: 'Nothing outside the server can reach it. Use the tunnel command to connect.',
+		fromOutside: false
+	};
 }
 
 /**

@@ -53,6 +53,14 @@ export interface Tool {
 	consolePresets?: Preset[];
 	image: string;
 	version: string;
+	/**
+	 * Opened in a browser. Such a tool has no public port of its own — Traefik
+	 * reaches it over the shared network — so its ports say nothing about
+	 * whether anyone outside can reach it.
+	 */
+	web: boolean;
+	/** Whether it cannot be installed until the server has a domain. */
+	needsDomain: boolean;
 	ports: ToolPort[];
 	access?: ToolAccess;
 	/** What removing this leaves behind, in the words shown to the person. */

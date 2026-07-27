@@ -150,6 +150,7 @@
 				<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 					{#each group.tools as tool (tool.id)}
 						<ToolCard
+							domain={server.data?.domain}
 							{tool}
 							{serverId}
 							unavailable={unavailableReason(tool)}

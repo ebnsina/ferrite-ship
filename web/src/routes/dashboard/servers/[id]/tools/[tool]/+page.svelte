@@ -103,7 +103,7 @@
 						{:else}
 							<Lock size={13} aria-hidden="true" />
 						{/if}
-						{reachability(tool).detail}
+						{reachability(tool, server.data?.domain).detail}
 					</p>
 				</div>
 			</div>

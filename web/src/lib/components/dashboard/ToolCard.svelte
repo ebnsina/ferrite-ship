@@ -12,18 +12,23 @@
 	interface Props {
 		tool: Tool;
 		serverId: string;
+		/**
+		 * The server's domain, when it has one. Decides whether a routed tool
+		 * is described as private or as having a web address of its own.
+		 */
+		domain?: string;
 		/** Set when this server cannot host the tool, with the reason. */
 		unavailable?: string;
 		onInstall: (tool: Tool) => void;
 		onRemove: (tool: Tool) => void;
 	}
 
-	let { tool, serverId, unavailable, onInstall, onRemove }: Props = $props();
+	let { tool, serverId, domain, unavailable, onInstall, onRemove }: Props = $props();
 
 	const Icon = $derived(toolIcon(tool.icon));
 	const status = $derived(toolStatus(tool.status));
 	const busy = $derived(isBusy(tool));
-	const reach = $derived(reachability(tool));
+	const reach = $derived(reachability(tool, domain));
 	const installed = $derived(tool.status === 'ready');
 </script>
 
@@ -48,7 +53,9 @@
 				<span class="text-content-subtle text-xs">{tool.version}</span>
 			</div>
 			<p class="text-content-subtle mt-1 flex items-center gap-1.5 text-xs">
-				{#if tool.ports.some((port) => port.public)}
+				<!-- From the same answer as the label, so a routed tool cannot
+				     show a padlock next to "has its own web address". -->
+				{#if reach.fromOutside}
 					<Globe size={13} aria-hidden="true" />
 				{:else}
 					<Lock size={13} aria-hidden="true" />

@@ -112,7 +112,7 @@
 						<div class="grid gap-4 md:grid-cols-2">
 							{#each group.tools as tool (tool.id)}
 								{@const Icon = toolIcon(tool.icon)}
-								{@const isPublic = tool.ports.some((port) => port.public)}
+								{@const reach = reachability(tool)}
 								<Card>
 									<div class="flex items-start gap-4">
 										<IconTile icon={Icon} color={tool.accent} />
@@ -125,12 +125,12 @@
 												{tool.summary}
 											</p>
 											<p class="text-content-subtle mt-2 flex items-center gap-1.5 text-xs">
-												{#if isPublic}
+												{#if reach.fromOutside}
 													<Globe size={13} aria-hidden="true" />
 												{:else}
 													<Lock size={13} aria-hidden="true" />
 												{/if}
-												{reachability(tool).label}
+												{reach.label}
 											</p>
 										</div>
 									</div>
