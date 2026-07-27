@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ebnsina/ferrite-ship/internal/catalog"
 	"github.com/ebnsina/ferrite-ship/internal/secret"
 )
 
@@ -39,6 +40,11 @@ type Config struct {
 	// set the literal "none". With no mail server nothing is sent, and the
 	// settings page says so rather than pretending an address was saved.
 	SMTP SMTP
+	// ACMEDirectory is which Let's Encrypt endpoint issues certificates.
+	// Chosen explicitly rather than defaulted: production rate limits
+	// duplicates to five per week, so a new setup that gets it wrong twice is
+	// locked out of the fix for a week.
+	ACMEDirectory string
 	// GitHub is the app used to read private repositories, or the zero value
 	// when the operator set the literal "none". Without it the manual path —
 	// a git URL and a deploy key — is the only way to deploy, which is how
@@ -150,6 +156,12 @@ func Load() (Config, error) {
 	}
 	cfg.SMTP = smtp
 
+	acme, err := requireACMEEndpoint(os.Getenv("FERRITE_ACME_ENDPOINT"))
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.ACMEDirectory = acme
+
 	gh, err := requireGitHubOrDisabled()
 	if err != nil {
 		return Config{}, err
@@ -214,6 +226,28 @@ func requireSMTPOrDisabled(value, from string) (SMTP, error) {
 	}
 
 	return settings, nil
+}
+
+// requireACMEEndpoint accepts "production" or "staging".
+//
+// Two words rather than a URL: a URL invites a typo that Traefik reports as a
+// connection failure hours later, and there are exactly two answers. No
+// default either — production is the one with the rate limit, so silently
+// choosing it for somebody testing a new setup is the expensive direction to
+// be wrong in.
+func requireACMEEndpoint(value string) (string, error) {
+	switch strings.TrimSpace(value) {
+	case "production":
+		return catalog.ACMEProduction, nil
+	case "staging":
+		return catalog.ACMEStaging, nil
+	case "":
+		return "", &Error{Variable: "FERRITE_ACME_ENDPOINT",
+			Reason: `is required — "staging" while setting a server up, "production" once it works`}
+	default:
+		return "", &Error{Variable: "FERRITE_ACME_ENDPOINT",
+			Reason: `must be "staging" or "production"`}
+	}
 }
 
 // requireGitHubOrDisabled reads the four values a GitHub App needs, or "none".

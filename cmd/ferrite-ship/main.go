@@ -16,6 +16,7 @@ import (
 	"github.com/ebnsina/ferrite-ship/internal/alerts"
 	"github.com/ebnsina/ferrite-ship/internal/api"
 	"github.com/ebnsina/ferrite-ship/internal/auth"
+	"github.com/ebnsina/ferrite-ship/internal/catalog"
 	"github.com/ebnsina/ferrite-ship/internal/config"
 	"github.com/ebnsina/ferrite-ship/internal/console"
 	"github.com/ebnsina/ferrite-ship/internal/dialer"
@@ -167,10 +168,20 @@ func run(log *slog.Logger) error {
 	// settings page says out loud rather than implying.
 	reporter := alerts.New(st, notify.New(cfg.SMTP), cfg.PublicURL, log)
 	jobs.Reporting(reporter)
+	jobs.Certificates(cfg.ACMEDirectory)
 	if cfg.SMTP.Enabled() {
 		log.Info("email alerts enabled", "host", cfg.SMTP.Host, "from", cfg.SMTP.From)
 	} else {
 		log.Info("email alerts disabled (FERRITE_SMTP_URL is none)")
+	}
+
+	// Worth a line at startup: staging certificates make browsers warn, and
+	// somebody seeing that warning should be able to find out why from the log
+	// rather than by reading the compose file on the server.
+	if cfg.ACMEDirectory == catalog.ACMEStaging {
+		log.Info("certificates come from Let's Encrypt STAGING; browsers will warn about them")
+	} else {
+		log.Info("certificates come from Let's Encrypt production")
 	}
 
 	// Built at startup, not at the first clone. A key that cannot be read is

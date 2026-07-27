@@ -43,6 +43,11 @@ func (r *Runner) StartInstall(
 		Address: server.Host,
 		Domain:  server.Domain,
 		Email:   server.ACMEEmail,
+		// Whichever endpoint this control plane was configured with. Written
+		// into the env file, so changing it re-fingerprints and Traefik
+		// actually restarts onto the other one rather than reporting nothing
+		// to do.
+		ACMEDirectory: r.acmeDirectory,
 	}
 	if tool.NeedsAddress && install.Address == "" {
 		return store.Job{}, ErrNoAddress

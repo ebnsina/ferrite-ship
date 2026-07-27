@@ -48,6 +48,9 @@ type Runner struct {
 	// set, so tests and the demo path run without a mail server.
 	alerts *alerts.Reporter
 
+	// acmeDirectory is which Let's Encrypt endpoint Traefik installs point at.
+	acmeDirectory string
+
 	// running guards against two jobs touching one server at once.
 	runningMu sync.Mutex
 	running   map[string]bool
@@ -69,6 +72,14 @@ func New(st *store.Store, d *dialer.Dialer, bus *Bus, sealer *secret.Sealer, log
 		DemoLatency:  140 * time.Millisecond,
 	}
 }
+
+// Certificates says which Let's Encrypt endpoint installs should use.
+//
+// Set after construction like Reporting, and for the same reason: it is a
+// property of how this control plane is configured rather than of any server,
+// and threading it through the constructor would put a certificate decision in
+// the signature of everything that makes a runner.
+func (r *Runner) Certificates(directory string) { r.acmeDirectory = directory }
 
 // Reporting gives the runner somewhere to send news of an unattended failure.
 //

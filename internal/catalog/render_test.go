@@ -26,11 +26,12 @@ func TestComposeFilesAreValid(t *testing.T) {
 	for _, tool := range All() {
 		t.Run(tool.ID, func(t *testing.T) {
 			in := Install{
-				Tool:     tool,
-				Password: "0123456789abcdef0123",
-				Address:  "203.0.113.10",
-				Domain:   "example.com",
-				Email:    "ops@example.com",
+				Tool:          tool,
+				Password:      "0123456789abcdef0123",
+				Address:       "203.0.113.10",
+				Domain:        "example.com",
+				Email:         "ops@example.com",
+				ACMEDirectory: ACMEStaging,
 			}
 
 			dir := t.TempDir()

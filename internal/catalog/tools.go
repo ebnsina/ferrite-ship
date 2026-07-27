@@ -59,6 +59,12 @@ services:
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --certificatesresolvers.le.acme.email=${TRAEFIK_EMAIL:?}
+      # Written out rather than left to the default, so which endpoint issued
+      # a certificate can be read off the server rather than guessed. Staging
+      # certificates are untrusted and browsers warn about them — that is the
+      # point of them, and the trade for not being rate limited while getting
+      # a new setup working.
+      - --certificatesresolvers.le.acme.caserver=${TRAEFIK_ACME_SERVER:?}
       - --certificatesresolvers.le.acme.storage=/certificates/acme.json
       # The HTTP challenge, which needs nothing but port 80 already being
       # open. DNS challenges would allow wildcard certificates, but they need
@@ -100,6 +106,7 @@ networks:
 	env: func(in Install) []string {
 		return []string{
 			"TRAEFIK_EMAIL=" + in.Email,
+			"TRAEFIK_ACME_SERVER=" + in.ACMEDirectory,
 			// Not read by the compose file above — every route is a label on
 			// the tool being routed. It is written so that changing the domain
 			// changes this file's fingerprint, which is what makes the start

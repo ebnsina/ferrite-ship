@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/base64"
 	"testing"
+
+	"github.com/ebnsina/ferrite-ship/internal/catalog"
 )
 
 // A mail server that is half-configured is the state worth failing on: it
@@ -216,5 +218,40 @@ func TestGitHubConfiguration(t *testing.T) {
 				tc.check(t, got)
 			}
 		})
+	}
+}
+
+// Production limits duplicate certificates to five per week, so getting a new
+// setup wrong twice locks you out of the fix for a week. There is no default
+// for that reason: silently choosing production for somebody who is still
+// testing is the expensive direction to be wrong in.
+func TestACMEEndpointMustBeChosen(t *testing.T) {
+	if _, err := requireACMEEndpoint(""); err == nil {
+		t.Error("an unset endpoint quietly picked one")
+	}
+	if _, err := requireACMEEndpoint("https://acme-v02.api.letsencrypt.org/directory"); err == nil {
+		t.Error("a URL was accepted; the two words exist to stop a typo becoming a failed issuance")
+	}
+	if _, err := requireACMEEndpoint("prod"); err == nil {
+		t.Error(`"prod" was accepted`)
+	}
+
+	staging, err := requireACMEEndpoint("staging")
+	if err != nil {
+		t.Fatalf("staging: %v", err)
+	}
+	if staging != catalog.ACMEStaging {
+		t.Errorf("staging mapped to %q", staging)
+	}
+
+	production, err := requireACMEEndpoint("  production  ")
+	if err != nil {
+		t.Fatalf("production: %v", err)
+	}
+	if production != catalog.ACMEProduction {
+		t.Errorf("production mapped to %q", production)
+	}
+	if staging == production {
+		t.Error("both words map to the same endpoint, so staging would rate limit too")
 	}
 }

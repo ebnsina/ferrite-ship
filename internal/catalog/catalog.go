@@ -115,6 +115,17 @@ type Access struct {
 	Port     int    `json:"port"`
 }
 
+// The two places Let's Encrypt issues certificates from.
+//
+// Staging issues untrusted certificates — browsers warn about them — but has
+// no meaningful rate limit. Production limits duplicate certificates to five
+// per week, which is a limit you discover by being locked out of the fix for a
+// week, so the first attempt on a new setup belongs in staging.
+const (
+	ACMEProduction = "https://acme-v02.api.letsencrypt.org/directory"
+	ACMEStaging    = "https://acme-staging-v02.api.letsencrypt.org/directory"
+)
+
 // Install is one tool on one server: everything that makes its files unique.
 type Install struct {
 	Tool     Tool
@@ -129,6 +140,10 @@ type Install struct {
 	// every compose file that reads them belongs to a tool with NeedsDomain.
 	Domain string
 	Email  string
+	// ACMEDirectory is which Let's Encrypt endpoint issues the certificates.
+	// Always written out rather than left to Traefik's default, so which one
+	// is in use is visible in the file on the server.
+	ACMEDirectory string
 }
 
 // All returns the catalogue in display order.
