@@ -212,3 +212,53 @@ func sha256Sum(s string) []byte {
 	sum := sha256.Sum256([]byte(s))
 	return sum[:]
 }
+
+// Account is who an installation belongs to — a person or an organisation.
+type Account struct {
+	Login string
+	// Repositories is "all" or "selected", which is worth showing: somebody
+	// who chose two repositories and later wonders why a third cannot be
+	// deployed is looking at the wrong screen to find out.
+	Repositories string
+}
+
+// Installation asks GitHub who an installation belongs to.
+//
+// Called once, when it is connected. The answer is stored rather than looked
+// up per page, because it changes only when somebody renames their account and
+// a request to GitHub on every render would spend the rate limit on a label.
+func (a *App) Installation(ctx context.Context, installation int64) (Account, error) {
+	assertion, err := a.jwt(time.Now())
+	if err != nil {
+		return Account{}, err
+	}
+
+	url := a.baseURL + "/app/installations/" + strconv.FormatInt(installation, 10)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return Account{}, err
+	}
+	req.Header.Set("Authorization", "Bearer "+assertion)
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return Account{}, fmt.Errorf("github: could not reach GitHub: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return Account{}, fmt.Errorf("github: GitHub would not describe the installation: %s", resp.Status)
+	}
+
+	var reply struct {
+		Account struct {
+			Login string `json:"login"`
+		} `json:"account"`
+		RepositorySelection string `json:"repository_selection"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&reply); err != nil {
+		return Account{}, fmt.Errorf("github: could not read the installation: %w", err)
+	}
+	return Account{Login: reply.Account.Login, Repositories: reply.RepositorySelection}, nil
+}

@@ -447,3 +447,65 @@ func seedFailedJob(t *testing.T, st *Store, id, serverID, title string) {
 		t.Fatalf("finish job: %v", err)
 	}
 }
+
+// A GitHub installation is the right to mint a token that reads somebody's
+// private repositories. Handing one account another's is handing over their
+// source code, so it is scoped like a credential rather than like a label.
+func TestGitHubInstallationsAreScoped(t *testing.T) {
+	st := openTestStore(t)
+	ctx := context.Background()
+
+	seedServer(t, st, "usr_alice", "srv_alice", "alice-box")
+	seedServer(t, st, "usr_bob", "srv_bob", "bob-box")
+
+	bobs := GitHubInstallation{ID: 4242, UserID: "usr_bob", Account: "bob-corp", Selection: "selected"}
+	if err := st.SaveGitHubInstallation(ctx, bobs); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	t.Run("list is scoped", func(t *testing.T) {
+		found, err := st.ListGitHubInstallations(ctx, "usr_alice")
+		if err != nil {
+			t.Fatalf("list: %v", err)
+		}
+		if len(found) != 0 {
+			t.Errorf("alice sees %d of bob's installations", len(found))
+		}
+	})
+
+	t.Run("get refuses another owner's installation", func(t *testing.T) {
+		if _, err := st.GetGitHubInstallation(ctx, "usr_alice", 4242); !errors.Is(err, ErrNotFound) {
+			t.Errorf("alice reached bob's repositories; got err %v, want ErrNotFound", err)
+		}
+	})
+
+	t.Run("delete refuses another owner's installation", func(t *testing.T) {
+		if err := st.DeleteGitHubInstallation(ctx, "usr_alice", 4242); !errors.Is(err, ErrNotFound) {
+			t.Errorf("alice disconnected bob's github; got err %v, want ErrNotFound", err)
+		}
+		if _, err := st.GetGitHubInstallation(ctx, "usr_bob", 4242); err != nil {
+			t.Errorf("bob's installation went missing: %v", err)
+		}
+	})
+
+	// Re-confirming is normal: it happens every time somebody changes which
+	// repositories are shared, and must update rather than fail or duplicate.
+	t.Run("reconnecting updates rather than duplicates", func(t *testing.T) {
+		again := bobs
+		again.Selection = "all"
+		if err := st.SaveGitHubInstallation(ctx, again); err != nil {
+			t.Fatalf("re-save: %v", err)
+		}
+
+		found, err := st.ListGitHubInstallations(ctx, "usr_bob")
+		if err != nil {
+			t.Fatalf("list: %v", err)
+		}
+		if len(found) != 1 {
+			t.Fatalf("bob has %d rows for one installation", len(found))
+		}
+		if found[0].Selection != "all" {
+			t.Errorf("selection is %q, want the updated value", found[0].Selection)
+		}
+	})
+}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
 	import DestinationSheet from '$components/dashboard/DestinationSheet.svelte';
+	import GitHubConnection from '$components/dashboard/GitHubConnection.svelte';
 	import NotificationSettings from '$components/dashboard/NotificationSettings.svelte';
 	import SectionHeader from '$components/dashboard/SectionHeader.svelte';
 	import Seo from '$components/Seo.svelte';
@@ -63,6 +64,11 @@
 			are the things that do not — and finding out about them a week later is no use.
 		</p>
 		<NotificationSettings />
+	</section>
+
+	<section class="space-y-3">
+		<h2 class="text-content text-sm font-medium">Where your code comes from</h2>
+		<GitHubConnection />
 	</section>
 
 	<section class="space-y-3">

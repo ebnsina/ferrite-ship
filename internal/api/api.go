@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/ebnsina/ferrite-ship/internal/alerts"
 	"github.com/ebnsina/ferrite-ship/internal/apierr"
@@ -15,6 +16,7 @@ import (
 	"github.com/ebnsina/ferrite-ship/internal/dialer"
 	"github.com/ebnsina/ferrite-ship/internal/executor/sshexec"
 	"github.com/ebnsina/ferrite-ship/internal/files"
+	"github.com/ebnsina/ferrite-ship/internal/github"
 	"github.com/ebnsina/ferrite-ship/internal/ids"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
 	"github.com/ebnsina/ferrite-ship/internal/secret"
@@ -35,6 +37,10 @@ type API struct {
 	dialer    *dialer.Dialer
 	auth      *auth.Service
 	alerts    *alerts.Reporter
+	// github is nil when no app is configured, which is the difference between
+	// "we cannot do this" and "you have not done this yet".
+	github    *github.App
+	publicURL string
 	log       *slog.Logger
 
 	allowedOrigin string
@@ -58,6 +64,8 @@ type Options struct {
 	Dialer        *dialer.Dialer
 	Auth          *auth.Service
 	Alerts        *alerts.Reporter
+	GitHub        *github.App
+	PublicURL     string
 	Logger        *slog.Logger
 	AllowedOrigin string
 }
@@ -75,6 +83,8 @@ func New(opts Options) *API {
 		dialer:        opts.Dialer,
 		auth:          opts.Auth,
 		alerts:        opts.Alerts,
+		github:        opts.GitHub,
+		publicURL:     strings.TrimSuffix(opts.PublicURL, "/"),
 		log:           opts.Logger,
 		allowedOrigin: opts.AllowedOrigin,
 	}
@@ -146,6 +156,11 @@ func (a *API) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/notifications/test", a.handleTestNotification)
 	mux.HandleFunc("GET /v1/alerts", a.handleListAlerts)
 	mux.HandleFunc("GET /v1/problems", a.handleListProblems)
+
+	mux.HandleFunc("GET /v1/github/status", a.handleGitHubStatus)
+	mux.HandleFunc("POST /v1/github/connect", a.handleGitHubConnect)
+	mux.HandleFunc("GET /v1/github/callback", a.handleGitHubCallback)
+	mux.HandleFunc("DELETE /v1/github/installations/{installation}", a.handleGitHubDisconnect)
 
 	mux.HandleFunc("GET /v1/backups/destination", a.handleGetBackupDestination)
 	mux.HandleFunc("PUT /v1/backups/destination", a.handleSaveBackupDestination)

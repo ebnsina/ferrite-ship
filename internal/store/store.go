@@ -273,6 +273,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS alerts_open_idx
 	ON alerts(server_id, kind, subject) WHERE cleared_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS alerts_user_idx ON alerts(user_id, opened_at DESC);
+
+-- Where the GitHub app has been installed, and by whom.
+--
+-- No token here. Installation tokens last an hour and are minted on demand, so
+-- storing one would trade the whole point of a short-lived credential for a
+-- saved round trip.
+CREATE TABLE IF NOT EXISTS github_installations (
+	installation_id INTEGER PRIMARY KEY,
+	user_id         TEXT NOT NULL,
+	account         TEXT NOT NULL DEFAULT '',
+	-- "all" or "selected", so somebody wondering why a repository is missing
+	-- is told where to change it.
+	selection    TEXT NOT NULL DEFAULT '',
+	connected_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS github_installations_user_idx ON github_installations(user_id);
 `
 
 func Open(path string) (*Store, error) {

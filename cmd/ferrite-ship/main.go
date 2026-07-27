@@ -173,11 +173,13 @@ func run(log *slog.Logger) error {
 		log.Info("email alerts disabled (FERRITE_SMTP_URL is none)")
 	}
 
-	// Parsed at startup, not at the first clone. A key that cannot be read is
+	// Built at startup, not at the first clone. A key that cannot be read is
 	// then a refusal to start with the variable named, rather than a deploy
 	// that fails hours later against a repository that looks fine.
+	var repositories *github.App
 	if cfg.GitHub.Enabled() {
-		if _, err := github.New(cfg.GitHub.AppID, cfg.GitHub.Slug, cfg.GitHub.PrivateKey); err != nil {
+		repositories, err = github.New(cfg.GitHub.AppID, cfg.GitHub.Slug, cfg.GitHub.PrivateKey)
+		if err != nil {
 			return err
 		}
 		log.Info("github app enabled", "app", cfg.GitHub.Slug, "id", cfg.GitHub.AppID)
@@ -198,6 +200,8 @@ func run(log *slog.Logger) error {
 		Dialer:        connections,
 		Auth:          accounts,
 		Alerts:        reporter,
+		GitHub:        repositories,
+		PublicURL:     cfg.PublicURL,
 		Logger:        log,
 		AllowedOrigin: cfg.AllowedOrigin,
 	})

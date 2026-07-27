@@ -230,6 +230,11 @@ var (
 		"That is not a schedule we can keep.",
 		"Choose daily or weekly, and an hour between 0 and 23.")
 
+	GitHubNotConfigured = newError(CodeUnsupported, 400,
+		"This installation is not set up to talk to GitHub.",
+		"Deploy from a git address instead, or ask whoever runs this to "+
+			"register a GitHub app.")
+
 	// Domains
 	InvalidDomain = newError(CodeInvalid, 400,
 		"That does not look like a domain name.",
