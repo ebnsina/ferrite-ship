@@ -28,13 +28,26 @@ const tick = time.Minute
 // which runs for an hour does not have the scheduler knocking every minute.
 const retryAfter = 10 * time.Minute
 
+// starter is the part of the runner this package uses.
+//
+// An interface rather than the runner itself, for the same reason steps talk
+// to an Executor: the decisions here — defer when busy, move on when broken —
+// are the whole point of the package, and testing them should not require a
+// server, an SSH connection and a bucket to put a backup in.
+type starter interface {
+	StartBackup(ctx context.Context, userID, serverID, toolID, actor string) (store.Job, error)
+}
+
+// Compile-time proof that the real runner still satisfies it.
+var _ starter = (*runner.Runner)(nil)
+
 type Scheduler struct {
 	store  *store.Store
-	runner *runner.Runner
+	runner starter
 	log    *slog.Logger
 }
 
-func New(st *store.Store, r *runner.Runner, log *slog.Logger) *Scheduler {
+func New(st *store.Store, r starter, log *slog.Logger) *Scheduler {
 	return &Scheduler{store: st, runner: r, log: log}
 }
 
@@ -89,7 +102,10 @@ func (s *Scheduler) start(ctx context.Context, schedule store.BackupSchedule, no
 		// skipping the whole cadence — a deploy that happened to overlap
 		// should not cost somebody a day's backup.
 		next := now.Add(retryAfter)
-		if err := s.store.MarkScheduleRun(ctx, schedule.ID, *lastRunOf(schedule, now), next); err != nil {
+		// Only the next run moves. A deferral is not a run, and recording one
+		// would tell somebody their backup had just happened at the exact
+		// moment it had not.
+		if err := s.store.DeferSchedule(ctx, schedule.ID, next); err != nil {
 			s.log.Error("could not defer a schedule", "schedule", schedule.ID, "error", err)
 		}
 		s.log.Info("backup deferred, the server is busy",
@@ -107,15 +123,4 @@ func (s *Scheduler) start(ctx context.Context, schedule store.BackupSchedule, no
 	if err := s.store.MarkScheduleRun(ctx, schedule.ID, now, schedule.NextRun(now)); err != nil {
 		s.log.Error("could not advance a schedule", "schedule", schedule.ID, "error", err)
 	}
-}
-
-// lastRunOf keeps the recorded last run when deferring, so "when did this last
-// happen" does not report an attempt that never ran.
-func lastRunOf(schedule store.BackupSchedule, fallback time.Time) *time.Time {
-	if schedule.LastRunAt != nil {
-		return schedule.LastRunAt
-	}
-	// Never run before: MarkScheduleRun needs a value, and the deferral is not
-	// a run, so record the moment we looked rather than claiming a backup.
-	return &fallback
 }

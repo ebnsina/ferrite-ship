@@ -125,11 +125,12 @@ func (s *Store) OpenAlert(ctx context.Context, alert Alert) (bool, error) {
 		SELECT ?,?,?,?,?,?,?,NULL
 		WHERE NOT EXISTS (
 			SELECT 1 FROM alerts
-			WHERE server_id = ? AND kind = ? AND subject = ? AND cleared_at IS NULL
+			WHERE user_id = ? AND server_id = ? AND kind = ? AND subject = ?
+			  AND cleared_at IS NULL
 		)`,
 		alert.ID, alert.UserID, alert.ServerID, alert.Kind, alert.Subject, alert.Detail,
 		formatTime(time.Now().UTC()),
-		alert.ServerID, alert.Kind, alert.Subject)
+		alert.UserID, alert.ServerID, alert.Kind, alert.Subject)
 	if err != nil {
 		return false, fmt.Errorf("store: open alert: %w", err)
 	}
@@ -143,14 +144,22 @@ func (s *Store) OpenAlert(ctx context.Context, alert Alert) (bool, error) {
 
 // ClearAlert closes a condition, and reports whether one was open.
 //
+// Owner-scoped like every other query here, even though a server id is already
+// specific enough in practice. The rule is that the compiler refuses a call
+// site which has not established who is asking — an exception "because this
+// one is safe" is how the next one gets written without a userID at all.
+//
 // True is the signal to send the "it is back" message. Sent only when
 // something was actually said in the first place, so a server that has always
 // been fine never produces a recovery notice for a problem it never had.
-func (s *Store) ClearAlert(ctx context.Context, serverID, kind, subject string) (bool, error) {
+func (s *Store) ClearAlert(
+	ctx context.Context, userID, serverID, kind, subject string,
+) (bool, error) {
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE alerts SET cleared_at = ?
-		WHERE server_id = ? AND kind = ? AND subject = ? AND cleared_at IS NULL`,
-		formatTime(time.Now().UTC()), serverID, kind, subject)
+		WHERE user_id = ? AND server_id = ? AND kind = ? AND subject = ?
+		  AND cleared_at IS NULL`,
+		formatTime(time.Now().UTC()), userID, serverID, kind, subject)
 	if err != nil {
 		return false, fmt.Errorf("store: clear alert: %w", err)
 	}

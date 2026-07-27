@@ -135,7 +135,7 @@ func (w *Watcher) check(ctx context.Context, server store.Server, settings store
 		return
 	}
 
-	delete(w.failures, server.ID)
+	w.answered(server.ID)
 
 	if err := w.store.UpdateServerState(ctx, server.ID, store.StatusOnline, gathered, time.Now().UTC()); err != nil {
 		w.log.Warn("could not record what a server reported", "server", server.ID, "error", err)
@@ -155,6 +155,13 @@ func (w *Watcher) check(ctx context.Context, server store.Server, settings store
 // write to, and facts.Gather says nothing worth keeping anyway.
 func (w *Watcher) session(client *sshexec.Client) *steps.Session {
 	return steps.NewSession(client, func(steps.Level, string) {})
+}
+
+// answered forgets a server's run of failures, so a machine that blips and
+// recovers never accumulates its way to an alert. Flapping is a different
+// problem from being down, and calling it "down" would be wrong.
+func (w *Watcher) answered(serverID string) {
+	delete(w.failures, serverID)
 }
 
 func (w *Watcher) unreachable(
@@ -226,7 +233,7 @@ func (w *Watcher) raise(
 func (w *Watcher) resolve(
 	ctx context.Context, server store.Server, settings store.Notifications, alert notify.Alert,
 ) {
-	w.alerts.Resolve(ctx, server.ID, settings, alert)
+	w.alerts.Resolve(ctx, server.UserID, server.ID, settings, alert)
 }
 
 // humanBytes is for message bodies only.

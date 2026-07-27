@@ -147,6 +147,23 @@ func (s *Store) MarkScheduleRun(ctx context.Context, id string, ranAt, next time
 	return nil
 }
 
+// DeferSchedule moves only when a schedule next runs, leaving the record of
+// when it last ran alone.
+//
+// Separate from MarkScheduleRun because a deferral is not a run. Writing "last
+// run: now" when the server was busy would tell somebody their backup had just
+// happened at the exact moment it had not — and "when did this last run" is
+// read by a person deciding whether they still have a copy.
+func (s *Store) DeferSchedule(ctx context.Context, id string, next time.Time) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE backup_schedules SET next_run_at = ? WHERE id = ?`,
+		formatTime(next.UTC()), id)
+	if err != nil {
+		return fmt.Errorf("store: defer schedule: %w", err)
+	}
+	return nil
+}
+
 // ExpiredBackups returns the ready backups beyond the newest `keep`.
 func (s *Store) ExpiredBackups(ctx context.Context, serverID, toolID string, keep int) ([]Backup, error) {
 	rows, err := s.db.QueryContext(ctx, `

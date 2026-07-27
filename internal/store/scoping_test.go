@@ -509,3 +509,61 @@ func TestGitHubInstallationsAreScoped(t *testing.T) {
 		}
 	})
 }
+
+// Alerts are written by the watcher, not by a request, so a scoping hole here
+// would not be caught by anything above it. Clearing is the dangerous half: it
+// is how a condition stops being announced, and one account silencing
+// another's "server is down" is worse than reading it.
+func TestAlertWritesAreScoped(t *testing.T) {
+	st := openTestStore(t)
+	ctx := context.Background()
+
+	seedServer(t, st, "usr_alice", "srv_alice", "alice-box")
+	seedServer(t, st, "usr_bob", "srv_bob", "bob-box")
+
+	bobs := Alert{ID: "alr_bob", UserID: "usr_bob", ServerID: "srv_bob", Kind: "server-down"}
+	if fresh, err := st.OpenAlert(ctx, bobs); err != nil || !fresh {
+		t.Fatalf("open bob's alert: fresh=%v err=%v", fresh, err)
+	}
+
+	t.Run("another owner cannot clear it", func(t *testing.T) {
+		was, err := st.ClearAlert(ctx, "usr_alice", "srv_bob", "server-down", "")
+		if err != nil {
+			t.Fatalf("clear: %v", err)
+		}
+		if was {
+			t.Error("alice silenced bob's alert")
+		}
+
+		if open, err := st.OpenAlerts(ctx, "usr_bob"); err != nil || len(open) != 1 {
+			t.Errorf("bob's alert is gone: %d open, err %v", len(open), err)
+		}
+	})
+
+	t.Run("the owner can", func(t *testing.T) {
+		was, err := st.ClearAlert(ctx, "usr_bob", "srv_bob", "server-down", "")
+		if err != nil {
+			t.Fatalf("clear: %v", err)
+		}
+		if !was {
+			t.Error("bob could not clear his own alert")
+		}
+	})
+
+	// The de-duplication itself still holds with the owner in the query — the
+	// same condition twice must open once. (Two accounts cannot share a
+	// condition: a server has exactly one owner, which is what makes the
+	// unique index on server_id sufficient.)
+	t.Run("the same condition twice opens once", func(t *testing.T) {
+		shared := Alert{ID: "alr_a", UserID: "usr_alice", ServerID: "srv_alice", Kind: "disk-low"}
+		if fresh, err := st.OpenAlert(ctx, shared); err != nil || !fresh {
+			t.Fatalf("alice's alert: fresh=%v err=%v", fresh, err)
+		}
+
+		again := shared
+		again.ID = "alr_a2"
+		if fresh, err := st.OpenAlert(ctx, again); err != nil || fresh {
+			t.Errorf("the same condition opened twice for one account: fresh=%v err=%v", fresh, err)
+		}
+	})
+}

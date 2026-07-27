@@ -412,7 +412,7 @@ func (r *Runner) report(
 	settings := r.alerts.Settings(ctx, server.UserID)
 
 	if status == store.JobSucceeded {
-		r.alerts.Resolve(ctx, server.ID, settings, alert)
+		r.alerts.Resolve(ctx, server.UserID, server.ID, settings, alert)
 		return
 	}
 

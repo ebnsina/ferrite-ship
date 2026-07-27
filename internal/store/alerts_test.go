@@ -55,7 +55,7 @@ func TestClearingLetsAConditionBeReportedAgain(t *testing.T) {
 		t.Fatalf("open alert: %v", err)
 	}
 
-	was, err := st.ClearAlert(ctx, "srv_a", "server-down", "")
+	was, err := st.ClearAlert(ctx, "usr_a", "srv_a", "server-down", "")
 	if err != nil {
 		t.Fatalf("clear alert: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestClearingLetsAConditionBeReportedAgain(t *testing.T) {
 
 	// Clearing again reports nothing, so a server that is fine every five
 	// minutes does not send "resolved" every five minutes.
-	was, err = st.ClearAlert(ctx, "srv_a", "server-down", "")
+	was, err = st.ClearAlert(ctx, "usr_a", "srv_a", "server-down", "")
 	if err != nil {
 		t.Fatalf("clear alert again: %v", err)
 	}

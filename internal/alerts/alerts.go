@@ -73,9 +73,10 @@ func (r *Reporter) Raise(
 //
 // A message that never gets a second half trains people to ignore the first.
 func (r *Reporter) Resolve(
-	ctx context.Context, serverID string, settings store.Notifications, alert notify.Alert,
+	ctx context.Context, userID, serverID string,
+	settings store.Notifications, alert notify.Alert,
 ) {
-	was, err := r.store.ClearAlert(ctx, serverID, string(alert.Kind), key(alert))
+	was, err := r.store.ClearAlert(ctx, userID, serverID, string(alert.Kind), key(alert))
 	if err != nil {
 		r.log.Error("could not clear an alert", "kind", alert.Kind, "error", err)
 		return
