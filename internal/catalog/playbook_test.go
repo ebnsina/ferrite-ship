@@ -179,3 +179,83 @@ func unquoted(command string) string {
 	}
 	return out.String()
 }
+
+// ClickHouse refuses to write a backup anywhere it has not been told about, and
+// the three places that have to agree are far apart: the disk named in the
+// compose file's XML, the path it is mounted at, and the name used in the
+// BACKUP statement. A rename in one of them fails at three in the morning with
+// "Disk backups not found", which reads like a bug in the product.
+func TestClickHouseBackupDiskIsWiredUpEndToEnd(t *testing.T) {
+	tool, err := Find("clickhouse")
+	if err != nil {
+		t.Fatalf("find clickhouse: %v", err)
+	}
+
+	spec, ok := tool.BackupSpec()
+	if !ok {
+		t.Fatal("clickhouse has no backup spec")
+	}
+
+	for _, needed := range []string{
+		"<allowed_disk>backups</allowed_disk>",
+		"<allowed_path>/backups/</allowed_path>",
+		"<path>/backups/</path>",
+		"- backups:/backups",
+		"target: /etc/clickhouse-server/config.d/backups.xml",
+	} {
+		if !strings.Contains(tool.compose, needed) {
+			t.Errorf("the compose file is missing %q, so BACKUP has nowhere to write", needed)
+		}
+	}
+
+	// Read back through the escaping. These commands are quoted for a remote
+	// `sh -c`, so the statement's own quotes appear as '\'' and the literal
+	// SQL is not there to compare against until that is undone.
+	if !strings.Contains(unescaped(spec.Dump), "Disk('backups', 'ferrite.zip')") {
+		t.Errorf("the dump does not write to the disk the compose file declares:\n%s", spec.Dump)
+	}
+	if !strings.Contains(spec.Dump, "/backups/ferrite.zip") {
+		t.Error("the dump does not read back the file it just wrote")
+	}
+	if !strings.Contains(spec.Restore, "/backups/restore.zip") {
+		t.Error("the restore does not put the incoming backup on the backups volume")
+	}
+
+	// Every temporary file has to be removed, or a server accumulates a copy
+	// of its own database on every run until the disk is full.
+	if strings.Count(spec.Dump, "rm -f /backups/ferrite.zip") != 2 {
+		t.Error("the dump should clear a stale file before writing and delete its own afterwards")
+	}
+	if !strings.Contains(strings.Join(spec.RestoreAfter, " "), "rm -f /backups/restore.zip") {
+		t.Error("the restore leaves its copy of the backup on the server")
+	}
+}
+
+// Restoring has to replace, not merge. ClickHouse appends when told to write
+// into a table that already has rows, so a restore meant to undo a mistake
+// would leave every row in the database twice.
+func TestClickHouseRestoreReplacesRatherThanAppends(t *testing.T) {
+	tool, _ := Find("clickhouse")
+	spec, _ := tool.BackupSpec()
+
+	after := unescaped(strings.Join(spec.RestoreAfter, "\n"))
+
+	if !strings.Contains(after, "DROP DATABASE IF EXISTS app SYNC") {
+		t.Error("the existing database is not dropped first")
+	}
+	if strings.Contains(after, "allow_non_empty_tables") {
+		t.Error("allow_non_empty_tables appends rows to what is already there; it must not be used to restore")
+	}
+
+	drop := strings.Index(after, "DROP DATABASE")
+	restore := strings.Index(after, "RESTORE DATABASE")
+	if drop < 0 || restore < 0 || drop > restore {
+		t.Error("the drop has to happen before the restore, or the restore fails on a database that exists")
+	}
+}
+
+// unescaped undoes one round of single-quote escaping, so a test can compare
+// against the command as the server's shell will finally see it.
+func unescaped(command string) string {
+	return strings.ReplaceAll(command, `'\''`, "'")
+}

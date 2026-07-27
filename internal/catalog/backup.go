@@ -100,3 +100,59 @@ var redisBackup = &Backup{
 	},
 	Warning: "Redis is stopped for a moment while it is replaced, so anything using it will be briefly unable to connect. Everything currently stored is replaced.",
 }
+
+// clickhouseBackup uses ClickHouse's own BACKUP statement rather than copying
+// files out of /var/lib/clickhouse.
+//
+// The data directory is a live thing — parts are being merged and replaced
+// while it is read — so a copy taken from underneath it is a copy of a moment
+// that never existed. BACKUP is consistent, and produces one zip.
+//
+// It writes to a disk rather than to stdout, because there is no form of the
+// statement that streams. So the file is assembled on the backups volume,
+// handed to stdout, and deleted — the only tool here that needs a moment of
+// disk on the server, and the reason it has a volume of its own.
+var clickhouseBackup = &Backup{
+	Extension: "zip",
+	// BACKUP refuses to overwrite, so anything left by a run that was
+	// interrupted has to go first or every later backup fails.
+	Dump: inContainer("clickhouse", "clickhouse",
+		`rm -f /backups/ferrite.zip && `+
+			// Output goes nowhere: the statement prints a status row, and one
+			// line of "BACKUP_CREATED" at the front of a zip file is a zip
+			// file nothing can open.
+			clickhouseQuery(`BACKUP DATABASE app TO Disk('backups', 'ferrite.zip')`)+` >/dev/null && `+
+			`cat /backups/ferrite.zip && rm -f /backups/ferrite.zip`),
+	Restore: inContainer("clickhouse", "clickhouse",
+		`rm -f /backups/restore.zip && cat > /backups/restore.zip`),
+	RestoreAfter: []string{
+		// Dropped rather than restored over. RESTORE refuses to write into a
+		// table that already has rows unless told to allow it, and allowing it
+		// appends — so a restore meant to undo a mistake would leave the
+		// database holding every row twice. SYNC waits for the drop to finish
+		// rather than returning while it is still happening.
+		inContainer("clickhouse", "clickhouse",
+			clickhouseQuery(`DROP DATABASE IF EXISTS app SYNC`)),
+		inContainer("clickhouse", "clickhouse",
+			clickhouseQuery(`RESTORE DATABASE app FROM Disk('backups', 'restore.zip')`)+` >/dev/null`),
+		inContainer("clickhouse", "clickhouse", `rm -f /backups/restore.zip`),
+	},
+	Warning: "Everything currently in this database is replaced by the copy you are restoring. " +
+		"Anything written since that backup was taken is lost.",
+}
+
+// clickhouseQuery runs one statement as the account the tool was set up with.
+//
+// The password comes from the container's own environment rather than being
+// written into the command, so it never reaches a job log or a process list on
+// the server.
+//
+// The statement is wrapped in double quotes rather than passed through
+// steps.Quote. Everything here is already inside a single-quoted `sh -c`, and
+// SQL string literals are single-quoted too — quoting it a second time turns
+// Disk('backups', 'x.zip') into a line with eleven consecutive quote marks
+// that nobody can check by reading. Double quotes leave the single ones alone,
+// and these statements are constants with no expansion in them.
+func clickhouseQuery(sql string) string {
+	return `clickhouse-client --user ferrite --password "$CLICKHOUSE_PASSWORD" --query "` + sql + `"`
+}

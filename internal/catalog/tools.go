@@ -130,8 +130,9 @@ var clickhouse = Tool{
 		{Number: 9000, Protocol: "tcp", Purpose: "Queries from ClickHouse clients"},
 	},
 	Access:   &Access{Scheme: "clickhouse", Username: "ferrite", Database: "app", Port: 8123},
-	Volumes:  []string{"data", "logs"},
+	Volumes:  []string{"data", "logs", "backups"},
 	console:  clickhouseConsole,
+	backup:   clickhouseBackup,
 	DataNote: "Removing ClickHouse stops it and deletes its settings, but keeps your tables unless you ask for those too.",
 	compose: `# Managed by Ferrite Ship. Edits are replaced the next time this tool is set up.
 name: ferrite-clickhouse
@@ -153,6 +154,14 @@ services:
     volumes:
       - data:/var/lib/clickhouse
       - logs:/var/log/clickhouse-server
+      # Where a backup is assembled before it is streamed off the server, and
+      # where one is put while it is being restored. Its own volume rather
+      # than the container's writable layer: a backup of a real database is
+      # large, and writing it into the layer makes the container itself large.
+      - backups:/backups
+    configs:
+      - source: backups
+        target: /etc/clickhouse-server/config.d/backups.xml
     ulimits:
       # ClickHouse opens a file per column part and hits the default limit of
       # 1024 quickly; it logs "too many open files" and stops answering.
@@ -165,9 +174,33 @@ services:
       timeout: 5s
       retries: 10
 
+# ClickHouse will not back up to a path it has not been told about, so the
+# disk is declared here and named again under <backups> as one it may write to.
+# Inline rather than a second file on the server: the install writes exactly
+# two files and hashes them to decide whether anything changed, and a third
+# would be invisible to that check.
+configs:
+  backups:
+    content: |
+      <clickhouse>
+        <storage_configuration>
+          <disks>
+            <backups>
+              <type>local</type>
+              <path>/backups/</path>
+            </backups>
+          </disks>
+        </storage_configuration>
+        <backups>
+          <allowed_disk>backups</allowed_disk>
+          <allowed_path>/backups/</allowed_path>
+        </backups>
+      </clickhouse>
+
 volumes:
   data:
   logs:
+  backups:
 `,
 	env: func(in Install) []string {
 		return []string{"CLICKHOUSE_PASSWORD=" + in.Password}

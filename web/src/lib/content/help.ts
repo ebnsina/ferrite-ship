@@ -83,7 +83,7 @@ export const helpSections: HelpSection[] = [
 			{
 				question: 'Which tools can be backed up?',
 				answer:
-					'PostgreSQL and Redis. ClickHouse cannot be backed up yet.'
+					'PostgreSQL, Redis and ClickHouse. MediaMTX keeps no data, so there is nothing to copy.'
 			},
 			{
 				question: 'What does restoring do?',

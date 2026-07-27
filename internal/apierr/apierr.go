@@ -208,8 +208,8 @@ var (
 		"Add your storage details in Settings, then try again.")
 
 	BackupNotSupported = newError(CodeUnsupported, 400,
-		"We cannot back this one up yet.",
-		"PostgreSQL and Redis can be backed up today. ClickHouse is coming.")
+		"There is nothing here to back up.",
+		"This tool keeps no data of its own, so there is nothing a copy would contain.")
 
 	StorageEndpointRequired = newError(CodeInvalid, 400,
 		"We need the address of your storage.",
