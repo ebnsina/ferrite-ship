@@ -139,6 +139,8 @@ func (a *API) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/apps/{app}/deploy", a.handleDeployApp)
 	mux.HandleFunc("DELETE /v1/apps/{app}", a.handleRemoveApp)
 
+	mux.HandleFunc("PUT /v1/servers/{id}/domain", a.handleSaveDomain)
+
 	mux.HandleFunc("GET /v1/notifications", a.handleGetNotifications)
 	mux.HandleFunc("PUT /v1/notifications", a.handleSaveNotifications)
 	mux.HandleFunc("POST /v1/notifications/test", a.handleTestNotification)

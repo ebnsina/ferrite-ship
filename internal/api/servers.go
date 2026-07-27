@@ -34,6 +34,12 @@ type serverView struct {
 	// "Re-run" — telling someone to set up a server they set up last week is
 	// meaningless.
 	SetUpAt string `json:"setUpAt"`
+	// Domain is the name whose wildcard record points here, or empty. Safe to
+	// send: it is a public DNS name, not a credential.
+	Domain string `json:"domain"`
+	// ACMEEmail is only ever the owner's own address, shown back so the form
+	// that set it can be edited rather than retyped.
+	ACMEEmail string `json:"acmeEmail"`
 }
 
 type usageView struct {
@@ -84,6 +90,8 @@ func toServerView(s store.Server, setUpAt time.Time) serverView {
 		Services:   s.Services,
 		Connection: string(s.Kind),
 		SetUpAt:    formatOptionalTime(setUpAt),
+		Domain:     s.Domain,
+		ACMEEmail:  s.ACMEEmail,
 	}
 }
 

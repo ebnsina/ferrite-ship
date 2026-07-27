@@ -15,7 +15,7 @@ var ErrNotFound = errors.New("not found")
 
 const serverColumns = `id, user_id, name, connection_kind, host, port, username, region, status,
 	facts_json, services_json, sealed_password, sealed_private_key, public_key,
-	host_key, created_at, last_seen_at`
+	host_key, domain, acme_email, created_at, last_seen_at`
 
 func (s *Store) CreateServer(ctx context.Context, srv Server) error {
 	factsJSON, err := json.Marshal(srv.Facts)
@@ -29,10 +29,11 @@ func (s *Store) CreateServer(ctx context.Context, srv Server) error {
 
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO servers (`+serverColumns+`)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		srv.ID, srv.UserID, srv.Name, string(srv.Kind), srv.Host, srv.Port, srv.User, srv.Region,
 		string(srv.Status), string(factsJSON), string(servicesJSON),
 		srv.SealedPassword, srv.SealedPrivateKey, srv.PublicKey, srv.HostKey,
+		srv.Domain, srv.ACMEEmail,
 		formatTime(srv.CreatedAt), formatTimePtr(srv.LastSeenAt))
 	if err != nil {
 		return fmt.Errorf("store: insert server: %w", err)
@@ -119,6 +120,28 @@ func (s *Store) UpdateServerState(
 	return nil
 }
 
+// SetServerDomain records where this server answers on the web.
+//
+// Both values move together, and clearing the domain clears the address with
+// it: an ACME contact for a domain that is no longer routed here is a message
+// about certificates nobody is issuing.
+func (s *Store) SetServerDomain(ctx context.Context, userID, id, domain, email string) error {
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE servers SET domain = ?, acme_email = ? WHERE id = ? AND user_id = ?`,
+		domain, email, id, userID)
+	if err != nil {
+		return fmt.Errorf("store: set server domain: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (s *Store) SetServerStatus(ctx context.Context, id string, status ServerStatus) error {
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE servers SET status = ? WHERE id = ?`, string(status), id)
@@ -145,7 +168,7 @@ func scanServer(row rowScanner) (Server, error) {
 
 	err := row.Scan(&srv.ID, &srv.UserID, &srv.Name, &kind, &srv.Host, &srv.Port, &srv.User, &srv.Region,
 		&status, &factsJSON, &servicesJSON, &srv.SealedPassword, &srv.SealedPrivateKey,
-		&srv.PublicKey, &srv.HostKey, &createdAt, &lastSeenAtRaw)
+		&srv.PublicKey, &srv.HostKey, &srv.Domain, &srv.ACMEEmail, &createdAt, &lastSeenAtRaw)
 	if err != nil {
 		return Server{}, err
 	}

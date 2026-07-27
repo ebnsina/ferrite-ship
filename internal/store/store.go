@@ -34,6 +34,12 @@ CREATE TABLE IF NOT EXISTS servers (
 	sealed_private_key TEXT NOT NULL DEFAULT '',
 	public_key         TEXT NOT NULL DEFAULT '',
 	host_key           TEXT NOT NULL DEFAULT '',
+	-- The domain whose wildcard record points here, and the address Let's
+	-- Encrypt writes to about the certificates issued under it. Empty is a
+	-- complete answer: a server without a domain works exactly as it did
+	-- before one existed, reached over an SSH tunnel.
+	domain             TEXT NOT NULL DEFAULT '',
+	acme_email         TEXT NOT NULL DEFAULT '',
 	created_at         TEXT NOT NULL,
 	last_seen_at       TEXT
 );
@@ -310,6 +316,12 @@ var migrations = []string{
 	// A private repository needs a key the server can read it with. Sealed,
 	// like every other credential here.
 	`ALTER TABLE apps ADD COLUMN sealed_deploy_key TEXT NOT NULL DEFAULT ''`,
+	// Where this server answers on the web, once somebody points a wildcard
+	// record at it. Both default to empty, which is what every existing server
+	// keeps: no domain means no routing and no certificates, which is exactly
+	// how they already work.
+	`ALTER TABLE servers ADD COLUMN domain TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE servers ADD COLUMN acme_email TEXT NOT NULL DEFAULT ''`,
 }
 
 func migrate(db *sql.DB) error {

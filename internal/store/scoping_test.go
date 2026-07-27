@@ -35,6 +35,24 @@ func TestOneAccountCannotReachAnothersServers(t *testing.T) {
 		}
 	})
 
+	// A domain decides where a machine answers on the web and whose
+	// certificates are issued for it, so pointing one at somebody else's
+	// server is worth its own case rather than being assumed from the reads.
+	t.Run("setting a domain refuses another owner's server", func(t *testing.T) {
+		err := st.SetServerDomain(ctx, "usr_alice", bob, "example.com", "alice@example.com")
+		if !errors.Is(err, ErrNotFound) {
+			t.Errorf("alice set a domain on bob's server; got err %v, want ErrNotFound", err)
+		}
+
+		unchanged, err := st.GetServer(ctx, "usr_bob", bob)
+		if err != nil {
+			t.Fatalf("re-read bob's server: %v", err)
+		}
+		if unchanged.Domain != "" {
+			t.Errorf("bob's server now answers at %q", unchanged.Domain)
+		}
+	})
+
 	t.Run("delete refuses another owner's server", func(t *testing.T) {
 		if err := st.DeleteServer(ctx, "usr_alice", bob); !errors.Is(err, ErrNotFound) {
 			t.Errorf("alice deleted bob's server; got err %v, want ErrNotFound", err)

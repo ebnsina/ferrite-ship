@@ -28,6 +28,14 @@ export interface ManagedServer {
 	/** When the baseline last succeeded here. Empty means it never has. */
 	setUpAt: string;
 	services: string[];
+	/**
+	 * The domain whose wildcard record points at this server, without a scheme
+	 * — `example.com`, so a tool is reached at `grafana.example.com`. Empty
+	 * means nothing is routed here and everything is reached over a tunnel.
+	 */
+	domain: string;
+	/** Where Let's Encrypt writes about the certificates it issues. */
+	acmeEmail: string;
 }
 
 export function usageRatio({ usedBytes, totalBytes }: ResourceUsage): number {

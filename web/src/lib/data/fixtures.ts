@@ -30,7 +30,9 @@ export const mockServers: ManagedServer[] = [
 		disk: { usedBytes: 88 * GB, totalBytes: 320 * GB },
 		uptimeMs: 41 * 86_400_000 + 6 * 3_600_000,
 		lastSeenAt: minutesAgo(0.2),
-		services: ['traefik', 'postgres', 'redis']
+		services: ['traefik', 'postgres', 'redis'],
+		domain: 'example.com',
+		acmeEmail: 'ops@example.com'
 	},
 	{
 		id: 'srv_02',
@@ -48,7 +50,9 @@ export const mockServers: ManagedServer[] = [
 		disk: { usedBytes: 612 * GB, totalBytes: 640 * GB },
 		uptimeMs: 12 * 86_400_000 + 3 * 3_600_000,
 		lastSeenAt: minutesAgo(0.4),
-		services: ['mediamtx', 'clickhouse']
+		services: ['mediamtx', 'clickhouse'],
+		domain: 'media.example.net',
+		acmeEmail: 'ops@example.com'
 	},
 	{
 		id: 'srv_03',
@@ -66,7 +70,9 @@ export const mockServers: ManagedServer[] = [
 		disk: { usedBytes: 240 * GB, totalBytes: 1024 * GB },
 		uptimeMs: 96 * 86_400_000,
 		lastSeenAt: minutesAgo(0.1),
-		services: ['postgres', 'pgbouncer']
+		services: ['postgres', 'pgbouncer'],
+		domain: '',
+		acmeEmail: ''
 	},
 	{
 		id: 'srv_04',
@@ -84,7 +90,9 @@ export const mockServers: ManagedServer[] = [
 		disk: { usedBytes: 31 * GB, totalBytes: 160 * GB },
 		uptimeMs: 0,
 		lastSeenAt: minutesAgo(37),
-		services: ['nats']
+		services: ['nats'],
+		domain: '',
+		acmeEmail: ''
 	},
 	{
 		id: 'srv_05',
@@ -102,7 +110,9 @@ export const mockServers: ManagedServer[] = [
 		disk: { usedBytes: 9 * GB, totalBytes: 320 * GB },
 		uptimeMs: 4 * 60_000,
 		lastSeenAt: minutesAgo(0.05),
-		services: []
+		services: [],
+		domain: '',
+		acmeEmail: ''
 	}
 ];
 

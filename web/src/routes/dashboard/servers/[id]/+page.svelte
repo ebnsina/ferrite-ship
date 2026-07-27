@@ -5,6 +5,7 @@
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
 	import ResourceView from '$components/dashboard/ResourceView.svelte';
 	import SectionHeader from '$components/dashboard/SectionHeader.svelte';
+	import ServerDomain from '$components/dashboard/ServerDomain.svelte';
 	import Seo from '$components/Seo.svelte';
 	import {
 		ButtonLink,
@@ -259,6 +260,15 @@
 					</dl>
 				</Card>
 			</div>
+
+			<!--
+				Only for a real machine. A simulated one has no address anybody
+				could point a record at, so offering the form would be inviting
+				someone to configure something that cannot work.
+			-->
+			{#if s.connectionKind === 'ssh'}
+				<ServerDomain server={s} onSaved={() => server.reload()} />
+			{/if}
 
 			<ConfirmDialog
 				bind:open={confirmOpen}

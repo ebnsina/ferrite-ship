@@ -40,6 +40,18 @@ type Server struct {
 	Facts    facts.Facts    `json:"facts"`
 	Services []string       `json:"services"`
 
+	// Domain is the name whose wildcard record points at this server, without
+	// a scheme and without a leading dot — "example.com", so that a tool is
+	// reached at "grafana.example.com". Empty means nothing is routed here and
+	// everything is reached over an SSH tunnel, which is how every server
+	// worked before domains existed.
+	Domain string `json:"domain"`
+	// ACMEEmail is where Let's Encrypt writes about certificates issued for
+	// Domain — expiry warnings, and notice of anything it revokes. Required
+	// alongside a domain rather than optional: the one message it ever sends
+	// is the one you need.
+	ACMEEmail string `json:"acmeEmail"`
+
 	CreatedAt  time.Time  `json:"createdAt"`
 	LastSeenAt *time.Time `json:"lastSeenAt"`
 

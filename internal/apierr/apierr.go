@@ -215,6 +215,16 @@ var (
 		"That is not a schedule we can keep.",
 		"Choose daily or weekly, and an hour between 0 and 23.")
 
+	// Domains
+	InvalidDomain = newError(CodeInvalid, 400,
+		"That does not look like a domain name.",
+		"Enter it on its own, like example.com — no https:// and no trailing slash.")
+
+	DomainNeedsEmail = newError(CodeInvalid, 400,
+		"We need an address to go with that domain.",
+		"Certificates are issued in your name, and this is where notice of "+
+			"anything wrong with them is sent.")
+
 	// Notifications
 	InvalidNotificationEmail = newError(CodeInvalid, 400,
 		"That does not look like an email address.",
