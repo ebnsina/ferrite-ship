@@ -780,6 +780,134 @@ networks:
 	},
 }
 
+// keycloak is the first tool made of more than one container: it needs a
+// database, and it brings its own rather than sharing the catalogue's.
+//
+// That is a deliberate reversal of "Keycloak is blocked until tools can depend
+// on tools". Keycloak's database is not a database somebody uses — it is
+// Keycloak's private storage, whose schema Keycloak owns and migrates on every
+// upgrade. Putting that inside the PostgreSQL somebody keeps their own tables
+// in would couple two upgrade cycles that have no business being coupled, and
+// the "shared dependency" it would demonstrate is one nobody should want. An
+// application needing a DATABASE_URL is the case that genuinely wants sharing,
+// and it is a different problem.
+//
+// The database is deliberately NOT on the shared network. Everything on that
+// network can reach everything else on it, so a bundled dependency that joined
+// it would be reachable by every other tool on the server — and it would be
+// competing for a service name in a namespace shared by the whole catalogue.
+// It sits on this project's own default network, where the only thing that can
+// see it is the Keycloak beside it.
+var keycloak = Tool{
+	ID:       "keycloak",
+	Name:     "Keycloak",
+	Summary:  "Handles signing in, so your application never stores a password itself.",
+	Category: "Identity",
+	Icon:     "KeyRound",
+	// Keycloak's blue, from their mark.
+	Accent:  "#4D4D4D",
+	Image:   "quay.io/keycloak/keycloak:26.7",
+	Version: "26.7",
+	Web:     true,
+	// The first tool that genuinely cannot work without one. Keycloak builds
+	// every sign-in redirect and every token issuer from its hostname, so a
+	// wrong or missing one produces an installation that starts cleanly and
+	// fails the moment anybody tries to use it.
+	NeedsDomain: true,
+	Ports: []Port{
+		{Number: 8080, Protocol: "tcp", Purpose: "The sign-in pages and the admin console"},
+	},
+	Access:   &Access{Scheme: "https", Username: "ferrite", Port: 8080},
+	Volumes:  []string{"data"},
+	DataNote: "Removing Keycloak stops it and deletes its settings, but keeps its accounts and realms unless you ask for those too.",
+	compose: `# Managed by Ferrite Ship. Edits are replaced the next time this tool is set up.
+name: ferrite-keycloak
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7
+    restart: unless-stopped
+    # Plain start rather than --optimized: that flag requires a build step to
+    # have been run into the image first, and without it Keycloak refuses to
+    # start at all rather than falling back.
+    command: ["start"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ferrite
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_PASSWORD:?}
+
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_PASSWORD:?}
+
+      # The full public URL, not a bare host. Keycloak builds sign-in
+      # redirects and token issuers from it, and every client that trusts this
+      # server compares the issuer exactly — so this being wrong looks like
+      # working sign-ins that every application then rejects.
+      KC_HOSTNAME: ${KEYCLOAK_URL:?}
+      # TLS is terminated at Traefik, so Keycloak itself speaks plain HTTP on
+      # the private network. Without this it refuses to serve anything.
+      KC_HTTP_ENABLED: "true"
+      # Take the scheme and port from the proxy's headers. Without it Keycloak
+      # sees an http request and writes http:// into redirects it has just
+      # been reached over https, which browsers then block.
+      KC_PROXY_HEADERS: xforwarded
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    # Both networks: the shared one so Traefik can route to it, and this
+    # project's own so it can reach its database.
+    networks: [ferrite, default]
+    labels:
+      - traefik.enable=${KEYCLOAK_ROUTED:?}
+      - traefik.http.routers.keycloak.rule=Host(` + "`" + `keycloak.${FERRITE_DOMAIN}` + "`" + `)
+      - traefik.http.routers.keycloak.entrypoints=websecure
+      - traefik.http.routers.keycloak.tls.certresolver=le
+      - traefik.http.services.keycloak.loadbalancer.server.port=8080
+    # No healthcheck. Keycloak's own is on a separate management port and the
+    # image carries no curl or wget to ask it with, so every version of one
+    # reports a working server as unhealthy.
+
+  keycloak-db:
+    image: postgres:18-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: keycloak
+      POSTGRES_DB: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_PASSWORD:?}
+    volumes:
+      # PostgreSQL 18 keeps its data under /var/lib/postgresql/18/docker, so
+      # the volume goes one level up. The familiar .../data path would leave
+      # every account written inside the container.
+      - data:/var/lib/postgresql
+    # No networks, so it joins this project's default network and nothing
+    # else. Not published either: only the container above can reach it.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  data:
+
+networks:
+  ferrite:
+    external: true
+`,
+	env: func(in Install) []string {
+		return append(
+			[]string{
+				"KEYCLOAK_PASSWORD=" + in.Password,
+				"KEYCLOAK_URL=https://" + in.Tool.Subdomain(in.Domain) + "/",
+			},
+			routing("KEYCLOAK", in)...,
+		)
+	},
+}
+
 var mediamtx = Tool{
 	ID:       "mediamtx",
 	Name:     "MediaMTX",

@@ -275,7 +275,13 @@ func unescaped(command string) string {
 // everything above happens anyway with nothing to see in the file.
 func TestEveryToolJoinsTheSharedNetwork(t *testing.T) {
 	for _, tool := range All() {
-		if !strings.Contains(tool.compose, "networks: ["+steps.Network+"]") {
+		// A prefix, not the whole list: a tool that brings its own dependency
+		// puts the routed service on both this network and the project's own,
+		// and only the routed one belongs here. The dependency itself must
+		// stay off the shared network entirely — everything on it can reach
+		// everything else, so a bundled database that joined would be visible
+		// to every other tool on the server.
+		if !strings.Contains(tool.compose, "networks: ["+steps.Network) {
 			t.Errorf("%s has no service on the %s network, so nothing can route to it",
 				tool.ID, steps.Network)
 		}
@@ -370,6 +376,51 @@ func TestWebToolsAreNotPublishedThemselves(t *testing.T) {
 		if len(tool.PublicPorts()) > 0 {
 			t.Errorf("%s opens %d public port(s); it should only be reachable through Traefik",
 				tool.ID, len(tool.PublicPorts()))
+		}
+	}
+}
+
+// Exactly one service per tool sits on the shared network.
+//
+// Everything on that network can reach everything else on it, so a tool that
+// brings its own database must keep it on the project's own network instead.
+// Keycloak's PostgreSQL holds every account on the server; joining the shared
+// network would make it reachable by every other container in the catalogue,
+// and the compose file would still look entirely reasonable.
+//
+// One is also the right number at the other end: a second service on the
+// shared network would be competing for a name in a namespace the whole
+// catalogue shares, and compose resolves those by service name.
+func TestOnlyTheRoutedServiceIsOnTheSharedNetwork(t *testing.T) {
+	for _, tool := range All() {
+		if got := strings.Count(tool.compose, "networks: ["+steps.Network); got != 1 {
+			t.Errorf("%s puts %d services on the %s network; exactly one should be",
+				tool.ID, got, steps.Network)
+		}
+	}
+}
+
+// A tool that cannot work without a domain has to say so, or it installs
+// cleanly and fails the moment somebody tries to use it.
+func TestToolsNeedingADomainBuildTheirAddressFromIt(t *testing.T) {
+	for _, tool := range All() {
+		if !tool.NeedsDomain {
+			continue
+		}
+
+		in := Install{Tool: tool, Password: "x", Domain: "example.com", Email: "ops@example.com"}
+		var rendered string
+		for _, line := range tool.env(in) {
+			rendered += line + "\n"
+		}
+
+		// Whatever address it is told about itself must be the one Traefik
+		// routes. Keycloak compares its issuer exactly, so a mismatch here is
+		// sign-ins that work and applications that then reject every token.
+		if strings.Contains(rendered, "_URL=") &&
+			!strings.Contains(rendered, "https://"+tool.Subdomain("example.com")) {
+			t.Errorf("%s is told an address that is not %s:\n%s",
+				tool.ID, tool.Subdomain("example.com"), rendered)
 		}
 	}
 }

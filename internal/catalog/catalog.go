@@ -137,7 +137,7 @@ func All() []Tool {
 	// through, so it reads as infrastructure rather than as another database.
 	tools := []Tool{
 		traefik, postgres, redis, clickhouse, meilisearch, qdrant,
-		nats, rabbitmq, minio, grafana, mediamtx,
+		nats, rabbitmq, minio, grafana, keycloak, mediamtx,
 	}
 	for i := range tools {
 		tools[i].KeepsData = len(tools[i].Volumes) > 0
