@@ -1,6 +1,7 @@
 import type { StatusPresentation } from '$lib/domain/status';
 import type { Tool, ToolStatus } from '$lib/data/tools';
 import type { LucideProps } from '@lucide/svelte';
+import Astroid from '@lucide/svelte/icons/astroid';
 import ChartColumn from '@lucide/svelte/icons/chart-column';
 import ChartLine from '@lucide/svelte/icons/chart-line';
 import CircleCheck from '@lucide/svelte/icons/circle-check';
@@ -9,7 +10,9 @@ import CircleX from '@lucide/svelte/icons/circle-x';
 import Database from '@lucide/svelte/icons/database';
 import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 import Package from '@lucide/svelte/icons/package';
+import Radio from '@lucide/svelte/icons/radio';
 import Route from '@lucide/svelte/icons/route';
+import Search from '@lucide/svelte/icons/search';
 import Video from '@lucide/svelte/icons/video';
 import Zap from '@lucide/svelte/icons/zap';
 import type { Component } from 'svelte';
@@ -27,7 +30,10 @@ const ICONS: Record<string, Component<LucideProps>> = {
 	ChartColumn,
 	ChartLine,
 	Video,
-	Route
+	Route,
+	Search,
+	Radio,
+	Astroid
 };
 
 export function toolIcon(name: string): Component<LucideProps> {

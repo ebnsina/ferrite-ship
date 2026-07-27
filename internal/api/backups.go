@@ -167,6 +167,19 @@ func actorOf(r *http.Request) string {
 	return "You"
 }
 
+// noBackupFor picks which of the two "no backup here" answers is true.
+//
+// Whether the tool stores anything is the difference. A media server keeping
+// nothing is finished business; a search index we cannot copy yet is an
+// admission, and dressing it up as the former would tell someone their data
+// does not matter.
+func noBackupFor(tool catalog.Tool) *apierr.Error {
+	if tool.KeepsData {
+		return apierr.BackupNotSupported
+	}
+	return apierr.BackupNotNeeded
+}
+
 // failBackup maps backup-specific problems onto the catalogue.
 func (a *API) failBackup(w http.ResponseWriter, err error) {
 	switch {
@@ -249,7 +262,7 @@ func (a *API) handleSaveSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !tool.Supported() {
-		a.fail(w, apierr.BackupNotSupported)
+		a.fail(w, noBackupFor(tool))
 		return
 	}
 

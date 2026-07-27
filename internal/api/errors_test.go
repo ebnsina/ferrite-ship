@@ -70,6 +70,8 @@ func TestEveryFailureSaysSomething(t *testing.T) {
 	for _, err := range []*apierr.Error{
 		apierr.UnknownTool, apierr.ToolNotInstalled,
 		apierr.ToolNeedsAddress, apierr.ToolNotReady,
+		apierr.ToolNeedsDomain, apierr.InvalidDomain, apierr.DomainNeedsEmail,
+		apierr.BackupNotSupported, apierr.BackupNotNeeded,
 	} {
 		recorder := httptest.NewRecorder()
 		api.fail(recorder, err)

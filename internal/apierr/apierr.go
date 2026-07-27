@@ -212,7 +212,17 @@ var (
 		"There is nowhere to put backups yet.",
 		"Add your storage details in Settings, then try again.")
 
+	// Two of them, because "we cannot copy this" and "there is nothing to
+	// copy" are different facts and the second is reassuring while the first
+	// is not. Telling someone their search index has nothing worth keeping
+	// would be wrong, and telling them a media server needs a backup would be
+	// inventing a worry.
 	BackupNotSupported = newError(CodeUnsupported, 400,
+		"We cannot copy this one yet.",
+		"PostgreSQL, Redis and ClickHouse can be backed up today. This tool "+
+			"keeps its data on the server until that changes.")
+
+	BackupNotNeeded = newError(CodeUnsupported, 400,
 		"There is nothing here to back up.",
 		"This tool keeps no data of its own, so there is nothing a copy would contain.")
 

@@ -130,7 +130,9 @@ type Install struct {
 func All() []Tool {
 	// Traefik first: it is the one thing here that other tools are reached
 	// through, so it reads as infrastructure rather than as another database.
-	tools := []Tool{traefik, postgres, redis, clickhouse, grafana, mediamtx}
+	tools := []Tool{
+		traefik, postgres, redis, clickhouse, meilisearch, qdrant, nats, grafana, mediamtx,
+	}
 	for i := range tools {
 		tools[i].KeepsData = len(tools[i].Volumes) > 0
 		if spec, ok := tools[i].ConsoleSpec(); ok {

@@ -109,6 +109,24 @@ networks:
 	},
 }
 
+// routing renders the two variables every web tool's compose file reads.
+//
+// A server with no domain gets ROUTED=false, and Traefik then ignores every
+// other label on the container — which is how one compose file serves both
+// the routed case and the tunnel-only one. The domain is written either way
+// so that setting one changes the file's fingerprint and the start step
+// notices, rather than reporting nothing to do.
+func routing(prefix string, in Install) []string {
+	routed := "false"
+	if in.Domain != "" {
+		routed = "true"
+	}
+	return []string{
+		prefix + "_ROUTED=" + routed,
+		"FERRITE_DOMAIN=" + in.Domain,
+	}
+}
+
 // grafana is the first tool reached through Traefik rather than through a
 // tunnel, and the pattern every web tool after it follows.
 //
@@ -184,18 +202,19 @@ networks:
     external: true
 `,
 	env: func(in Install) []string {
-		routed := "false"
+		// Grafana builds its own links from this, so it is the one web tool
+		// that needs its address spelled out rather than just routed to.
 		rootURL := "http://localhost:3000/"
 		if in.Domain != "" {
-			routed = "true"
-			rootURL = "https://grafana." + in.Domain + "/"
+			rootURL = "https://" + in.Tool.Subdomain(in.Domain) + "/"
 		}
-		return []string{
-			"GRAFANA_PASSWORD=" + in.Password,
-			"GRAFANA_ROOT_URL=" + rootURL,
-			"GRAFANA_ROUTED=" + routed,
-			"FERRITE_DOMAIN=" + in.Domain,
-		}
+		return append(
+			[]string{
+				"GRAFANA_PASSWORD=" + in.Password,
+				"GRAFANA_ROOT_URL=" + rootURL,
+			},
+			routing("GRAFANA", in)...,
+		)
 	},
 }
 
@@ -409,6 +428,203 @@ networks:
 `,
 	env: func(in Install) []string {
 		return []string{"CLICKHOUSE_PASSWORD=" + in.Password}
+	},
+}
+
+// meilisearch is a search engine with a browser dashboard, so it follows
+// Grafana's pattern rather than a database's: an address and a key, not one
+// string with the credential inside it. Its key goes in an Authorization
+// header, which no connection string can express anyway.
+var meilisearch = Tool{
+	ID:       "meilisearch",
+	Name:     "Meilisearch",
+	Summary:  "Powers the search box in your application, and is forgiving about spelling.",
+	Category: "Search",
+	Icon:     "Search",
+	// Meilisearch's pink-red, from their mark.
+	Accent:  "#FF5CAA",
+	Image:   "getmeili/meilisearch:v1.50",
+	Version: "1.50",
+	Web:     true,
+	Ports: []Port{
+		{Number: 7700, Protocol: "tcp", Purpose: "Searching and adding documents"},
+	},
+	Access:   &Access{Scheme: "https", Username: "ferrite", Port: 7700},
+	Volumes:  []string{"data"},
+	DataNote: "Removing Meilisearch stops it and deletes its settings, but keeps what you had indexed unless you ask for that too.",
+	compose: `# Managed by Ferrite Ship. Edits are replaced the next time this tool is set up.
+name: ferrite-meilisearch
+
+services:
+  meilisearch:
+    image: getmeili/meilisearch:v1.50
+    restart: unless-stopped
+    environment:
+      # Meilisearch refuses to start in production without a key of at least
+      # 16 bytes, which is the same rule the generated password already meets.
+      MEILI_MASTER_KEY: ${MEILISEARCH_PASSWORD:?}
+      # Production rather than development: development leaves the whole
+      # instance open to anyone who can reach it, key or no key.
+      MEILI_ENV: production
+    ports:
+      - "127.0.0.1:7700:7700"
+    volumes:
+      # Not /data. Meilisearch writes to /meili_data, and a volume on the
+      # wrong path leaves it writing inside the container, where the index
+      # disappears the next time it is recreated.
+      - data:/meili_data
+    networks: [ferrite]
+    labels:
+      - traefik.enable=${MEILISEARCH_ROUTED:?}
+      - traefik.http.routers.meilisearch.rule=Host(` + "`" + `meilisearch.${FERRITE_DOMAIN}` + "`" + `)
+      - traefik.http.routers.meilisearch.entrypoints=websecure
+      - traefik.http.routers.meilisearch.tls.certresolver=le
+      - traefik.http.services.meilisearch.loadbalancer.server.port=7700
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:7700/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  data:
+
+networks:
+  ferrite:
+    external: true
+`,
+	env: func(in Install) []string {
+		return append(
+			[]string{"MEILISEARCH_PASSWORD=" + in.Password},
+			routing("MEILISEARCH", in)...,
+		)
+	},
+}
+
+// qdrant stores vectors — the representation a model produces — so searching
+// it finds things that mean the same rather than things spelled the same.
+var qdrant = Tool{
+	ID:       "qdrant",
+	Name:     "Qdrant",
+	Summary:  "Search that understands meaning, so a question finds the right answer even when it shares no words with it.",
+	Category: "Search",
+	// The four-pointed star, which is how anything model-flavoured is marked
+	// here. Never a sparkle or a robot.
+	Icon: "Astroid",
+	// Qdrant's crimson, from their mark.
+	Accent:  "#DC244C",
+	Image:   "qdrant/qdrant:v1.18",
+	Version: "1.18",
+	Web:     true,
+	Ports: []Port{
+		{Number: 6333, Protocol: "tcp", Purpose: "Searching and storing vectors"},
+	},
+	Access:   &Access{Scheme: "https", Username: "ferrite", Port: 6333},
+	Volumes:  []string{"data"},
+	DataNote: "Removing Qdrant stops it and deletes its settings, but keeps the vectors you stored unless you ask for those too.",
+	compose: `# Managed by Ferrite Ship. Edits are replaced the next time this tool is set up.
+name: ferrite-qdrant
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.18
+    restart: unless-stopped
+    environment:
+      # Double underscores are how Qdrant nests configuration in an
+      # environment variable. Without this it accepts every request from
+      # anyone who can reach it.
+      QDRANT__SERVICE__API_KEY: ${QDRANT_PASSWORD:?}
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - data:/qdrant/storage
+    networks: [ferrite]
+    labels:
+      - traefik.enable=${QDRANT_ROUTED:?}
+      - traefik.http.routers.qdrant.rule=Host(` + "`" + `qdrant.${FERRITE_DOMAIN}` + "`" + `)
+      - traefik.http.routers.qdrant.entrypoints=websecure
+      - traefik.http.routers.qdrant.tls.certresolver=le
+      - traefik.http.services.qdrant.loadbalancer.server.port=6333
+    # No healthcheck. The image carries no shell and no wget or curl, so every
+    # form of one fails and reports the container unhealthy while it is
+    # serving perfectly well — which would leave compose waiting on it forever.
+
+volumes:
+  data:
+
+networks:
+  ferrite:
+    external: true
+`,
+	env: func(in Install) []string {
+		return append(
+			[]string{"QDRANT_PASSWORD=" + in.Password},
+			routing("QDRANT", in)...,
+		)
+	},
+}
+
+// nats passes messages between the parts of an application. Not a web tool:
+// it is spoken to by a client, and its address is a connection string in the
+// ordinary way.
+var nats = Tool{
+	ID:       "nats",
+	Name:     "NATS",
+	Summary:  "Passes messages between parts of your application, and keeps them until something has read them.",
+	Category: "Messaging",
+	Icon:     "Radio",
+	// NATS blue-green, from their mark.
+	Accent:  "#27AAE1",
+	Image:   "nats:2-alpine",
+	Version: "2",
+	Ports: []Port{
+		{Number: 4222, Protocol: "tcp", Purpose: "Publishing and subscribing"},
+	},
+	Access:   &Access{Scheme: "nats", Username: "ferrite", Port: 4222},
+	Volumes:  []string{"data"},
+	DataNote: "Removing NATS stops it and deletes its settings, but keeps any messages it had stored unless you ask for those too.",
+	compose: `# Managed by Ferrite Ship. Edits are replaced the next time this tool is set up.
+name: ferrite-nats
+
+services:
+  nats:
+    image: nats:2-alpine
+    restart: unless-stopped
+    # JetStream is what makes a message survive a restart. Without -js this is
+    # a relay: anything published while a subscriber is down is simply gone,
+    # which is rarely what someone means by a queue.
+    command:
+      - "-js"
+      - "-sd"
+      - "/data"
+      - "--user"
+      - "ferrite"
+      - "--pass"
+      - "${NATS_PASSWORD:?}"
+      - "-m"
+      - "8222"
+    ports:
+      - "127.0.0.1:4222:4222"
+    volumes:
+      - data:/data
+    networks: [ferrite]
+    healthcheck:
+      # The monitoring port, which is bound inside the container only — it is
+      # not in ports above, so nothing outside can reach it.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8222/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  data:
+
+networks:
+  ferrite:
+    external: true
+`,
+	env: func(in Install) []string {
+		return []string{"NATS_PASSWORD=" + in.Password}
 	},
 }
 

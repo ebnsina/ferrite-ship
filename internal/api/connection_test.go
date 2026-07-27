@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ebnsina/ferrite-ship/internal/apierr"
 	"github.com/ebnsina/ferrite-ship/internal/catalog"
 )
 
@@ -83,5 +84,37 @@ func TestGrafanaIsRoutedRatherThanPublished(t *testing.T) {
 	// remain the answer rather than an address that resolves nowhere.
 	if got := tool.Subdomain(""); got != "" {
 		t.Errorf("subdomain without a domain = %q, want empty", got)
+	}
+}
+
+// "There is nothing to back up" and "we cannot back this up yet" must not be
+// swapped.
+//
+// The first is reassuring and the second is an admission, so telling someone
+// their search index has nothing worth keeping — when in fact we simply have
+// not built the copy for it — is the kind of wrong answer that gets believed.
+func TestNoBackupMessageMatchesWhetherTheToolStoresAnything(t *testing.T) {
+	for _, tc := range []struct {
+		id   string
+		want string
+	}{
+		// Keeps data, no backup built yet.
+		{"meilisearch", apierr.BackupNotSupported.Message},
+		{"qdrant", apierr.BackupNotSupported.Message},
+		{"grafana", apierr.BackupNotSupported.Message},
+		{"nats", apierr.BackupNotSupported.Message},
+		// Stores nothing at all.
+		{"mediamtx", apierr.BackupNotNeeded.Message},
+	} {
+		tool, err := catalog.Find(tc.id)
+		if err != nil {
+			t.Fatalf("find %s: %v", tc.id, err)
+		}
+		if tool.Supported() {
+			t.Fatalf("%s can be backed up now; this case is stale", tc.id)
+		}
+		if got := noBackupFor(tool).Message; got != tc.want {
+			t.Errorf("%s: %q, want %q", tc.id, got, tc.want)
+		}
 	}
 }

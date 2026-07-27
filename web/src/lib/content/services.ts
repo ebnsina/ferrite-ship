@@ -1,4 +1,5 @@
 import type { LucideProps } from '@lucide/svelte';
+import Astroid from '@lucide/svelte/icons/astroid';
 import ChartColumn from '@lucide/svelte/icons/chart-column';
 import ChartLine from '@lucide/svelte/icons/chart-line';
 import Database from '@lucide/svelte/icons/database';
@@ -9,7 +10,6 @@ import Layers from '@lucide/svelte/icons/layers';
 import Radio from '@lucide/svelte/icons/radio';
 import Route from '@lucide/svelte/icons/route';
 import Search from '@lucide/svelte/icons/search';
-import Sparkles from '@lucide/svelte/icons/sparkles';
 import Video from '@lucide/svelte/icons/video';
 import type { Component } from 'svelte';
 
@@ -33,5 +33,5 @@ export const serviceHighlights: ServiceHighlight[] = [
 	{ name: 'Grafana', purpose: 'Draws the charts', icon: ChartLine },
 	{ name: 'Keycloak', purpose: 'Handles sign-ins', icon: KeyRound },
 	{ name: 'RabbitMQ', purpose: 'Queues background work', icon: Layers },
-	{ name: 'Qdrant', purpose: 'Search that understands meaning', icon: Sparkles }
+	{ name: 'Qdrant', purpose: 'Search that understands meaning', icon: Astroid }
 ];
