@@ -198,6 +198,10 @@ var (
 		"That repository needs a key we can read it with.",
 		"Add a read-only deploy key, or use the https:// address if the repository is public.")
 
+	NothingToReclaim = newError(CodeInvalid, 400,
+		"We do not know how to free that.",
+		"Pick from the list of things that can be cleared up.")
+
 	// Backups
 	NoBackupDestination = newError(CodeInvalid, 400,
 		"There is nowhere to put backups yet.",

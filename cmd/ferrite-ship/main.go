@@ -166,6 +166,7 @@ func run(log *slog.Logger) error {
 		Files:         fileBrowser,
 		Services:      units,
 		Console:       consoles,
+		Dialer:        connections,
 		Auth:          accounts,
 		Logger:        log,
 		AllowedOrigin: cfg.AllowedOrigin,

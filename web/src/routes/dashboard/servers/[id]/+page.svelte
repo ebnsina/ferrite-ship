@@ -211,6 +211,17 @@
 							ratio={usageRatio(s.disk)}
 							detail="{formatBytes(s.disk.usedBytes)} of {formatBytes(s.disk.totalBytes)}"
 						/>
+						<!-- A bar going red tells you there is a problem and nothing
+						     about what to do, which leaves the terminal as the only
+						     way forward. This is the way out, and it sits where the
+						     problem is noticed. -->
+						<a
+							href="/dashboard/servers/{id}/storage"
+							class="text-content-muted hover:text-content inline-flex items-center gap-1.5 text-xs transition-colors duration-150"
+						>
+							<Search size={13} aria-hidden="true" />
+							See what is using it
+						</a>
 					</div>
 				</Card>
 

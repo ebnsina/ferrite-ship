@@ -11,6 +11,7 @@ import (
 	"github.com/ebnsina/ferrite-ship/internal/apierr"
 	"github.com/ebnsina/ferrite-ship/internal/auth"
 	"github.com/ebnsina/ferrite-ship/internal/console"
+	"github.com/ebnsina/ferrite-ship/internal/dialer"
 	"github.com/ebnsina/ferrite-ship/internal/executor/sshexec"
 	"github.com/ebnsina/ferrite-ship/internal/files"
 	"github.com/ebnsina/ferrite-ship/internal/ids"
@@ -30,6 +31,7 @@ type API struct {
 	files     *files.Service
 	services  *services.Service
 	console   *console.Service
+	dialer    *dialer.Dialer
 	auth      *auth.Service
 	log       *slog.Logger
 
@@ -51,6 +53,7 @@ type Options struct {
 	Files         *files.Service
 	Services      *services.Service
 	Console       *console.Service
+	Dialer        *dialer.Dialer
 	Auth          *auth.Service
 	Logger        *slog.Logger
 	AllowedOrigin string
@@ -66,6 +69,7 @@ func New(opts Options) *API {
 		files:         opts.Files,
 		services:      opts.Services,
 		console:       opts.Console,
+		dialer:        opts.Dialer,
 		auth:          opts.Auth,
 		log:           opts.Logger,
 		allowedOrigin: opts.AllowedOrigin,
@@ -121,6 +125,9 @@ func (a *API) Routes() http.Handler {
 	mux.HandleFunc("GET /v1/servers/{id}/tools/{tool}/queries", a.handleListSavedQueries)
 	mux.HandleFunc("POST /v1/servers/{id}/tools/{tool}/queries", a.handleSaveQuery)
 	mux.HandleFunc("DELETE /v1/servers/{id}/tools/{tool}/queries/{query}", a.handleDeleteSavedQuery)
+
+	mux.HandleFunc("GET /v1/servers/{id}/storage", a.handleStorage)
+	mux.HandleFunc("POST /v1/servers/{id}/storage/reclaim", a.handleReclaim)
 
 	mux.HandleFunc("GET /v1/servers/{id}/apps", a.handleListApps)
 	mux.HandleFunc("POST /v1/servers/{id}/apps", a.handleCreateApp)
