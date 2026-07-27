@@ -145,6 +145,7 @@ func (a *API) Routes() http.Handler {
 	mux.HandleFunc("PUT /v1/notifications", a.handleSaveNotifications)
 	mux.HandleFunc("POST /v1/notifications/test", a.handleTestNotification)
 	mux.HandleFunc("GET /v1/alerts", a.handleListAlerts)
+	mux.HandleFunc("GET /v1/problems", a.handleListProblems)
 
 	mux.HandleFunc("GET /v1/backups/destination", a.handleGetBackupDestination)
 	mux.HandleFunc("PUT /v1/backups/destination", a.handleSaveBackupDestination)

@@ -371,3 +371,79 @@ func TestSavingTwiceUnderOneNameReplaces(t *testing.T) {
 		t.Errorf("query is %q, want the newer one", found[0].Query)
 	}
 }
+
+// The failures page reaches across every server an account has, which makes it
+// exactly the kind of query where a forgotten owner check leaks — it is the
+// one page whose whole purpose is to show rows from servers the reader did not
+// name.
+func TestFailedJobsAreScoped(t *testing.T) {
+	st := openTestStore(t)
+	ctx := context.Background()
+
+	alice := seedServer(t, st, "usr_alice", "srv_alice", "alice-box")
+	bob := seedServer(t, st, "usr_bob", "srv_bob", "bob-box")
+
+	seedFailedJob(t, st, "job_alice", alice, "Alice's backup")
+	seedFailedJob(t, st, "job_bob", bob, "Bob's backup")
+
+	failures, err := st.ListFailedJobs(ctx, "usr_alice", 20)
+	if err != nil {
+		t.Fatalf("list failed jobs: %v", err)
+	}
+	if len(failures) != 1 {
+		t.Fatalf("alice sees %d failures, want only her own", len(failures))
+	}
+	if failures[0].ID != "job_alice" {
+		t.Errorf("alice sees %q", failures[0].ID)
+	}
+}
+
+// Only failures, and every failure. A run that succeeded appearing here would
+// be alarming; one that failed being missing is worse.
+func TestFailedJobsAreOnlyTheFailures(t *testing.T) {
+	st := openTestStore(t)
+	ctx := context.Background()
+
+	server := seedServer(t, st, "usr_alice", "srv_alice", "alice-box")
+	seedFailedJob(t, st, "job_failed", server, "This broke")
+
+	ok := Job{
+		ID: "job_ok", ServerID: server, Kind: "setup", Title: "This worked",
+		Actor: "alice@example.com", Status: JobSucceeded, StartedAt: time.Now().UTC(),
+	}
+	if err := st.CreateJob(ctx, ok); err != nil {
+		t.Fatalf("create job: %v", err)
+	}
+
+	failures, err := st.ListFailedJobs(ctx, "usr_alice", 20)
+	if err != nil {
+		t.Fatalf("list failed jobs: %v", err)
+	}
+	if len(failures) != 1 || failures[0].ID != "job_failed" {
+		t.Fatalf("got %d jobs, want just the failed one", len(failures))
+	}
+	if failures[0].Error == "" {
+		t.Error("a failure with no error text tells the reader nothing")
+	}
+}
+
+func seedFailedJob(t *testing.T, st *Store, id, serverID, title string) {
+	t.Helper()
+
+	ctx := context.Background()
+	job := Job{
+		ID: id, ServerID: serverID, Kind: "backup", Title: title,
+		Actor: ActorScheduled, Status: JobRunning, StartedAt: time.Now().UTC(),
+	}
+	if err := st.CreateJob(ctx, job); err != nil {
+		t.Fatalf("create job: %v", err)
+	}
+
+	finished := time.Now().UTC()
+	job.Status = JobFailed
+	job.FinishedAt = &finished
+	job.Error = "could not reach the database"
+	if err := st.FinishJob(ctx, job); err != nil {
+		t.Fatalf("finish job: %v", err)
+	}
+}

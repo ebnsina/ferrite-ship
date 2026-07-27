@@ -86,6 +86,39 @@ func (s *Store) ListRecentJobs(ctx context.Context, userID string, limit int) ([
 	return jobs, rows.Err()
 }
 
+// ListFailedJobs returns the runs that did not finish, newest first.
+//
+// Separate from ListRecentJobs rather than filtered from it afterwards: a
+// history page shows twenty jobs and most are successes, so the failures a
+// person needs are whichever of them happen to be in that window. Asking the
+// database for failures means the twenty oldest successes cannot push the one
+// failure that matters off the end.
+func (s *Store) ListFailedJobs(ctx context.Context, userID string, limit int) ([]Job, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT `+prefixed(jobColumns, "jobs")+`
+		FROM jobs JOIN servers ON servers.id = jobs.server_id
+		WHERE servers.user_id = ? AND jobs.status = ?
+		ORDER BY jobs.started_at DESC LIMIT ?`, userID, string(JobFailed), limit)
+	if err != nil {
+		return nil, fmt.Errorf("store: list failed jobs: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	jobs := []Job{}
+	for rows.Next() {
+		job, err := scanJob(rows)
+		if err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, rows.Err()
+}
+
 func scanJob(row rowScanner) (Job, error) {
 	var (
 		job           Job
