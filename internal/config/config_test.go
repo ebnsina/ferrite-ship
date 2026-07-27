@@ -1,6 +1,10 @@
 package config
 
-import "testing"
+import (
+	"bytes"
+	"encoding/base64"
+	"testing"
+)
 
 // A mail server that is half-configured is the state worth failing on: it
 // looks set up, and it sends nothing.
@@ -91,6 +95,125 @@ func TestSMTPConfiguration(t *testing.T) {
 			}
 			if test.check != nil {
 				test.check(t, got)
+			}
+		})
+	}
+}
+
+// Three of the four set is the state worth failing on: it looks configured,
+// and it fails at the first clone of a private repository — which is both the
+// least convenient moment and the hardest to attribute to a missing variable.
+func TestGitHubConfiguration(t *testing.T) {
+	// A real PEM is not needed: what is checked here is the shape, and using a
+	// generated key would make this test about RSA rather than about config.
+	pem := base64.StdEncoding.EncodeToString(
+		[]byte("-----BEGIN RSA PRIVATE KEY-----\nx\n-----END RSA PRIVATE KEY-----\n"))
+
+	tests := []struct {
+		name    string
+		env     map[string]string
+		wantErr bool
+		check   func(*testing.T, GitHub)
+	}{
+		{
+			name:    "unset is an error, not a quiet no",
+			env:     map[string]string{},
+			wantErr: true,
+		},
+		{
+			name: "none turns it off, and asks for nothing else",
+			env:  map[string]string{"FERRITE_GITHUB_APP_ID": "none"},
+			check: func(t *testing.T, got GitHub) {
+				if got.Enabled() {
+					t.Error(`"none" must mean no GitHub app`)
+				}
+			},
+		},
+		{
+			name: "an app id that is not a number is refused",
+			env: map[string]string{
+				"FERRITE_GITHUB_APP_ID": "ferrite-ship", "FERRITE_GITHUB_APP_SLUG": "s",
+				"FERRITE_GITHUB_PRIVATE_KEY": pem, "FERRITE_GITHUB_WEBHOOK_SECRET": "shh",
+			},
+			wantErr: true,
+		},
+		{
+			name: "a missing slug is refused, because nobody could install it",
+			env: map[string]string{
+				"FERRITE_GITHUB_APP_ID": "123", "FERRITE_GITHUB_PRIVATE_KEY": pem,
+				"FERRITE_GITHUB_WEBHOOK_SECRET": "shh",
+			},
+			wantErr: true,
+		},
+		{
+			name: "a key that is not base64 is refused",
+			env: map[string]string{
+				"FERRITE_GITHUB_APP_ID": "123", "FERRITE_GITHUB_APP_SLUG": "s",
+				"FERRITE_GITHUB_PRIVATE_KEY":    "-----BEGIN RSA PRIVATE KEY-----",
+				"FERRITE_GITHUB_WEBHOOK_SECRET": "shh",
+			},
+			wantErr: true,
+		},
+		{
+			name: "base64 of something that is not a key is refused",
+			env: map[string]string{
+				"FERRITE_GITHUB_APP_ID": "123", "FERRITE_GITHUB_APP_SLUG": "s",
+				"FERRITE_GITHUB_PRIVATE_KEY":    base64.StdEncoding.EncodeToString([]byte("hello")),
+				"FERRITE_GITHUB_WEBHOOK_SECRET": "shh",
+			},
+			wantErr: true,
+		},
+		{
+			// The one that would otherwise be discovered by an open endpoint
+			// accepting a deploy request from anybody.
+			name: "a missing webhook secret is refused",
+			env: map[string]string{
+				"FERRITE_GITHUB_APP_ID": "123", "FERRITE_GITHUB_APP_SLUG": "s",
+				"FERRITE_GITHUB_PRIVATE_KEY": pem,
+			},
+			wantErr: true,
+		},
+		{
+			name: "all four together",
+			env: map[string]string{
+				"FERRITE_GITHUB_APP_ID": "123", "FERRITE_GITHUB_APP_SLUG": "ferrite-ship",
+				"FERRITE_GITHUB_PRIVATE_KEY": pem, "FERRITE_GITHUB_WEBHOOK_SECRET": "shh",
+			},
+			check: func(t *testing.T, got GitHub) {
+				if !got.Enabled() {
+					t.Fatal("a fully configured app reports itself disabled")
+				}
+				if got.Slug != "ferrite-ship" {
+					t.Errorf("slug is %q", got.Slug)
+				}
+				if !bytes.Contains(got.PrivateKey, []byte("PRIVATE KEY")) {
+					t.Error("the key was not decoded from base64")
+				}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, name := range []string{
+				"FERRITE_GITHUB_APP_ID", "FERRITE_GITHUB_APP_SLUG",
+				"FERRITE_GITHUB_PRIVATE_KEY", "FERRITE_GITHUB_WEBHOOK_SECRET",
+			} {
+				t.Setenv(name, tc.env[name])
+			}
+
+			got, err := requireGitHubOrDisabled()
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected this to be refused")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tc.check != nil {
+				tc.check(t, got)
 			}
 		})
 	}

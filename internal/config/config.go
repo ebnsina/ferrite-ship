@@ -7,6 +7,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"net/url"
@@ -38,7 +39,34 @@ type Config struct {
 	// set the literal "none". With no mail server nothing is sent, and the
 	// settings page says so rather than pretending an address was saved.
 	SMTP SMTP
+	// GitHub is the app used to read private repositories, or the zero value
+	// when the operator set the literal "none". Without it the manual path —
+	// a git URL and a deploy key — is the only way to deploy, which is how
+	// every existing installation already works.
+	GitHub GitHub
 }
+
+// GitHub is a registered GitHub App this control plane acts as.
+type GitHub struct {
+	// AppID is the numeric id from the app's settings page, used as the JWT
+	// issuer.
+	AppID string
+	// Slug is the name in the app's public URL, which is where somebody is
+	// sent to install it. Not derivable from the id, so it is asked for.
+	Slug string
+	// PrivateKey is the PEM GitHub generated, decoded from base64. Base64
+	// because a PEM has newlines in it and an environment variable carrying
+	// them is a thing people get wrong once each.
+	PrivateKey []byte
+	// WebhookSecret verifies that a delivery came from GitHub. Required
+	// alongside the rest rather than when webhooks are first switched on: an
+	// unverified webhook endpoint accepts a deploy request from anybody, and
+	// discovering that later means it was open in between.
+	WebhookSecret string
+}
+
+// Enabled reports whether repositories can be reached through GitHub.
+func (g GitHub) Enabled() bool { return g.AppID != "" }
 
 // SMTP is a mail server to hand messages to.
 type SMTP struct {
@@ -122,6 +150,12 @@ func Load() (Config, error) {
 	}
 	cfg.SMTP = smtp
 
+	gh, err := requireGitHubOrDisabled()
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.GitHub = gh
+
 	return cfg, nil
 }
 
@@ -180,6 +214,58 @@ func requireSMTPOrDisabled(value, from string) (SMTP, error) {
 	}
 
 	return settings, nil
+}
+
+// requireGitHubOrDisabled reads the four values a GitHub App needs, or "none".
+//
+// One switch for the set rather than four independent "or none" rules: three
+// set and one missing is exactly the state that looks configured and fails at
+// the first clone of a private repository, which is the least convenient
+// moment to discover it.
+func requireGitHubOrDisabled() (GitHub, error) {
+	appID := strings.TrimSpace(os.Getenv("FERRITE_GITHUB_APP_ID"))
+	if appID == "" {
+		return GitHub{}, &Error{Variable: "FERRITE_GITHUB_APP_ID",
+			Reason: `is required — set the app's numeric id, or "none" to deploy only from a pasted git URL`}
+	}
+	if appID == Disabled {
+		return GitHub{}, nil
+	}
+	if _, err := strconv.Atoi(appID); err != nil {
+		return GitHub{}, &Error{Variable: "FERRITE_GITHUB_APP_ID",
+			Reason: "must be the app's numeric id, which is on its settings page"}
+	}
+
+	slug := strings.TrimSpace(os.Getenv("FERRITE_GITHUB_APP_SLUG"))
+	if slug == "" {
+		return GitHub{}, &Error{Variable: "FERRITE_GITHUB_APP_SLUG",
+			Reason: "is required when a GitHub app is configured — it is the name in the app's URL"}
+	}
+
+	encoded := strings.TrimSpace(os.Getenv("FERRITE_GITHUB_PRIVATE_KEY"))
+	if encoded == "" {
+		return GitHub{}, &Error{Variable: "FERRITE_GITHUB_PRIVATE_KEY",
+			Reason: "is required when a GitHub app is configured — base64 of the .pem GitHub gave you"}
+	}
+	key, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return GitHub{}, &Error{Variable: "FERRITE_GITHUB_PRIVATE_KEY",
+			Reason: "must be base64. Run: base64 < your-app.private-key.pem"}
+	}
+	// Checked here rather than at the first clone, for the same reason the
+	// mail sender is: the one moment this matters is the moment it is needed.
+	if !bytes.Contains(key, []byte("PRIVATE KEY")) {
+		return GitHub{}, &Error{Variable: "FERRITE_GITHUB_PRIVATE_KEY",
+			Reason: "does not decode to a PEM private key"}
+	}
+
+	secret := strings.TrimSpace(os.Getenv("FERRITE_GITHUB_WEBHOOK_SECRET"))
+	if secret == "" {
+		return GitHub{}, &Error{Variable: "FERRITE_GITHUB_WEBHOOK_SECRET",
+			Reason: "is required when a GitHub app is configured — without it anybody could ask for a deploy"}
+	}
+
+	return GitHub{AppID: appID, Slug: slug, PrivateKey: key, WebhookSecret: secret}, nil
 }
 
 // requireOriginOrDisabled accepts an absolute origin, or "none" to allow no

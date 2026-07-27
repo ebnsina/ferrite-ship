@@ -20,6 +20,7 @@ import (
 	"github.com/ebnsina/ferrite-ship/internal/console"
 	"github.com/ebnsina/ferrite-ship/internal/dialer"
 	"github.com/ebnsina/ferrite-ship/internal/files"
+	"github.com/ebnsina/ferrite-ship/internal/github"
 	"github.com/ebnsina/ferrite-ship/internal/notify"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
 	"github.com/ebnsina/ferrite-ship/internal/scheduler"
@@ -170,6 +171,19 @@ func run(log *slog.Logger) error {
 		log.Info("email alerts enabled", "host", cfg.SMTP.Host, "from", cfg.SMTP.From)
 	} else {
 		log.Info("email alerts disabled (FERRITE_SMTP_URL is none)")
+	}
+
+	// Parsed at startup, not at the first clone. A key that cannot be read is
+	// then a refusal to start with the variable named, rather than a deploy
+	// that fails hours later against a repository that looks fine.
+	if cfg.GitHub.Enabled() {
+		if _, err := github.New(cfg.GitHub.AppID, cfg.GitHub.Slug, cfg.GitHub.PrivateKey); err != nil {
+			return err
+		}
+		log.Info("github app enabled", "app", cfg.GitHub.Slug, "id", cfg.GitHub.AppID)
+	} else {
+		log.Info("github app disabled (FERRITE_GITHUB_APP_ID is none); " +
+			"private repositories need a deploy key")
 	}
 
 	restAPI := api.New(api.Options{
