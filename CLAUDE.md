@@ -118,6 +118,64 @@ effect of running a job, which is why a machine that stopped answering used to
 stay "online" indefinitely. A single failed connection is never enough to call
 a server down — the second consecutive one is.
 
+**One shared network, one service on it (`steps.Network`).** Every tool is its
+own compose project, and compose gives each project a private network — which
+is why a reverse proxy in *its* own project cannot see any of them. One
+external network, `ferrite`, is created before any tool starts and joined by
+exactly one service per tool. Joining exposes nothing further: the published
+ports are still `127.0.0.1` only. A tool that brings its own dependency
+(Keycloak's database) keeps it on the project's own network instead —
+everything on the shared network can reach everything else on it, and a
+bundled database that joined would be reachable by every other tool on the
+server. `TestOnlyTheRoutedServiceIsOnTheSharedNetwork` enforces the count.
+
+**Routing is not publishing.** A routed tool still binds `127.0.0.1` and is
+reached by Traefik over the shared network. It must never open a public port —
+that would be a second way in bypassing both the certificate and the HTTPS
+redirect, and published ports bypass ufw so nothing downstream would catch it.
+
+**Reachability is not readable from ports.** Since Traefik arrived, a routed
+tool deliberately has no public port, so `web/src/lib/domain/tools.ts` takes the
+server's domain as well. Three answers, not two: open on its own port,
+reachable at its own web address, or private with the tunnel. The padlock icon
+comes from the same answer as the label so they cannot disagree.
+
+**A tool with two faces has a `WebPort`.** RabbitMQ answers clients on 5672 and
+shows a management page on 15672; MinIO is 9000 and 9001. `RoutedPort()` is
+what Traefik is told, and it must never be the client port — routing 5672
+puts a binary protocol behind an HTTP proxy, and the symptom is a queue that
+looks broken rather than a port that looks misrouted. The tunnel forwards both.
+
+**The ACME endpoint is chosen, never defaulted (`FERRITE_ACME_ENDPOINT`).**
+Production allows five duplicate certificates per domain per week. Defaulting
+to it would silently pick the rate-limited endpoint for the person most likely
+to need staging; defaulting to staging would ship browser warnings to anyone
+who forgot. It is written into the env file as well as the compose flags, so
+switching re-fingerprints and Traefik actually restarts onto the other one.
+
+**Two things currently want ports 80 and 443.** `internal/deploy` runs Caddy
+for deployed applications; the Traefik tool binds the same ports. Installing
+both on one server means the second fails to start. This is a known collision,
+not a design — unify them before building anything else on either.
+
+**GitHub tokens are never stored (`internal/github`).** Installation tokens
+last an hour and are minted on demand, so writing one to disk would trade the
+point of a short-lived credential for a saved round trip. The install `state`
+is sealed with the same key as SSH credentials rather than kept in a table: it
+is single-use and expires in minutes, and without it a link somebody else made
+would attach their repositories to whichever account is signed in here.
+
+**A deferral is not a run (`store.DeferSchedule`).** When a scheduled backup
+cannot start because the server is busy, only `next_run_at` moves.
+`MarkScheduleRun` would write "last run: now", and that field is what somebody
+reads to decide whether they still have a copy.
+
+**Unattended code takes an interface so it can be tested.** The scheduler takes
+a one-method `starter` rather than `*runner.Runner`, and the watcher's "it
+answered" bookkeeping is a named method. These two packages are the only things
+that act on their own, so when they are wrong nobody is watching — which is
+exactly why they need tests, and why they need a seam to have them.
+
 **Credentials (`internal/secret`).** SSH passwords and keys are sealed with
 AES-256-GCM before storage. Never log them, never put them in a response type —
 `api.serverView` is deliberately separate from `store.Server` for this reason.

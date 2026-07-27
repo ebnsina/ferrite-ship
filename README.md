@@ -20,11 +20,12 @@ from a browser — files, services, updates, storage — without memorising anot
   dashboard as it runs.
 - **Run it again safely.** A second run of the same playbook changes nothing
   and says so.
-- **Install what you actually need** — PostgreSQL, Redis, ClickHouse or
-  MediaMTX, each with a generated password and a connection string you can
-  copy. Databases listen on loopback only and are reached over an SSH tunnel
-  the dashboard writes out for you; a media server is public, because a stream
-  nobody can watch is not a stream.
+- **Install what you actually need** — twelve tools: PostgreSQL, Redis,
+  ClickHouse, Meilisearch, Qdrant, NATS, RabbitMQ, MinIO, Grafana, Keycloak,
+  MediaMTX and Traefik. Each gets a generated password and a connection string
+  you can copy. Databases listen on loopback only and are reached over an SSH
+  tunnel the dashboard writes out for you; a media server is public, because a
+  stream nobody can watch is not a stream.
 - **Query them without leaving the page.** Every installed database has a
   console: SQL for PostgreSQL and ClickHouse, commands for Redis, with
   ready-made queries to start from and somewhere to keep your own.
@@ -32,8 +33,14 @@ from a browser — files, services, updates, storage — without memorising anot
   with a deploy key. A Dockerfile is used if there is one; otherwise the
   project is read and built, which covers Rust, Go, Python and Node. Give it a
   domain and it is served over HTTPS with a certificate that renews itself.
-- **Back it up somewhere else.** PostgreSQL and Redis stream to any
-  S3-compatible storage, and restore from it. Deliberately not the same disk.
+- **Back it up somewhere else.** PostgreSQL, Redis and ClickHouse stream to
+  any S3-compatible storage, and restore from it. Deliberately not the same
+  disk. Backups can run on a daily or weekly schedule with a retention count,
+  and old copies are removed only after the new one has arrived.
+- **Be told when something breaks.** A health check every five minutes, alerts
+  that are raised once and cleared when the condition ends, and optional email.
+  A "what needs attention" page collects anything currently wrong and anything
+  that failed while nobody was watching, with the error text in full.
 - **Take them away again.** Removing keeps your data unless you ask for it to
   go, and says which it is doing before you agree.
 - **Open a real shell in the browser** — a PTY over SSH, with resize, colour
@@ -224,6 +231,14 @@ logs arrive in a lump at the end and the shell appear frozen.
 | `FERRITE_SECRET_KEY` | yes | Base64 of 32 bytes. Seals stored credentials — **lose it and every stored credential becomes unreadable** |
 | `FERRITE_ALLOWED_ORIGIN` | yes | Origin allowed to call the API cross-site, or `none` |
 | `FERRITE_WEB_DIR` | yes | Built dashboard to serve, or `none` for API-only |
+| `FERRITE_PUBLIC_URL` | yes | Where the dashboard is reachable, for links in alert email, or `none` |
+| `FERRITE_SMTP_URL` | yes | `smtp://user:pass@host:587`, or `none` to send no mail |
+| `FERRITE_MAIL_FROM` | with SMTP | Address alerts are sent from |
+| `FERRITE_ACME_ENDPOINT` | yes | `staging` or `production`. No default: production allows five duplicate certificates per week |
+| `FERRITE_GITHUB_APP_ID` | yes | Numeric app id, or `none` to deploy only from a pasted git URL |
+| `FERRITE_GITHUB_APP_SLUG` | with GitHub | The name in the app's URL |
+| `FERRITE_GITHUB_PRIVATE_KEY` | with GitHub | `base64 < your-app.private-key.pem` |
+| `FERRITE_GITHUB_WEBHOOK_SECRET` | with GitHub | Without it, anybody could ask for a deploy |
 
 Switching a feature off is written down explicitly with `none`. An unset
 variable is always an error, never a quiet default.
@@ -303,6 +318,7 @@ rather than drawing a trend that was never measured.
 .                       Go module — the control plane
 ├── cmd/ferrite-ship/   Entry point
 ├── internal/
+│   ├── alerts/         Saying a thing once, and saying when it stops
 │   ├── api/            HTTP handlers, SSE, static hosting
 │   ├── apierr/         Every user-facing error, in one catalogue
 │   ├── auth/           Passwords and sessions
@@ -314,12 +330,17 @@ rather than drawing a trend that was never measured.
 │   ├── executor/       Command transport (ssh, demo)
 │   ├── facts/          Reading what a server is and how busy it is
 │   ├── files/          Browsing and editing files over SFTP
+│   ├── github/         Acting as a GitHub App: JWTs and installation tokens
+│   ├── insight/        What is using the disk, and what can be reclaimed
+│   ├── notify/         The words an alert email is made of, and sending it
 │   ├── runner/         Job execution and the event bus
+│   ├── scheduler/      Backups nobody pressed a button for
 │   ├── secret/         Credential sealing
 │   ├── services/       systemd units and their logs
 │   ├── steps/          The step engine and the baseline playbook
 │   ├── store/          SQLite persistence
-│   └── terminal/       Interactive shells over SSH
+│   ├── terminal/       Interactive shells over SSH
+│   └── watch/          The only thing that looks at a server unasked
 └── web/                SvelteKit dashboard (own pnpm project)
 ```
 
@@ -370,6 +391,19 @@ multi-tenancy arrives is a change to `internal/store` alone.
 | `POST` | `/v1/servers/{id}/services/{unit}/actions` | Start, stop or restart a service |
 | `GET` | `/v1/servers/{id}/services/{unit}/logs` | Read a service's journal |
 | `GET` | `/v1/metrics` | Fleet metrics |
+| `PUT` | `/v1/servers/{id}/domain` | Point a domain at a server |
+| `GET` | `/v1/servers/{id}/tools/{tool}/schedule` | When a backup runs on its own |
+| `PUT` | `/v1/servers/{id}/tools/{tool}/schedule` | Set that |
+| `DELETE` | `/v1/servers/{id}/tools/{tool}/schedule` | Stop it |
+| `GET` | `/v1/notifications` | What this account asked to be told |
+| `PUT` | `/v1/notifications` | Change it |
+| `POST` | `/v1/notifications/test` | Prove the whole mail path |
+| `GET` | `/v1/alerts` | Conditions that are true right now |
+| `GET` | `/v1/problems` | Those, plus runs that did not finish |
+| `GET` | `/v1/github/status` | Whether GitHub is configured, and connected |
+| `POST` | `/v1/github/connect` | Where to send the browser to install the app |
+| `GET` | `/v1/github/callback` | Where GitHub sends it back |
+| `DELETE` | `/v1/github/installations/{id}` | Forget a connection |
 
 Everything except `/v1/health` and `/v1/auth/*` requires a session cookie.
 
@@ -415,22 +449,27 @@ These are the reasons this is not production software yet:
 - **Single tenant.** No organisations, users or roles.
 - **SSH, not an agent.** Servers behind NAT are unreachable, and the control
   plane holds credentials it would rather not have.
-- **Backups are manual.** You take them when you choose to; nothing runs on a
-  schedule yet, and a backup that depends on remembering is the one you find
-  missing. ClickHouse cannot be backed up at all — it needs a backup disk
-  declared in its compose file.
-- **TLS is unverified.** Certificates are issued automatically by Let's
-  Encrypt, but that path has only been exercised against a name with no public
-  TLD, which it correctly refuses. Proving it needs a real domain pointed at a
-  real server.
+- **Two things want ports 80 and 443.** Deployed applications are fronted by
+  Caddy (`internal/deploy`), and the Traefik tool in the catalogue binds the
+  same ports. Installing both on one server means the second fails to start.
+  Unifying them behind one ingress is the fix, and until then a server should
+  have applications *or* Traefik-routed tools, not both.
+- **Nothing has ever issued a certificate.** The whole routing layer — Traefik,
+  the shared network, the ACME configuration, every `Host()` rule — is verified
+  only by unit tests and by `docker compose config` rendering the files. It has
+  never run against a real domain. `FERRITE_ACME_ENDPOINT=staging` exists so the
+  first attempt is repeatable rather than rate limited.
+- **No tool has been installed on a real server.** Compose files are validated,
+  not executed. That covers a malformed file and not a wrong image argument.
 - **`ssh-harden` has never applied.** It skips correctly on a
   password-authenticated server, so the guard is proven and the code it guards
   is not.
 
 ## Roadmap
 
-1. Scheduled backups, retention, and ClickHouse support
-2. A long-lived agent, so credentials are not stored and NAT stops mattering
-3. Organisations and roles, on PostgreSQL with row-level security
-4. Build logs and rollback for deployments
-5. Deploying from a push rather than a button
+1. Prove the routing layer against a real domain, then unify Caddy and Traefik
+   behind one ingress
+2. Finish the GitHub App: pick a repository from a list, then deploy on push
+3. A long-lived agent, so credentials are not stored and NAT stops mattering
+4. Organisations and roles, on PostgreSQL with row-level security
+5. Build logs and rollback for deployments
