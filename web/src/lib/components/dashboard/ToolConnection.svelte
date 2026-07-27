@@ -49,7 +49,14 @@
 		<ErrorState {error} onRetry={load} />
 	{:else if connection}
 		<div class="flex items-start gap-2">
-			{#if connection.public}
+			{#if connection.web && connection.public}
+				<Globe size={15} aria-hidden="true" class="text-warn mt-0.5 shrink-0" />
+				<p class="text-content-muted text-xs leading-relaxed">
+					<span class="text-content font-medium">Open this in a browser.</span>
+					It has its own web address with a certificate, so anyone can reach the sign-in
+					page — keep the password to yourself.
+				</p>
+			{:else if connection.public}
 				<Globe size={15} aria-hidden="true" class="text-warn mt-0.5 shrink-0" />
 				<p class="text-content-muted text-xs leading-relaxed">
 					<span class="text-content font-medium">Anyone can reach this.</span>
@@ -74,15 +81,26 @@
 				/>
 			{/if}
 
-			<!-- Hidden by default like the password field below, because it
-			     contains that same password. Masking one and printing the other
-			     in full would be no protection at all. -->
-			<CopyField
-				label={connection.tunnel ? '2. Then connect with this' : 'Connect with this'}
-				value={connection.url}
-				secret
-				hint="Most tools accept this whole line as the connection address. It has the password in it, so treat it like one."
-			/>
+			{#if connection.web}
+				<!-- Not hidden: a web address has no password in it, and masking
+				     something harmless teaches people to reveal fields without
+				     thinking about which ones actually matter. -->
+				<CopyField
+					label={connection.tunnel ? '2. Then open this' : 'Open this'}
+					value={connection.url}
+					hint="Paste it into a browser and sign in with the details below."
+				/>
+			{:else}
+				<!-- Hidden by default like the password field below, because it
+				     contains that same password. Masking one and printing the other
+				     in full would be no protection at all. -->
+				<CopyField
+					label={connection.tunnel ? '2. Then connect with this' : 'Connect with this'}
+					value={connection.url}
+					secret
+					hint="Most tools accept this whole line as the connection address. It has the password in it, so treat it like one."
+				/>
+			{/if}
 
 			<div class="grid gap-4 sm:grid-cols-2">
 				<CopyField label="Username" value={connection.username} />

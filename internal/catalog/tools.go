@@ -109,6 +109,96 @@ networks:
 	},
 }
 
+// grafana is the first tool reached through Traefik rather than through a
+// tunnel, and the pattern every web tool after it follows.
+//
+// It works with or without a domain, which is the point. Given one it is
+// published at grafana.<domain> with a certificate; without one it stays on
+// loopback and is reached exactly as a database is. Requiring a domain would
+// have been simpler and would have made installing it impossible on every
+// server that works perfectly well today.
+var grafana = Tool{
+	ID:       "grafana",
+	Name:     "Grafana",
+	Summary:  "Draws charts from your data, so you can see what is happening rather than read it.",
+	Category: "Monitoring",
+	Icon:     "ChartLine",
+	// Grafana's orange, from their mark.
+	Accent:  "#F46800",
+	Image:   "grafana/grafana:13.1",
+	Version: "13.1",
+	Web:     true,
+	Ports: []Port{
+		// Not public. Traefik reaches it over the shared network, and without a
+		// domain it is reached through a tunnel like everything else.
+		{Number: 3000, Protocol: "tcp", Purpose: "The Grafana web interface"},
+	},
+	Access:   &Access{Scheme: "https", Username: "ferrite", Port: 3000},
+	Volumes:  []string{"data"},
+	DataNote: "Removing Grafana stops it and deletes its settings, but keeps the dashboards you built unless you ask for those too.",
+	compose: `# Managed by Ferrite Ship. Edits are replaced the next time this tool is set up.
+name: ferrite-grafana
+
+services:
+  grafana:
+    image: grafana/grafana:13.1
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ferrite
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?}
+      # Grafana builds its own links from this — sign-in redirects, and the
+      # addresses in any alert it sends. Left at the default it emits
+      # localhost URLs that work on the server and nowhere else.
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:?}
+      # Nobody signs up for a Grafana that is on the internet.
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      # Loopback only, exactly like a database. Being routed does not mean
+      # being published: Traefik reaches it over the network below.
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - data:/var/lib/grafana
+    networks: [ferrite]
+    labels:
+      # False on a server with no domain, and then every label below it is
+      # ignored — which is how this one file serves both cases.
+      - traefik.enable=${GRAFANA_ROUTED:?}
+      - traefik.http.routers.grafana.rule=Host(` + "`" + `grafana.${FERRITE_DOMAIN}` + "`" + `)
+      - traefik.http.routers.grafana.entrypoints=websecure
+      - traefik.http.routers.grafana.tls.certresolver=le
+      # Which port to send to. Traefik guesses when a container exposes one
+      # port and refuses to guess when it exposes several, so it is always
+      # said rather than left to chance.
+      - traefik.http.services.grafana.loadbalancer.server.port=3000
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  data:
+
+networks:
+  ferrite:
+    external: true
+`,
+	env: func(in Install) []string {
+		routed := "false"
+		rootURL := "http://localhost:3000/"
+		if in.Domain != "" {
+			routed = "true"
+			rootURL = "https://grafana." + in.Domain + "/"
+		}
+		return []string{
+			"GRAFANA_PASSWORD=" + in.Password,
+			"GRAFANA_ROOT_URL=" + rootURL,
+			"GRAFANA_ROUTED=" + routed,
+			"FERRITE_DOMAIN=" + in.Domain,
+		}
+	},
+}
+
 var postgres = Tool{
 	ID:       "postgres",
 	Name:     "PostgreSQL",

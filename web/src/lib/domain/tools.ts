@@ -2,6 +2,7 @@ import type { StatusPresentation } from '$lib/domain/status';
 import type { Tool, ToolStatus } from '$lib/data/tools';
 import type { LucideProps } from '@lucide/svelte';
 import ChartColumn from '@lucide/svelte/icons/chart-column';
+import ChartLine from '@lucide/svelte/icons/chart-line';
 import CircleCheck from '@lucide/svelte/icons/circle-check';
 import CircleDashed from '@lucide/svelte/icons/circle-dashed';
 import CircleX from '@lucide/svelte/icons/circle-x';
@@ -24,6 +25,7 @@ const ICONS: Record<string, Component<LucideProps>> = {
 	Database,
 	Zap,
 	ChartColumn,
+	ChartLine,
 	Video,
 	Route
 };

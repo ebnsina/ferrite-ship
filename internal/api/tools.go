@@ -131,10 +131,15 @@ func (a *API) handleRemoveTool(w http.ResponseWriter, r *http.Request) {
 type connectionView struct {
 	ToolID string `json:"toolId"`
 	Name   string `json:"name"`
-	// URL is the full connection string, password included. This is the one
-	// response that carries a credential, and it is only ever built for a tool
-	// belonging to the account asking.
-	URL      string `json:"url"`
+	// URL is the full connection string, password included — except for a web
+	// tool, where it is a plain address and the password is handed over
+	// separately. This is the one response that carries a credential, and it
+	// is only ever built for a tool belonging to the account asking.
+	URL string `json:"url"`
+	// Web says the URL is opened in a browser rather than pasted into a
+	// client, which changes every label around it: "open this and sign in"
+	// rather than "connect with this".
+	Web      bool   `json:"web"`
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
 	Username string `json:"username"`
@@ -188,15 +193,24 @@ func (a *API) handleToolConnection(w http.ResponseWriter, r *http.Request) {
 		Password: password,
 		Database: tool.Access.Database,
 		Public:   isPublic(tool, tool.Access.Port),
+		Web:      tool.Web,
 	}
 
 	// A private tool is only reachable from the server itself, so the address
 	// that works is localhost — after a tunnel. Handing back the server's
 	// public address here would produce a connection string that always fails.
 	view.Host = "127.0.0.1"
-	if view.Public {
+	switch {
+	case tool.Web && server.Domain != "":
+		// Routed through Traefik, so it answers on the web with a certificate
+		// and there is nothing to tunnel. Public in the sense that matters
+		// here: anyone can reach the sign-in page.
+		view.Host = tool.Subdomain(server.Domain)
+		view.Port = 443
+		view.Public = true
+	case view.Public:
 		view.Host = server.Host
-	} else {
+	default:
 		view.Tunnel = tunnelCommand(server, tool.Access.Port)
 	}
 
@@ -223,6 +237,23 @@ func isPublic(tool catalog.Tool, port int) bool {
 // correctly and brackets an IPv6 host, both of which produce a URL that fails
 // in a confusing way when done by hand.
 func connectionURL(tool catalog.Tool, view connectionView) string {
+	// A web tool gets an address, not a credential. Browsers have spent years
+	// stripping user:password out of URLs and phishing filters treat what is
+	// left as hostile, so the password is handed over separately instead.
+	if tool.Web {
+		scheme := "https"
+		if view.Port != 443 {
+			scheme = "http"
+		}
+		address := url.URL{Scheme: scheme, Host: view.Host, Path: "/"}
+		// Only where it is not the scheme's own port: "https://x:443/" is
+		// correct and reads like something has gone wrong.
+		if view.Port != 443 && view.Port != 80 {
+			address.Host = net.JoinHostPort(view.Host, strconv.Itoa(view.Port))
+		}
+		return address.String()
+	}
+
 	address := url.URL{
 		Scheme: tool.Access.Scheme,
 		User:   url.UserPassword(view.Username, view.Password),

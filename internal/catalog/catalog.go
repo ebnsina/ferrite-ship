@@ -59,6 +59,15 @@ type Tool struct {
 	// to do, instead of rendering a compose file that fails on a missing
 	// variable.
 	NeedsDomain bool `json:"needsDomain"`
+	// Web marks a tool opened in a browser rather than reached with a client.
+	//
+	// It changes what "connect to this" means. A database is handed a single
+	// string with the password inside it, which is what every database client
+	// accepts. Putting a password in a web address instead produces something
+	// browsers have been stripping for years and phishing filters treat as
+	// hostile — so a web tool is given a plain address and its sign-in details
+	// separately.
+	Web bool `json:"web"`
 	// Volumes are the compose volume names holding this tool's data. Named
 	// explicitly rather than derived, because they are what "also delete the
 	// data" deletes and a wrong guess there is unrecoverable.
@@ -121,7 +130,7 @@ type Install struct {
 func All() []Tool {
 	// Traefik first: it is the one thing here that other tools are reached
 	// through, so it reads as infrastructure rather than as another database.
-	tools := []Tool{traefik, postgres, redis, clickhouse, mediamtx}
+	tools := []Tool{traefik, postgres, redis, clickhouse, grafana, mediamtx}
 	for i := range tools {
 		tools[i].KeepsData = len(tools[i].Volumes) > 0
 		if spec, ok := tools[i].ConsoleSpec(); ok {
@@ -146,6 +155,18 @@ func Find(id string) (Tool, error) {
 
 // NeedsPassword reports whether a credential is generated at install time.
 func (t Tool) NeedsPassword() bool { return t.Access != nil }
+
+// Subdomain is where a web tool answers under a server's domain.
+//
+// The tool's own id, so that the name in the compose file's routing rule and
+// the address the dashboard hands out cannot drift apart — they are the same
+// string, derived once. TestWebToolsRouteToTheirOwnSubdomain holds them to it.
+func (t Tool) Subdomain(domain string) string {
+	if domain == "" {
+		return ""
+	}
+	return t.ID + "." + domain
+}
 
 // PublicPorts are the ports the firewall must open for this tool.
 func (t Tool) PublicPorts() []Port {

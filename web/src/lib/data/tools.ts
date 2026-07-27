@@ -77,6 +77,11 @@ export interface ToolConnection {
 	public: boolean;
 	/** The ssh command that makes a private tool reachable from a laptop. */
 	tunnel?: string;
+	/**
+	 * Opened in a browser rather than pasted into a client. The url then has no
+	 * password in it, and the sign-in details stand on their own.
+	 */
+	web: boolean;
 }
 
 interface StartedJob {

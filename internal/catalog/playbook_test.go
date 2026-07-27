@@ -314,3 +314,52 @@ func TestTheSharedNetworkIsCreatedBeforeAnythingUsesIt(t *testing.T) {
 		t.Errorf("the network is created at step %d but needed at step %d", created, started)
 	}
 }
+
+// The subdomain in a tool's routing rule and the address the dashboard hands
+// out have to be the same name.
+//
+// They are written in two places — a label inside a compose file, and
+// Subdomain() in Go — so nothing but a test stops them drifting. If they do,
+// Traefik answers on one name while the dashboard sends people to another, and
+// the only symptom is a certificate error on an address that looks right.
+func TestWebToolsRouteToTheirOwnSubdomain(t *testing.T) {
+	for _, tool := range All() {
+		if !tool.Web {
+			continue
+		}
+
+		rule := "Host(`" + tool.ID + ".${FERRITE_DOMAIN}`)"
+		if !strings.Contains(tool.compose, rule) {
+			t.Errorf("%s does not route %s, so the dashboard would send people "+
+				"to an address nothing answers on", tool.ID, rule)
+		}
+
+		if got := tool.Subdomain("example.com"); got != tool.ID+".example.com" {
+			t.Errorf("%s.Subdomain() = %q, want %s.example.com", tool.ID, got, tool.ID)
+		}
+
+		// A web tool that is routed but never told which port to send to is
+		// only safe while it exposes exactly one — Traefik refuses to guess
+		// past that, and the tool becomes unreachable the day the image adds
+		// a second port.
+		if !strings.Contains(tool.compose, "loadbalancer.server.port=") {
+			t.Errorf("%s does not say which port Traefik should send to", tool.ID)
+		}
+	}
+}
+
+// A web tool must not be published directly. Traefik reaches it over the
+// shared network, so a public port would be a second way in that bypasses the
+// certificate and the redirect — and, because published ports bypass ufw,
+// nothing downstream would catch it.
+func TestWebToolsAreNotPublishedThemselves(t *testing.T) {
+	for _, tool := range All() {
+		if !tool.Web {
+			continue
+		}
+		if len(tool.PublicPorts()) > 0 {
+			t.Errorf("%s opens %d public port(s); it should only be reachable through Traefik",
+				tool.ID, len(tool.PublicPorts()))
+		}
+	}
+}
