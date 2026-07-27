@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { Button, ButtonLink, ConfirmDialog } from '$components/ui';
+	import BackupSchedule from '$components/dashboard/BackupSchedule.svelte';
 	import { backupsClient, type Backup } from '$lib/data/backups';
 	import type { Tool } from '$lib/data/tools';
 	import { toAppError } from '$lib/errors';
@@ -103,6 +104,10 @@
 		<div class="border-error/40 bg-error-soft rounded-card-sm border p-4">
 			<p class="text-error text-sm">{error}</p>
 		</div>
+	{/if}
+
+	{#if configured}
+		<BackupSchedule {serverId} toolId={tool.id} toolName={tool.name} onChanged={load} />
 	{/if}
 
 	{#if loading}

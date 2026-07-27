@@ -13,17 +13,21 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ebnsina/ferrite-ship/internal/alerts"
 	"github.com/ebnsina/ferrite-ship/internal/api"
 	"github.com/ebnsina/ferrite-ship/internal/auth"
 	"github.com/ebnsina/ferrite-ship/internal/config"
 	"github.com/ebnsina/ferrite-ship/internal/console"
 	"github.com/ebnsina/ferrite-ship/internal/dialer"
 	"github.com/ebnsina/ferrite-ship/internal/files"
+	"github.com/ebnsina/ferrite-ship/internal/notify"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
+	"github.com/ebnsina/ferrite-ship/internal/scheduler"
 	"github.com/ebnsina/ferrite-ship/internal/secret"
 	"github.com/ebnsina/ferrite-ship/internal/services"
 	"github.com/ebnsina/ferrite-ship/internal/store"
 	"github.com/ebnsina/ferrite-ship/internal/terminal"
+	"github.com/ebnsina/ferrite-ship/internal/watch"
 )
 
 func main() {
@@ -157,6 +161,17 @@ func run(log *slog.Logger) error {
 	units := services.NewService(connections)
 	accounts := auth.NewService(st)
 
+	// Where news of a failure goes. With no mail server configured this still
+	// records alerts — the dashboard shows them — and sends nothing, which the
+	// settings page says out loud rather than implying.
+	reporter := alerts.New(st, notify.New(cfg.SMTP), cfg.PublicURL, log)
+	jobs.Reporting(reporter)
+	if cfg.SMTP.Enabled() {
+		log.Info("email alerts enabled", "host", cfg.SMTP.Host, "from", cfg.SMTP.From)
+	} else {
+		log.Info("email alerts disabled (FERRITE_SMTP_URL is none)")
+	}
+
 	restAPI := api.New(api.Options{
 		Store:         st,
 		Runner:        jobs,
@@ -168,6 +183,7 @@ func run(log *slog.Logger) error {
 		Console:       consoles,
 		Dialer:        connections,
 		Auth:          accounts,
+		Alerts:        reporter,
 		Logger:        log,
 		AllowedOrigin: cfg.AllowedOrigin,
 	})
@@ -199,6 +215,17 @@ func run(log *slog.Logger) error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	// Scheduled backups run in this process. Given the same context as the
+	// server so a shutdown stops both, and started before the listener so a
+	// backup that was due while the process was down goes as soon as it is up.
+	schedules := scheduler.New(st, jobs, log)
+	go schedules.Run(ctx)
+
+	// Nothing else looks at a server unless somebody asks it to, so without
+	// this a machine that stopped answering stays "online" until the next time
+	// a job happens to run against it.
+	go watch.New(st, connections, reporter, log).Run(ctx)
 
 	errs := make(chan error, 1)
 	go func() {

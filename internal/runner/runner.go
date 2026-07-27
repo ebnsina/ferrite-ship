@@ -8,10 +8,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ebnsina/ferrite-ship/internal/alerts"
 	"github.com/ebnsina/ferrite-ship/internal/dialer"
 	"github.com/ebnsina/ferrite-ship/internal/executor"
 	"github.com/ebnsina/ferrite-ship/internal/executor/demoexec"
 	"github.com/ebnsina/ferrite-ship/internal/facts"
+	"github.com/ebnsina/ferrite-ship/internal/notify"
 	"github.com/ebnsina/ferrite-ship/internal/secret"
 	"github.com/ebnsina/ferrite-ship/internal/steps"
 	"github.com/ebnsina/ferrite-ship/internal/store"
@@ -42,6 +44,10 @@ type Runner struct {
 	demoMu       sync.Mutex
 	demoMachines map[string]*demoexec.Machine
 
+	// alerts reports failures of jobs nobody started by hand. Nil until it is
+	// set, so tests and the demo path run without a mail server.
+	alerts *alerts.Reporter
+
 	// running guards against two jobs touching one server at once.
 	runningMu sync.Mutex
 	running   map[string]bool
@@ -63,6 +69,13 @@ func New(st *store.Store, d *dialer.Dialer, bus *Bus, sealer *secret.Sealer, log
 		DemoLatency:  140 * time.Millisecond,
 	}
 }
+
+// Reporting gives the runner somewhere to send news of an unattended failure.
+//
+// Set after construction rather than passed to New: the reporter needs a
+// store, the runner needs a store, and threading one through the other's
+// constructor would order main's setup around a dependency neither really has.
+func (r *Runner) Reporting(reporter *alerts.Reporter) { r.alerts = reporter }
 
 var ErrAlreadyRunning = errors.New("a job is already running on this server")
 
@@ -86,6 +99,12 @@ type plan struct {
 	// onFinish records the outcome against whatever this job was about, such
 	// as marking an installation ready or failed.
 	onFinish func(ctx context.Context, server store.Server, status store.JobStatus)
+	// notifyAs is what to say if this job fails when nobody was watching it.
+	//
+	// Written at the call site because that is where the tool's name and the
+	// right link are known, and acted on in one place because whether a message
+	// is sent at all depends on who started the job — not on what it did.
+	notifyAs *notify.Alert
 	// after runs on the still-open connection once the playbook has finished,
 	// for the rare case where the outcome includes something only the server
 	// knows — a backup's size, say. Steps report pass or fail and nothing else,
@@ -192,7 +211,7 @@ func (r *Runner) execute(
 			Type: EventLog, Level: string(steps.LevelError),
 			Message: "Could not connect: " + err.Error(),
 		})
-		r.finish(ctx, emitter, server, job, store.JobFailed, err, steps.Summary{})
+		r.finish(ctx, emitter, server, job, store.JobFailed, err, steps.Summary{}, p)
 		return
 	}
 	defer func() { _ = exec.Close() }()
@@ -212,7 +231,7 @@ func (r *Runner) execute(
 		emitter.emit(ctx, store.Event{
 			Type: EventLog, Level: string(steps.LevelError), Message: err.Error(),
 		})
-		r.finish(ctx, emitter, server, job, store.JobFailed, err, steps.Summary{DryRun: dryRun})
+		r.finish(ctx, emitter, server, job, store.JobFailed, err, steps.Summary{DryRun: dryRun}, p)
 		return
 	}
 	session = session.WithPrivilege(privilege).WithSecrets(p.secrets...)
@@ -254,7 +273,7 @@ func (r *Runner) execute(
 			runErr = errors.New(session.Redact(summary.FirstError.Error()))
 		}
 	}
-	r.finish(ctx, emitter, server, job, status, runErr, summary)
+	r.finish(ctx, emitter, server, job, status, runErr, summary, p)
 }
 
 func (r *Runner) runPlaybook(
@@ -344,7 +363,7 @@ func runStep(
 
 func (r *Runner) finish(
 	ctx context.Context, emitter *emitter, server store.Server, job store.Job,
-	status store.JobStatus, runErr error, summary steps.Summary,
+	status store.JobStatus, runErr error, summary steps.Summary, p plan,
 ) {
 	finishedAt := time.Now().UTC()
 
@@ -372,6 +391,39 @@ func (r *Runner) finish(
 		"job", job.ID, "server", server.Name, "status", status,
 		"changed", summary.Changed, "unchanged", summary.Unchanged,
 		"skipped", summary.Skipped, "failed", summary.Failed)
+
+	r.report(ctx, server, job, status, p)
+}
+
+// report tells somebody, if nobody was watching.
+//
+// Only jobs the scheduler started. A person who pressed a button is already
+// looking at the log, and mailing them about what is on their screen is how a
+// notification becomes something to filter away.
+func (r *Runner) report(
+	ctx context.Context, server store.Server, job store.Job, status store.JobStatus, p plan,
+) {
+	if r.alerts == nil || p.notifyAs == nil || job.Actor != store.ActorScheduled {
+		return
+	}
+
+	alert := *p.notifyAs
+	alert.Server = server.Name
+	settings := r.alerts.Settings(ctx, server.UserID)
+
+	if status == store.JobSucceeded {
+		r.alerts.Resolve(ctx, server.ID, settings, alert)
+		return
+	}
+
+	// The job's own error, which has already been through the log's redaction
+	// on its way into the row — a bucket key must not reach an inbox.
+	alert.Detail = job.Error
+	if alert.Detail == "" {
+		alert.Detail = "The run finished with failures. The job log has the detail."
+	}
+
+	r.alerts.Raise(ctx, server.UserID, server.ID, settings, alert)
 }
 
 // connect builds the executor for a server: the simulator, or a real SSH session.

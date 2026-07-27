@@ -73,3 +73,46 @@ export const backupsClient = {
 			signal
 		})
 };
+
+export type Cadence = 'daily' | 'weekly';
+
+/** When backups happen on their own. Null means they do not. */
+export interface BackupSchedule {
+	id: string;
+	toolId: string;
+	cadence: Cadence;
+	/** UTC, 0–23. */
+	hour: number;
+	/** 0 (Sunday) to 6. Only meaningful for a weekly cadence. */
+	weekday: number;
+	/** How many to keep; older ones are deleted after each run. */
+	keep: number;
+	lastRunAt: string | null;
+	nextRunAt: string;
+}
+
+export interface ScheduleInput {
+	cadence: Cadence;
+	hour: number;
+	weekday: number;
+	keep: number;
+}
+
+function scheduleUrl(serverId: string, toolId: string): string {
+	return `/v1/servers/${encodeURIComponent(serverId)}/tools/${encodeURIComponent(toolId)}/schedule`;
+}
+
+export const schedulesClient = {
+	get: (serverId: string, toolId: string, signal?: AbortSignal) =>
+		apiRequest<BackupSchedule | null>(scheduleUrl(serverId, toolId), { signal }),
+
+	save: (serverId: string, toolId: string, input: ScheduleInput, signal?: AbortSignal) =>
+		apiRequest<BackupSchedule>(scheduleUrl(serverId, toolId), {
+			method: 'PUT',
+			body: input,
+			signal
+		}),
+
+	turnOff: (serverId: string, toolId: string, signal?: AbortSignal) =>
+		apiRequest<void>(scheduleUrl(serverId, toolId), { method: 'DELETE', signal })
+};

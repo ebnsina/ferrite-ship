@@ -78,7 +78,12 @@ export const helpSections: HelpSection[] = [
 			{
 				question: 'Do backups happen automatically?',
 				answer:
-					'Not yet. Today you take them when you choose to, from the tool’s page. Scheduling is not built.'
+					'They can. On a tool’s page, set a daily or weekly time and how many copies to keep — older ones are deleted after each run, once the new one has arrived. You can still take one by hand whenever you like. Times are in UTC.'
+			},
+			{
+				question: 'What happens if a scheduled backup fails?',
+				answer:
+					'It is shown on your dashboard, and we email you if you have asked us to in Settings. The backup you had before is untouched — a failed attempt never replaces a good copy.'
 			},
 			{
 				question: 'Which tools can be backed up?',

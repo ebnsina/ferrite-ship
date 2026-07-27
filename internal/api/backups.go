@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/ebnsina/ferrite-ship/internal/apierr"
+	"github.com/ebnsina/ferrite-ship/internal/catalog"
+	"github.com/ebnsina/ferrite-ship/internal/ids"
 	"github.com/ebnsina/ferrite-ship/internal/runner"
 	"github.com/ebnsina/ferrite-ship/internal/store"
 )
@@ -175,4 +177,125 @@ func (a *API) failBackup(w http.ResponseWriter, err error) {
 	default:
 		a.failTool(w, err)
 	}
+}
+
+// --- schedules ----------------------------------------------------------------
+
+type scheduleRequest struct {
+	Cadence string `json:"cadence"`
+	Hour    int    `json:"hour"`
+	Weekday int    `json:"weekday"`
+	Keep    int    `json:"keep"`
+}
+
+func (a *API) handleGetSchedule(w http.ResponseWriter, r *http.Request) {
+	server, err := a.store.GetServer(r.Context(), currentUser(r).ID, r.PathValue("id"))
+	if err != nil {
+		a.failServer(w, err)
+		return
+	}
+
+	schedule, err := a.store.GetBackupSchedule(
+		r.Context(), currentUser(r).ID, server.ID, r.PathValue("tool"))
+	if errors.Is(err, store.ErrNotFound) {
+		// Not an error: most tools have no schedule, and the UI needs to say
+		// "off" rather than show a failure.
+		writeJSON(w, http.StatusOK, nil)
+		return
+	}
+	if err != nil {
+		a.failServer(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, schedule)
+}
+
+func (a *API) handleSaveSchedule(w http.ResponseWriter, r *http.Request) {
+	var req scheduleRequest
+	if err := decodeJSON(r, &req); err != nil {
+		a.fail(w, apierr.BadRequest.WithCause(err))
+		return
+	}
+
+	cadence := store.Cadence(strings.TrimSpace(req.Cadence))
+	if cadence != store.Daily && cadence != store.Weekly {
+		a.fail(w, apierr.InvalidCadence)
+		return
+	}
+	if req.Hour < 0 || req.Hour > 23 {
+		a.fail(w, apierr.InvalidCadence)
+		return
+	}
+	if req.Weekday < 0 || req.Weekday > 6 {
+		a.fail(w, apierr.InvalidCadence)
+		return
+	}
+	// At least one, or the first successful backup would delete itself.
+	if req.Keep < 1 {
+		req.Keep = 1
+	}
+
+	server, err := a.store.GetServer(r.Context(), currentUser(r).ID, r.PathValue("id"))
+	if err != nil {
+		a.failServer(w, err)
+		return
+	}
+
+	toolID := r.PathValue("tool")
+	tool, err := catalog.Find(toolID)
+	if err != nil {
+		a.failTool(w, err)
+		return
+	}
+	if !tool.Supported() {
+		a.fail(w, apierr.BackupNotSupported)
+		return
+	}
+
+	// Refuse a schedule with nowhere to send the result, rather than letting
+	// it fail quietly at three in the morning.
+	if _, err := a.store.GetBackupDestination(r.Context(), currentUser(r).ID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			a.fail(w, apierr.NoBackupDestination)
+			return
+		}
+		a.fail(w, err)
+		return
+	}
+
+	schedule := store.BackupSchedule{
+		ID:       ids.New("sch"),
+		UserID:   currentUser(r).ID,
+		ServerID: server.ID,
+		ToolID:   toolID,
+		Cadence:  cadence,
+		Hour:     req.Hour,
+		Weekday:  req.Weekday,
+		Keep:     req.Keep,
+	}
+	schedule.NextRunAt = schedule.NextRun(time.Now().UTC())
+
+	if err := a.store.SaveBackupSchedule(r.Context(), schedule); err != nil {
+		a.failServer(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, schedule)
+}
+
+func (a *API) handleDeleteSchedule(w http.ResponseWriter, r *http.Request) {
+	server, err := a.store.GetServer(r.Context(), currentUser(r).ID, r.PathValue("id"))
+	if err != nil {
+		a.failServer(w, err)
+		return
+	}
+
+	err = a.store.DeleteBackupSchedule(
+		r.Context(), currentUser(r).ID, server.ID, r.PathValue("tool"))
+	if err != nil {
+		a.failServer(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

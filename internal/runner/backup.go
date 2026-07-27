@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ebnsina/ferrite-ship/internal/catalog"
+	"github.com/ebnsina/ferrite-ship/internal/notify"
 	"github.com/ebnsina/ferrite-ship/internal/steps"
 	"github.com/ebnsina/ferrite-ship/internal/store"
 )
@@ -59,6 +60,15 @@ func (r *Runner) StartBackup(
 			return catalog.BackupSteps(tool, destination, key)
 		},
 		secrets: []string{destination.AccessKey, destination.SecretKey},
+		notifyAs: &notify.Alert{
+			Kind: notify.KindBackupFailed,
+			// Display text and de-duplication key are separate on purpose: the
+			// name can be reworded in the catalogue without an open alert
+			// becoming a second, unrelated one.
+			Subject: tool.Name,
+			Key:     tool.ID,
+			Link:    "/dashboard/servers/" + server.ID + "/tools/" + tool.ID,
+		},
 		after: func(ctx context.Context, session *steps.Session, status store.JobStatus) {
 			if status != store.JobSucceeded {
 				return
@@ -73,6 +83,10 @@ func (r *Runner) StartBackup(
 			if err := r.store.FinishBackup(ctx, record.ID, store.BackupReady, size); err != nil {
 				r.log.Error("could not record backup size", "backup", record.ID, "error", err)
 			}
+
+			// Only now, with a good copy definitely in the bucket, is it safe
+			// to remove the old ones.
+			r.prune(ctx, session, userID, server.ID, tool, destination)
 		},
 		onFinish: func(ctx context.Context, _ store.Server, status store.JobStatus) {
 			if status != store.JobSucceeded {
@@ -181,4 +195,53 @@ func readSize(ctx context.Context, session *steps.Session) int64 {
 		return 0
 	}
 	return size
+}
+
+// prune deletes backups beyond what the schedule says to keep.
+//
+// Deliberately after the new backup has been recorded as ready, and never
+// before: pruning first would mean a failure between the two left somebody
+// with fewer copies than they asked for.
+func (r *Runner) prune(
+	ctx context.Context, session *steps.Session, userID, serverID string,
+	tool catalog.Tool, destination catalog.Destination,
+) {
+	schedule, err := r.store.GetBackupSchedule(ctx, userID, serverID, tool.ID)
+	if errors.Is(err, store.ErrNotFound) || schedule.Keep <= 0 {
+		// No schedule, or no limit: backups taken by hand are kept until
+		// somebody says otherwise.
+		return
+	}
+	if err != nil {
+		r.log.Error("could not read the schedule for pruning", "tool", tool.ID, "error", err)
+		return
+	}
+
+	expired, err := r.store.ExpiredBackups(ctx, serverID, tool.ID, schedule.Keep)
+	if err != nil {
+		r.log.Error("could not find old backups", "tool", tool.ID, "error", err)
+		return
+	}
+	if len(expired) == 0 {
+		return
+	}
+
+	session.Logf(steps.LevelInfo, "Keeping the newest %d; removing %d older.",
+		schedule.Keep, len(expired))
+
+	for _, backup := range expired {
+		out, err := session.Capture(ctx, catalog.DeleteCommand(destination, backup.ObjectKey))
+		if err != nil {
+			// Leave the row alone. A record pointing at an object that is
+			// still there is recoverable; forgetting an object that still
+			// costs money is not.
+			r.log.Error("could not delete an old backup",
+				"backup", backup.ID, "key", backup.ObjectKey, "error", err, "output", out)
+			continue
+		}
+		if err := r.store.DeleteBackup(ctx, backup.ID); err != nil {
+			r.log.Error("deleted a backup but could not forget it",
+				"backup", backup.ID, "error", err)
+		}
+	}
 }

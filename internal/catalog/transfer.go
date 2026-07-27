@@ -153,3 +153,11 @@ func RestoreSteps(t Tool, d Destination, key string) []steps.Step {
 
 // SizeFile is where BackupSteps leaves the byte count.
 func SizeFile() string { return sizeFile }
+
+// DeleteCommand removes one stored backup from the bucket.
+//
+// Returned rather than run here so the caller decides when: a backup is only
+// safe to delete once its replacement has actually arrived.
+func DeleteCommand(d Destination, key string) string {
+	return rclone("deletefile", steps.Quote("ferrite:"+d.Bucket+"/"+key))
+}

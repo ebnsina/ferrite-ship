@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/ebnsina/ferrite-ship/internal/alerts"
 	"github.com/ebnsina/ferrite-ship/internal/apierr"
 	"github.com/ebnsina/ferrite-ship/internal/auth"
 	"github.com/ebnsina/ferrite-ship/internal/console"
@@ -33,6 +34,7 @@ type API struct {
 	console   *console.Service
 	dialer    *dialer.Dialer
 	auth      *auth.Service
+	alerts    *alerts.Reporter
 	log       *slog.Logger
 
 	allowedOrigin string
@@ -55,6 +57,7 @@ type Options struct {
 	Console       *console.Service
 	Dialer        *dialer.Dialer
 	Auth          *auth.Service
+	Alerts        *alerts.Reporter
 	Logger        *slog.Logger
 	AllowedOrigin string
 }
@@ -71,6 +74,7 @@ func New(opts Options) *API {
 		console:       opts.Console,
 		dialer:        opts.Dialer,
 		auth:          opts.Auth,
+		alerts:        opts.Alerts,
 		log:           opts.Logger,
 		allowedOrigin: opts.AllowedOrigin,
 	}
@@ -135,12 +139,20 @@ func (a *API) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/apps/{app}/deploy", a.handleDeployApp)
 	mux.HandleFunc("DELETE /v1/apps/{app}", a.handleRemoveApp)
 
+	mux.HandleFunc("GET /v1/notifications", a.handleGetNotifications)
+	mux.HandleFunc("PUT /v1/notifications", a.handleSaveNotifications)
+	mux.HandleFunc("POST /v1/notifications/test", a.handleTestNotification)
+	mux.HandleFunc("GET /v1/alerts", a.handleListAlerts)
+
 	mux.HandleFunc("GET /v1/backups/destination", a.handleGetBackupDestination)
 	mux.HandleFunc("PUT /v1/backups/destination", a.handleSaveBackupDestination)
 	mux.HandleFunc("DELETE /v1/backups/destination", a.handleDeleteBackupDestination)
 	mux.HandleFunc("GET /v1/servers/{id}/tools/{tool}/backups", a.handleListBackups)
 	mux.HandleFunc("POST /v1/servers/{id}/tools/{tool}/backups", a.handleStartBackup)
 	mux.HandleFunc("POST /v1/backups/{backup}/restore", a.handleStartRestore)
+	mux.HandleFunc("GET /v1/servers/{id}/tools/{tool}/schedule", a.handleGetSchedule)
+	mux.HandleFunc("PUT /v1/servers/{id}/tools/{tool}/schedule", a.handleSaveSchedule)
+	mux.HandleFunc("DELETE /v1/servers/{id}/tools/{tool}/schedule", a.handleDeleteSchedule)
 
 	mux.HandleFunc("GET /v1/jobs/{id}", a.handleGetJob)
 	mux.HandleFunc("GET /v1/jobs/{id}/events", a.handleJobEvents)

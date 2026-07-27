@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Seo from '$components/Seo.svelte';
+	import AlertList from '$components/dashboard/AlertList.svelte';
 	import BoardSkeleton from '$components/dashboard/BoardSkeleton.svelte';
 	import DashboardGreeting from '$components/dashboard/DashboardGreeting.svelte';
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
@@ -23,6 +24,11 @@
 	 */
 	const servers = createResource((signal) => dashboardRepository.listServers(signal));
 	const metrics = createResource((signal) => dashboardRepository.listMetrics(signal));
+
+	// So an alert can name the machine rather than its id.
+	const names = $derived(
+		Object.fromEntries((servers.data ?? []).map((server) => [server.id, server.name]))
+	);
 </script>
 
 <Seo title="Overview" description="How your servers are doing right now." noindex />
@@ -40,6 +46,10 @@
 			</ButtonLink>
 		{/snippet}
 	</DashboardGreeting>
+
+	<!-- Above everything, because it is the one thing on this page that is
+	     asking to be acted on. Renders nothing when nothing is wrong. -->
+	<AlertList {names} />
 
 	<ResourceView resource={metrics}>
 		{#snippet pending()}

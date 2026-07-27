@@ -103,6 +103,21 @@ rather than keeping a second copy, so the words live in one repository. The
 only copy the browser owns is for failures the API could not describe because
 it never answered: network, timeout, parse, config.
 
+**Alerts are said once (`internal/alerts`, `internal/store/alerts.go`).** A
+condition opens a row when it starts and clears it when it ends; the database
+decides whether it is new, not the caller. A health check runs every five
+minutes, so anything that mails on "still true" rather than "became true"
+sends twelve messages an hour and teaches the reader to filter them. The
+recovery message is sent only when the problem was announced in the first
+place. Alert wording lives in `internal/notify` for the same reason error
+wording lives in `apierr`.
+
+**Nothing looks at a server unless something asks it to.** `internal/watch` is
+the only thing that does so on its own; facts otherwise refresh as a side
+effect of running a job, which is why a machine that stopped answering used to
+stay "online" indefinitely. A single failed connection is never enough to call
+a server down — the second consecutive one is.
+
 **Credentials (`internal/secret`).** SSH passwords and keys are sealed with
 AES-256-GCM before storage. Never log them, never put them in a response type —
 `api.serverView` is deliberately separate from `store.Server` for this reason.

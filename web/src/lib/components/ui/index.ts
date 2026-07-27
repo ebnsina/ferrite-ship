@@ -16,6 +16,7 @@ export { default as Sheet } from './Sheet.svelte';
 export { default as Skeleton } from './Skeleton.svelte';
 export { default as Sparkline } from './Sparkline.svelte';
 export { default as StatusPill } from './StatusPill.svelte';
+export { default as Switch } from './Switch.svelte';
 export { default as TextArea } from './TextArea.svelte';
 export { default as TextField } from './TextField.svelte';
 export { default as ThemeScope } from './ThemeScope.svelte';

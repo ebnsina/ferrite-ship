@@ -65,13 +65,20 @@ const (
 	JobFailed    JobStatus = "failed"
 )
 
+// ActorScheduled is the actor on a job nobody started by hand.
+//
+// Compared against, not just displayed: it is how the runner knows there is
+// nobody watching the log, and so whether a failure needs to be sent somewhere.
+const ActorScheduled = "Scheduled"
+
 type Job struct {
-	ID       string    `json:"id"`
-	ServerID string    `json:"serverId"`
-	Kind     string    `json:"kind"`
-	Title    string    `json:"title"`
-	Actor    string    `json:"actor"`
-	Status   JobStatus `json:"status"`
+	ID       string `json:"id"`
+	ServerID string `json:"serverId"`
+	Kind     string `json:"kind"`
+	Title    string `json:"title"`
+	// Actor is who asked for it — an email address, or ActorScheduled.
+	Actor  string    `json:"actor"`
+	Status JobStatus `json:"status"`
 
 	StartedAt  time.Time  `json:"startedAt"`
 	FinishedAt *time.Time `json:"finishedAt"`

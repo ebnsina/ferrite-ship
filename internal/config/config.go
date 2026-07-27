@@ -31,7 +31,32 @@ type Config struct {
 	// WebDir is the built dashboard to serve, or empty when the operator set
 	// the literal "none" to run API-only.
 	WebDir string
+	// PublicURL is where this dashboard is reachable, used to put a link in an
+	// alert email, or empty when the operator set the literal "none".
+	PublicURL string
+	// SMTP is where outgoing mail goes, or the zero value when the operator
+	// set the literal "none". With no mail server nothing is sent, and the
+	// settings page says so rather than pretending an address was saved.
+	SMTP SMTP
 }
+
+// SMTP is a mail server to hand messages to.
+type SMTP struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	// From is the address messages are sent as. Mail servers reject a From
+	// they do not recognise, so this is asked for rather than guessed.
+	From string
+	// Implicit is TLS from the first byte (port 465). Otherwise the connection
+	// starts in the clear and is upgraded with STARTTLS, which is required —
+	// a password is being sent.
+	Implicit bool
+}
+
+// Enabled reports whether mail can be sent at all.
+func (s SMTP) Enabled() bool { return s.Host != "" }
 
 // Disabled is the value a variable must carry to switch its feature off.
 //
@@ -85,7 +110,76 @@ func Load() (Config, error) {
 	}
 	cfg.WebDir = webDir
 
+	publicURL, err := requireOriginOrDisabled("FERRITE_PUBLIC_URL", os.Getenv("FERRITE_PUBLIC_URL"))
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.PublicURL = publicURL
+
+	smtp, err := requireSMTPOrDisabled(os.Getenv("FERRITE_SMTP_URL"), os.Getenv("FERRITE_MAIL_FROM"))
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.SMTP = smtp
+
 	return cfg, nil
+}
+
+// requireSMTPOrDisabled accepts smtp://user:password@host:port, or "none".
+//
+// A URL rather than five variables: the five would each need their own "or
+// none" rule, and four of them set with one missing is exactly the state that
+// looks configured and silently sends nothing.
+func requireSMTPOrDisabled(value, from string) (SMTP, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return SMTP{}, &Error{Variable: "FERRITE_SMTP_URL",
+			Reason: `is required — set smtp://user:password@host:port, or "none" to send no mail`}
+	}
+	if value == Disabled {
+		return SMTP{}, nil
+	}
+
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return SMTP{}, &Error{Variable: "FERRITE_SMTP_URL", Reason: "is not a URL"}
+	}
+	if parsed.Scheme != "smtp" && parsed.Scheme != "smtps" {
+		return SMTP{}, &Error{Variable: "FERRITE_SMTP_URL",
+			Reason: `must start with smtp:// (STARTTLS) or smtps:// (TLS from the start)`}
+	}
+	if parsed.Hostname() == "" {
+		return SMTP{}, &Error{Variable: "FERRITE_SMTP_URL", Reason: "has no host"}
+	}
+
+	port, err := strconv.Atoi(parsed.Port())
+	if err != nil || port <= 0 {
+		return SMTP{}, &Error{Variable: "FERRITE_SMTP_URL",
+			Reason: "must name a port, such as :587 for STARTTLS or :465 for TLS"}
+	}
+
+	password, _ := parsed.User.Password()
+	settings := SMTP{
+		Host:     parsed.Hostname(),
+		Port:     port,
+		User:     parsed.User.Username(),
+		Password: password,
+		From:     strings.TrimSpace(from),
+		Implicit: parsed.Scheme == "smtps",
+	}
+
+	// Checked here rather than at the first send: a mail server that rejects
+	// the sender does so at the worst possible moment, which is the one time
+	// something has gone wrong and a message actually matters.
+	if settings.From == "" {
+		return SMTP{}, &Error{Variable: "FERRITE_MAIL_FROM",
+			Reason: "is required when a mail server is configured — the address alerts are sent from"}
+	}
+	if !strings.Contains(settings.From, "@") {
+		return SMTP{}, &Error{Variable: "FERRITE_MAIL_FROM", Reason: "must be an email address"}
+	}
+
+	return settings, nil
 }
 
 // requireOriginOrDisabled accepts an absolute origin, or "none" to allow no

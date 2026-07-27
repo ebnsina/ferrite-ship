@@ -211,6 +211,24 @@ var (
 		"There is nothing here to back up.",
 		"This tool keeps no data of its own, so there is nothing a copy would contain.")
 
+	InvalidCadence = newError(CodeInvalid, 400,
+		"That is not a schedule we can keep.",
+		"Choose daily or weekly, and an hour between 0 and 23.")
+
+	// Notifications
+	InvalidNotificationEmail = newError(CodeInvalid, 400,
+		"That does not look like an email address.",
+		"Enter the address you want alerts sent to, or clear it to turn them off.")
+
+	NoMailServer = newError(CodeUnsupported, 400,
+		"This installation cannot send email.",
+		"No mail server is set up, so alerts have nowhere to go. "+
+			"Set FERRITE_SMTP_URL and FERRITE_MAIL_FROM, then restart.")
+
+	MailNotDelivered = newError(CodeUpstream, 502,
+		"The mail server would not take the message.",
+		"Check the address, and that the mail server details are right.")
+
 	StorageEndpointRequired = newError(CodeInvalid, 400,
 		"We need the address of your storage.",
 		"The endpoint URL your provider gave you, like https://s3.eu-central-1.amazonaws.com.")

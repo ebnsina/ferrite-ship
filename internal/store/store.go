@@ -229,6 +229,44 @@ CREATE TABLE IF NOT EXISTS backup_schedules (
 );
 
 CREATE INDEX IF NOT EXISTS backup_schedules_due_idx ON backup_schedules(next_run_at);
+
+-- Where to write when something happens that nobody was watching.
+CREATE TABLE IF NOT EXISTS notification_settings (
+	user_id          TEXT PRIMARY KEY,
+	-- Empty means nothing is sent. Asked for explicitly rather than taken from
+	-- the login: the address you sign in with is often not the one you read.
+	email            TEXT NOT NULL DEFAULT '',
+	on_backup_failed INTEGER NOT NULL DEFAULT 1,
+	on_server_down   INTEGER NOT NULL DEFAULT 1,
+	on_disk_low      INTEGER NOT NULL DEFAULT 1,
+	-- How full a disk has to be before it is worth saying so.
+	disk_percent     INTEGER NOT NULL DEFAULT 85,
+	updated_at       TEXT
+);
+
+-- Conditions that are currently true, so each is said once.
+--
+-- A row is opened when a condition starts and cleared when it ends, rather
+-- than a message being sent on every check. Without this, a server that is
+-- down overnight produces one mail a minute and the next real alert arrives in
+-- a folder nobody opens.
+CREATE TABLE IF NOT EXISTS alerts (
+	id         TEXT PRIMARY KEY,
+	user_id    TEXT NOT NULL,
+	server_id  TEXT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+	kind       TEXT NOT NULL,
+	subject    TEXT NOT NULL DEFAULT '',
+	detail     TEXT NOT NULL DEFAULT '',
+	opened_at  TEXT NOT NULL,
+	cleared_at TEXT
+);
+
+-- One open alert per condition. Enforced by the database rather than by the
+-- watcher, so two checks that overlap cannot both decide theirs is the first.
+CREATE UNIQUE INDEX IF NOT EXISTS alerts_open_idx
+	ON alerts(server_id, kind, subject) WHERE cleared_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS alerts_user_idx ON alerts(user_id, opened_at DESC);
 `
 
 func Open(path string) (*Store, error) {

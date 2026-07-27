@@ -1,6 +1,7 @@
 <script lang="ts">
 	import DashboardTopbar from '$components/dashboard/DashboardTopbar.svelte';
 	import DestinationSheet from '$components/dashboard/DestinationSheet.svelte';
+	import NotificationSettings from '$components/dashboard/NotificationSettings.svelte';
 	import SectionHeader from '$components/dashboard/SectionHeader.svelte';
 	import Seo from '$components/Seo.svelte';
 	import { Button, Card, ConfirmDialog, ErrorState, Skeleton } from '$components/ui';
@@ -48,12 +49,21 @@
 	});
 </script>
 
-<Seo title="Settings" description="Where your backups are kept." noindex />
+<Seo title="Settings" description="How you are told about problems, and where backups are kept." noindex />
 
 <DashboardTopbar crumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Settings' }]} />
 
 <div class="space-y-6 px-6 py-8">
 	<SectionHeader title="Settings" description="How Ferrite Ship is set up for you." />
+
+	<section class="space-y-3">
+		<h2 class="text-content text-sm font-medium">When we should tell you something</h2>
+		<p class="text-content-muted max-w-2xl text-sm leading-relaxed">
+			Most of what happens here happens because you pressed a button and watched it run. These
+			are the things that do not — and finding out about them a week later is no use.
+		</p>
+		<NotificationSettings />
+	</section>
 
 	<section class="space-y-3">
 		<h2 class="text-content text-sm font-medium">Where backups are kept</h2>
