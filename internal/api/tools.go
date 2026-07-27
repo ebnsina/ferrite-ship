@@ -139,7 +139,12 @@ type connectionView struct {
 	// Web says the URL is opened in a browser rather than pasted into a
 	// client, which changes every label around it: "open this and sign in"
 	// rather than "connect with this".
-	Web      bool   `json:"web"`
+	Web bool `json:"web"`
+	// WebURL is the browser interface of a tool that also speaks to clients on
+	// a different port — RabbitMQ's management page, MinIO's file browser.
+	// Empty for everything else, including tools that are nothing but a web
+	// interface, where URL is already that address.
+	WebURL   string `json:"webUrl,omitempty"`
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
 	Username string `json:"username"`
@@ -201,17 +206,31 @@ func (a *API) handleToolConnection(w http.ResponseWriter, r *http.Request) {
 	// public address here would produce a connection string that always fails.
 	view.Host = "127.0.0.1"
 	switch {
-	case tool.Web && server.Domain != "":
-		// Routed through Traefik, so it answers on the web with a certificate
-		// and there is nothing to tunnel. Public in the sense that matters
-		// here: anyone can reach the sign-in page.
+	case tool.Web && !tool.HasSeparateWeb() && server.Domain != "":
+		// The tool is nothing but its web interface, and it is routed — so it
+		// answers with a certificate and there is nothing to tunnel. Public in
+		// the sense that matters here: anyone can reach the sign-in page.
 		view.Host = tool.Subdomain(server.Domain)
 		view.Port = 443
 		view.Public = true
 	case view.Public:
 		view.Host = server.Host
 	default:
-		view.Tunnel = tunnelCommand(server, tool.Access.Port)
+		// A tool with two faces needs both forwarded, or the management page
+		// is missing from the one arrangement where somebody most needs it.
+		view.Tunnel = tunnelCommand(server, tunnelPorts(tool)...)
+	}
+
+	// Where the browser interface is a different port from the one clients
+	// use, it is a second address rather than a replacement for the first.
+	if tool.HasSeparateWeb() {
+		if server.Domain != "" {
+			view.WebURL = "https://" + tool.Subdomain(server.Domain) + "/"
+		} else {
+			// No domain, so it is reached through the tunnel above like
+			// everything else.
+			view.WebURL = "http://127.0.0.1:" + strconv.Itoa(tool.WebPort) + "/"
+		}
 	}
 
 	view.URL = connectionURL(tool, view)
@@ -265,10 +284,26 @@ func connectionURL(tool catalog.Tool, view connectionView) string {
 	return address.String()
 }
 
-// tunnelCommand is the ssh invocation that forwards a private port to the
-// person's own machine, which is how a loopback-only database is reached.
-func tunnelCommand(server store.Server, port int) string {
-	command := "ssh -N -L " + strconv.Itoa(port) + ":127.0.0.1:" + strconv.Itoa(port)
+// tunnelPorts are the ports a tunnel has to forward to make a tool usable.
+//
+// Two for a tool with a management page on its own port: forwarding only the
+// client port leaves the page unreachable in exactly the situation where
+// somebody is most likely to want it, which is a server with no domain.
+func tunnelPorts(tool catalog.Tool) []int {
+	ports := []int{tool.Access.Port}
+	if tool.HasSeparateWeb() {
+		ports = append(ports, tool.WebPort)
+	}
+	return ports
+}
+
+// tunnelCommand is the ssh invocation that forwards private ports to the
+// person's own machine, which is how a loopback-only tool is reached.
+func tunnelCommand(server store.Server, ports ...int) string {
+	command := "ssh -N"
+	for _, port := range ports {
+		command += " -L " + strconv.Itoa(port) + ":127.0.0.1:" + strconv.Itoa(port)
+	}
 	if server.Port != 0 && server.Port != 22 {
 		command += " -p " + strconv.Itoa(server.Port)
 	}

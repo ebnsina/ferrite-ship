@@ -82,6 +82,13 @@ export interface ToolConnection {
 	 * password in it, and the sign-in details stand on their own.
 	 */
 	web: boolean;
+	/**
+	 * The browser interface of a tool that also speaks to clients on another
+	 * port — RabbitMQ's management page, MinIO's file browser. Absent for
+	 * everything else, including tools that are nothing but a web interface,
+	 * where `url` is already that address.
+	 */
+	webUrl?: string;
 }
 
 interface StartedJob {

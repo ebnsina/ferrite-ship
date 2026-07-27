@@ -8,6 +8,8 @@ import CircleCheck from '@lucide/svelte/icons/circle-check';
 import CircleDashed from '@lucide/svelte/icons/circle-dashed';
 import CircleX from '@lucide/svelte/icons/circle-x';
 import Database from '@lucide/svelte/icons/database';
+import HardDrive from '@lucide/svelte/icons/hard-drive';
+import Layers from '@lucide/svelte/icons/layers';
 import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 import Package from '@lucide/svelte/icons/package';
 import Radio from '@lucide/svelte/icons/radio';
@@ -33,7 +35,9 @@ const ICONS: Record<string, Component<LucideProps>> = {
 	Route,
 	Search,
 	Radio,
-	Astroid
+	Astroid,
+	Layers,
+	HardDrive
 };
 
 export function toolIcon(name: string): Component<LucideProps> {

@@ -102,6 +102,17 @@
 				/>
 			{/if}
 
+			{#if connection.webUrl}
+				<!-- A second address, not a replacement for the one above: this
+				     tool answers clients on one port and shows a page on
+				     another, and somebody generally wants both. -->
+				<CopyField
+					label="And a page to look at"
+					value={connection.webUrl}
+					hint="Sign in with the same details below."
+				/>
+			{/if}
+
 			<div class="grid gap-4 sm:grid-cols-2">
 				<CopyField label="Username" value={connection.username} />
 				<CopyField label="Password" value={connection.password} secret />

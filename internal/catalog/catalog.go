@@ -68,6 +68,11 @@ type Tool struct {
 	// hostile — so a web tool is given a plain address and its sign-in details
 	// separately.
 	Web bool `json:"web"`
+	// WebPort is where that browser interface listens, when it is not the same
+	// port clients use. Zero means the tool is one thing on one port —
+	// Grafana is entirely its own web interface, where RabbitMQ answers
+	// clients on 5672 and shows a management page on 15672.
+	WebPort int `json:"-"`
 	// Volumes are the compose volume names holding this tool's data. Named
 	// explicitly rather than derived, because they are what "also delete the
 	// data" deletes and a wrong guess there is unrecoverable.
@@ -131,7 +136,8 @@ func All() []Tool {
 	// Traefik first: it is the one thing here that other tools are reached
 	// through, so it reads as infrastructure rather than as another database.
 	tools := []Tool{
-		traefik, postgres, redis, clickhouse, meilisearch, qdrant, nats, grafana, mediamtx,
+		traefik, postgres, redis, clickhouse, meilisearch, qdrant,
+		nats, rabbitmq, minio, grafana, mediamtx,
 	}
 	for i := range tools {
 		tools[i].KeepsData = len(tools[i].Volumes) > 0
@@ -168,6 +174,33 @@ func (t Tool) Subdomain(domain string) string {
 		return ""
 	}
 	return t.ID + "." + domain
+}
+
+// RoutedPort is the port Traefik sends to.
+//
+// Traefik guesses when a container exposes one port and refuses to guess when
+// it exposes several, so this is always written into the compose file rather
+// than left to chance — and it is derived here so the label and the dashboard
+// cannot disagree about which face of the tool is the web one.
+func (t Tool) RoutedPort() int {
+	if t.WebPort != 0 {
+		return t.WebPort
+	}
+	if t.Access != nil {
+		return t.Access.Port
+	}
+	return 0
+}
+
+// HasSeparateWeb reports whether the browser interface and the port clients
+// use are different things.
+//
+// The distinction decides what "connect to this" offers. Where they are the
+// same, the tool is its web interface and an address is the whole answer.
+// Where they differ, someone needs both: a connection string for their code,
+// and a page to look at.
+func (t Tool) HasSeparateWeb() bool {
+	return t.Web && t.WebPort != 0 && t.Access != nil && t.WebPort != t.Access.Port
 }
 
 // PublicPorts are the ports the firewall must open for this tool.

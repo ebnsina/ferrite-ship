@@ -628,6 +628,158 @@ networks:
 	},
 }
 
+// rabbitmq is the first tool with two faces: clients speak AMQP on 5672, and
+// there is a management page on 15672. Both belong to the same tool, so it is
+// one entry with a WebPort rather than two.
+var rabbitmq = Tool{
+	ID:       "rabbitmq",
+	Name:     "RabbitMQ",
+	Summary:  "Queues work to be done later, so a slow job never keeps somebody waiting.",
+	Category: "Messaging",
+	Icon:     "Layers",
+	// RabbitMQ orange, from their mark.
+	Accent:  "#FF6600",
+	Image:   "rabbitmq:4-management",
+	Version: "4",
+	Web:     true,
+	WebPort: 15672,
+	Ports: []Port{
+		{Number: 5672, Protocol: "tcp", Purpose: "Publishing and consuming"},
+		{Number: 15672, Protocol: "tcp", Purpose: "The management page"},
+	},
+	Access:   &Access{Scheme: "amqp", Username: "ferrite", Port: 5672},
+	Volumes:  []string{"data"},
+	DataNote: "Removing RabbitMQ stops it and deletes its settings, but keeps any queued messages unless you ask for those too.",
+	compose: `# Managed by Ferrite Ship. Edits are replaced the next time this tool is set up.
+name: ferrite-rabbitmq
+
+services:
+  rabbitmq:
+    # The -management tag, because the plain image has no web page at all and
+    # adding the plugin afterwards means a custom image to maintain.
+    image: rabbitmq:4-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ferrite
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?}
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - data:/var/lib/rabbitmq
+    networks: [ferrite]
+    labels:
+      - traefik.enable=${RABBITMQ_ROUTED:?}
+      - traefik.http.routers.rabbitmq.rule=Host(` + "`" + `rabbitmq.${FERRITE_DOMAIN}` + "`" + `)
+      - traefik.http.routers.rabbitmq.entrypoints=websecure
+      - traefik.http.routers.rabbitmq.tls.certresolver=le
+      # The management page, not the port clients use. Routing 5672 would put
+      # a binary protocol behind an HTTP proxy, which fails in a way that
+      # looks like the queue is broken.
+      - traefik.http.services.rabbitmq.loadbalancer.server.port=15672
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      # Slower than the others on purpose: RabbitMQ takes a while to come up,
+      # and a tighter window reports a healthy broker as failed.
+      retries: 12
+      start_period: 30s
+
+volumes:
+  data:
+
+networks:
+  ferrite:
+    external: true
+`,
+	env: func(in Install) []string {
+		return append(
+			[]string{"RABBITMQ_PASSWORD=" + in.Password},
+			routing("RABBITMQ", in)...,
+		)
+	},
+}
+
+// minio stores files the way S3 does, so anything written against S3 works
+// against it unchanged.
+//
+// Worth knowing before choosing it: the community edition's administrative
+// interface was removed in RELEASE.2025-05-24, leaving an object browser, and
+// the newest community tag is from September 2025. The storage itself is
+// unaffected and the API is the part applications use, but managing it means
+// the mc command line rather than a page.
+var minio = Tool{
+	ID:       "minio",
+	Name:     "MinIO",
+	Summary:  "Holds files and uploads, and speaks the same language as S3 so existing code works against it.",
+	Category: "Storage",
+	Icon:     "HardDrive",
+	// MinIO red, from their mark.
+	Accent: "#C72E49",
+	// A dated release rather than a major line: MinIO publishes no moving tag
+	// but "latest", and latest is how a server changes underneath you.
+	Image:   "minio/minio:RELEASE.2025-09-07T16-13-09Z",
+	Version: "2025-09-07",
+	Web:     true,
+	WebPort: 9001,
+	Ports: []Port{
+		{Number: 9000, Protocol: "tcp", Purpose: "Reading and writing files"},
+		{Number: 9001, Protocol: "tcp", Purpose: "The file browser"},
+	},
+	Access:   &Access{Scheme: "s3", Username: "ferrite", Port: 9000},
+	Volumes:  []string{"data"},
+	DataNote: "Removing MinIO stops it and deletes its settings, but keeps the files you uploaded unless you ask for those too.",
+	compose: `# Managed by Ferrite Ship. Edits are replaced the next time this tool is set up.
+name: ferrite-minio
+
+services:
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    # The console port has to be fixed. Left unset MinIO picks a new one on
+    # every start, and the address in the dashboard is then right only until
+    # the container restarts.
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ferrite
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:?}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - data:/data
+    networks: [ferrite]
+    labels:
+      - traefik.enable=${MINIO_ROUTED:?}
+      - traefik.http.routers.minio.rule=Host(` + "`" + `minio.${FERRITE_DOMAIN}` + "`" + `)
+      - traefik.http.routers.minio.entrypoints=websecure
+      - traefik.http.routers.minio.tls.certresolver=le
+      # The browser, not the S3 API. Uploads go to the API port through the
+      # tunnel or from the server itself.
+      - traefik.http.services.minio.loadbalancer.server.port=9001
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  data:
+
+networks:
+  ferrite:
+    external: true
+`,
+	env: func(in Install) []string {
+		return append(
+			[]string{"MINIO_PASSWORD=" + in.Password},
+			routing("MINIO", in)...,
+		)
+	},
+}
+
 var mediamtx = Tool{
 	ID:       "mediamtx",
 	Name:     "MediaMTX",

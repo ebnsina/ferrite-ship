@@ -338,12 +338,22 @@ func TestWebToolsRouteToTheirOwnSubdomain(t *testing.T) {
 			t.Errorf("%s.Subdomain() = %q, want %s.example.com", tool.ID, got, tool.ID)
 		}
 
-		// A web tool that is routed but never told which port to send to is
-		// only safe while it exposes exactly one — Traefik refuses to guess
-		// past that, and the tool becomes unreachable the day the image adds
-		// a second port.
-		if !strings.Contains(tool.compose, "loadbalancer.server.port=") {
-			t.Errorf("%s does not say which port Traefik should send to", tool.ID)
+		// Which port, exactly. Traefik refuses to guess once a container
+		// exposes more than one, and guessing wrong is worse than not
+		// guessing: routing RabbitMQ's 5672 would put a binary protocol
+		// behind an HTTP proxy, which fails looking like a broken queue
+		// rather than like a misrouted port.
+		port := "loadbalancer.server.port=" + itoa(tool.RoutedPort())
+		if !strings.Contains(tool.compose, port) {
+			t.Errorf("%s should route to %s, and its compose file does not say so",
+				tool.ID, port)
+		}
+
+		// The two-faced tools are the reason RoutedPort exists. If it ever
+		// returns the port clients use, the management page is unreachable and
+		// the queue is being proxied.
+		if tool.HasSeparateWeb() && tool.RoutedPort() == tool.Access.Port {
+			t.Errorf("%s routes the port clients use rather than its web interface", tool.ID)
 		}
 	}
 }

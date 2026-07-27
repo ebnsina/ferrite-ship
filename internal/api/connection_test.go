@@ -6,6 +6,7 @@ import (
 
 	"github.com/ebnsina/ferrite-ship/internal/apierr"
 	"github.com/ebnsina/ferrite-ship/internal/catalog"
+	"github.com/ebnsina/ferrite-ship/internal/store"
 )
 
 // A web tool's address must not carry the password.
@@ -116,5 +117,78 @@ func TestNoBackupMessageMatchesWhetherTheToolStoresAnything(t *testing.T) {
 		if got := noBackupFor(tool).Message; got != tc.want {
 			t.Errorf("%s: %q, want %q", tc.id, got, tc.want)
 		}
+	}
+}
+
+// A tool with a management page on its own port needs both forwarded.
+//
+// Forwarding only the client port leaves the page unreachable in exactly the
+// situation where somebody is most likely to want it — a server with no
+// domain, where the tunnel is the only way in at all.
+func TestTunnelForwardsBothFacesOfATool(t *testing.T) {
+	server := store.Server{User: "ferrite", Host: "203.0.113.10", Port: 22}
+
+	rabbit, err := catalog.Find("rabbitmq")
+	if err != nil {
+		t.Fatalf("find rabbitmq: %v", err)
+	}
+	got := tunnelCommand(server, tunnelPorts(rabbit)...)
+	for _, want := range []string{"-L 5672:127.0.0.1:5672", "-L 15672:127.0.0.1:15672"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("tunnel %q is missing %q", got, want)
+		}
+	}
+
+	// A tool with one face forwards one port, and the command must not have
+	// grown a stray flag now that it is built from a list.
+	pg, err := catalog.Find("postgres")
+	if err != nil {
+		t.Fatalf("find postgres: %v", err)
+	}
+	single := tunnelCommand(server, tunnelPorts(pg)...)
+	if want := "ssh -N -L 5432:127.0.0.1:5432 ferrite@203.0.113.10"; single != want {
+		t.Errorf("tunnel = %q, want %q", single, want)
+	}
+}
+
+// A non-default SSH port has to survive being appended after the forwards.
+func TestTunnelKeepsANonDefaultSSHPort(t *testing.T) {
+	server := store.Server{User: "ferrite", Host: "203.0.113.10", Port: 2222}
+	got := tunnelCommand(server, 5432)
+	if want := "ssh -N -L 5432:127.0.0.1:5432 -p 2222 ferrite@203.0.113.10"; got != want {
+		t.Errorf("tunnel = %q, want %q", got, want)
+	}
+}
+
+// Which port each two-faced tool routes. Getting this backwards puts a binary
+// protocol behind an HTTP proxy, and the symptom is a queue that looks broken
+// rather than a port that looks misrouted.
+func TestTwoFacedToolsRouteTheirWebInterface(t *testing.T) {
+	for id, want := range map[string]int{"rabbitmq": 15672, "minio": 9001} {
+		tool, err := catalog.Find(id)
+		if err != nil {
+			t.Fatalf("find %s: %v", id, err)
+		}
+		if !tool.HasSeparateWeb() {
+			t.Errorf("%s should have a web interface separate from its client port", id)
+		}
+		if got := tool.RoutedPort(); got != want {
+			t.Errorf("%s routes %d, want %d", id, got, want)
+		}
+		if tool.RoutedPort() == tool.Access.Port {
+			t.Errorf("%s routes the port its clients use", id)
+		}
+	}
+
+	// And a one-faced tool still routes its only port.
+	grafana, err := catalog.Find("grafana")
+	if err != nil {
+		t.Fatalf("find grafana: %v", err)
+	}
+	if grafana.HasSeparateWeb() {
+		t.Error("grafana is entirely its own web interface")
+	}
+	if got := grafana.RoutedPort(); got != 3000 {
+		t.Errorf("grafana routes %d, want 3000", got)
 	}
 }
